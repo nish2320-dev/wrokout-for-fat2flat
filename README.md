@@ -1,53 +1,41 @@
-# Fat2Flat Fitness — App Store screenshots
+# Fat2Flat Fitness
 
-Reproducible generator for the iOS App Store screenshot set. Layouts are
-rendered in headless Chromium, so every export is pixel-identical and can be
-regenerated whenever the copy, numbers or branding change.
+| | |
+|---|---|
+| [`mobile/`](mobile) | The iOS app — Expo / React Native. Start here to run it on a phone. |
+| [`screenshots/`](screenshots) | Generator for the App Store screenshot set and the app icons. |
 
-## Generate
+## Run the app on your iPhone
+
+No Mac needed. Install **Expo Go** on the phone, then:
 
 ```bash
+cd mobile
 npm install
-node generate.mjs                 # every size
-node generate.mjs --sizes 6.9     # just one
-node generate.mjs --logo assets/logo.png
+npx expo start
 ```
 
-Output lands in `out/<size>/NN-<screen>.png`, ready to upload to
-App Store Connect.
+Scan the QR code with the iPhone Camera app. Full details, including how to get
+to TestFlight, are in [`mobile/README.md`](mobile/README.md).
 
-## Sizes
+## What the app does
 
-| Key   | Pixels      | Devices                            |
-|-------|-------------|------------------------------------|
-| `6.9` | 1320 × 2868 | iPhone 16/17 Pro Max — **required** |
-| `6.7` | 1290 × 2796 | iPhone 14/15 Pro Max               |
-| `6.5` | 1242 × 2688 | iPhone 11 Pro Max, XS Max          |
+A workout tracker that keeps everything on the device — no account, no server.
 
-App Store Connect scales the 6.9" set down for smaller devices, so uploading
-`6.9` alone is enough; the other two are there if you'd rather upload
-natively-rendered images for each class.
+- Build a workout from your muscle group, available equipment, goal and the
+  time you have, or start an empty one.
+- Log sets as you go, with a rest timer and your previous best for each lift.
+- Browse an exercise library with form cues for every movement.
+- Track volume by week, body weight over time, personal records and your streak.
+- Log meals against daily calorie and protein goals.
 
-## How it works
+## Repo notes
 
-- `src/screens.js` — all five screens, authored at iPhone logical size
-  (393 × 852 pt) as plain markup.
-- `src/poster.css` — the design system: brand colours, cards, chips, chart
-  and device frame.
-- `src/render.js` — computes the poster geometry for the target canvas and
-  scales the phone UI by a single factor (`--k`), so the artwork is identical
-  at every resolution instead of being re-flowed per size.
-- `generate.mjs` — drives Chromium and writes the PNGs. It reports how each
-  screen fills the phone body (`0px of slack` = the content lands exactly on
-  the tab bar), which is what keeps the screenshots free of dead space.
+The two projects share a palette: `mobile/src/theme.ts` and
+`screenshots/src/poster.css` define the same brand tokens, and the app icons are
+rendered by `screenshots/make-icons.mjs` into `mobile/assets/images/`.
 
-## Swapping in the real logo
-
-Drop the app icon at `assets/logo.png` and re-run. Without it the generator
-falls back to a built-in wordmark lockup.
-
-## Editing the copy
-
-Headlines, subheads and screen order live in the `SLIDES` array at the bottom
-of `src/screens.js`. Keep headlines to two lines — the `<br>` is explicit so
-wrapping never changes between export sizes.
+The screenshots in `screenshots/out/` were designed before the app existed, so
+they are **mockups, not captures of the running app**. App Store Review
+Guideline 2.3.3 requires screenshots to show the app in actual use — recapture
+them from the real app (or update the mockups to match it) before submitting.
