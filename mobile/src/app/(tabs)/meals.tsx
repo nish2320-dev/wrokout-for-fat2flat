@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useStore } from '@/data/store';
@@ -22,6 +22,15 @@ export default function MealsScreen() {
   const earlier = state.meals.filter((m) => startOfDay(m.at) !== today).slice(0, 10);
 
   const valid = name.trim() !== '' && calories !== '';
+  // say what's missing rather than leaving a grey button to puzzle over
+  const missing =
+    name.trim() === '' && calories === ''
+      ? 'Enter what you ate and its calories to add it.'
+      : name.trim() === ''
+        ? 'Enter what you ate to add it.'
+        : calories === ''
+          ? 'Enter the calories to add it.'
+          : null;
 
   const submit = () => {
     if (!valid) return;
@@ -33,6 +42,7 @@ export default function MealsScreen() {
     setName('');
     setCalories('');
     setProtein('');
+    Keyboard.dismiss();
   };
 
   return (
@@ -90,13 +100,14 @@ export default function MealsScreen() {
           <TextInput
             value={protein}
             onChangeText={(t) => setProtein(t.replace(/[^0-9]/g, ''))}
-            placeholder="Protein (g)"
+            placeholder="Protein (g, optional)"
             placeholderTextColor={C.muted}
             keyboardType="number-pad"
             style={[s.input, { flex: 1 }]}
           />
         </View>
         <Btn label="Add meal" icon="add" onPress={submit} disabled={!valid} style={{ marginTop: 10 }} />
+        {missing ? <Meta style={{ textAlign: 'center', marginTop: 8 }}>{missing}</Meta> : null}
       </Card>
 
       <Card flush>
