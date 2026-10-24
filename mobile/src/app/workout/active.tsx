@@ -1,11 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { byId, exerciseName } from '@/data/exercises';
 import { previousBest } from '@/data/stats';
 import { useActiveWorkout, useStore } from '@/data/store';
+import { fmtWeight } from '@/data/units';
 import { C } from '@/theme';
 import { Btn, Card, CardTitle, Empty, Meta, Row, Screen, Tag } from '@/ui/kit';
 
@@ -17,18 +19,39 @@ export default function ActiveWorkoutScreen() {
   const { state, addSet, updateSet, toggleSetDone, finishWorkout, discardWorkout, removeExercise } = useStore();
 
   const [now, setNow] = useState(Date.now());
-  const [rest, setRest] = useState<number | null>(null);
-  const restRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // The rest timer is an end time, not a counter, so it stays right while the
+  // phone is locked or the app is in the background and the ticker is paused.
+  const [restEndsAt, setRestEndsAt] = useState<number | null>(null);
+  const [restTotal, setRestTotal] = useState(REST_SECONDS);
 
   // one ticker drives both the elapsed clock and the rest countdown
   useEffect(() => {
-    const id = setInterval(() => {
-      setNow(Date.now());
-      setRest((r) => (r === null ? null : r <= 1 ? null : r - 1));
-    }, 1000);
-    restRef.current = id;
+    const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    if (restEndsAt === null || now < restEndsAt) return;
+    setRestEndsAt(null);
+    // buzz only when we catch the end live, not on returning long after it
+    if (now - restEndsAt < 2000) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    }
+  }, [now, restEndsAt]);
+
+  const rest = restEndsAt === null ? null : Math.max(0, Math.ceil((restEndsAt - now) / 1000));
+
+  const startRest = () => {
+    const t = Date.now();
+    setNow(t);
+    setRestTotal(REST_SECONDS);
+    setRestEndsAt(t + REST_SECONDS * 1000);
+  };
+
+  const extendRest = () => {
+    setRestTotal((n) => n + 30);
+    setRestEndsAt((e) => (e ?? Date.now()) + 30000);
+  };
 
   if (!workout) {
     return (
@@ -54,7 +77,8 @@ export default function ActiveWorkoutScreen() {
 
   const onToggle = (ei: number, si: number, wasDone: boolean) => {
     toggleSetDone(ei, si);
-    setRest(wasDone ? null : REST_SECONDS);
+    if (wasDone) setRestEndsAt(null);
+    else startRest();
   };
 
   const confirmFinish = () => {
@@ -111,12 +135,12 @@ export default function ActiveWorkoutScreen() {
             </Text>
           </View>
           <View style={s.restTrack}>
-            <View style={[s.restFill, { width: `${(rest / REST_SECONDS) * 100}%` }]} />
+            <View style={[s.restFill, { width: `${Math.min(100, (rest / restTotal) * 100)}%` }]} />
           </View>
-          <Pressable onPress={() => setRest((r) => (r ?? 0) + 30)} style={s.restBtn}>
+          <Pressable onPress={extendRest} style={s.restBtn}>
             <Text style={s.restBtnText}>+30s</Text>
           </Pressable>
-          <Pressable onPress={() => setRest(null)} style={s.restBtn}>
+          <Pressable onPress={() => setRestEndsAt(null)} style={s.restBtn}>
             <Ionicons name="close" size={14} color="#fff" />
           </Pressable>
         </View>
@@ -144,7 +168,7 @@ export default function ActiveWorkoutScreen() {
                   <CardTitle>{exerciseName(ex.exerciseId)}</CardTitle>
                   <Meta>
                     {best
-                      ? `Last time: ${best.reps} × ${best.weight} ${state.profile.units}`
+                      ? `Last time: ${best.reps} × ${fmtWeight(best.weight)} ${state.profile.units}`
                       : meta
                         ? `${meta.compound ? 'Compound' : 'Isolation'} · first time`
                         : ''}
@@ -177,6 +201,7 @@ export default function ActiveWorkoutScreen() {
                   />
                   <NumField
                     value={set.weight}
+                    format={fmtWeight}
                     onChange={(weight) => updateSet(ei, si, { weight })}
                     accessibilityLabel={`Weight for set ${si + 1}`}
                   />
@@ -221,16 +246,20 @@ function NumField({
   value,
   onChange,
   accessibilityLabel,
+  format = String,
 }: {
   value: number;
   onChange: (n: number) => void;
   accessibilityLabel: string;
+  format?: (n: number) => string;
 }) {
-  const [text, setText] = useState(String(value));
+  const [text, setText] = useState(format(value));
 
+  // only resync when the value changed from outside (e.g. a unit switch), so
+  // reformatting never rewrites what the user is in the middle of typing
   useEffect(() => {
-    setText(String(value));
-  }, [value]);
+    setText((t) => (parseFloat(t) === value ? t : format(value)));
+  }, [value, format]);
 
   return (
     <TextInput
@@ -243,7 +272,7 @@ function NumField({
       }}
       onBlur={() => {
         if (text === '' || Number.isNaN(parseFloat(text))) {
-          setText(String(value));
+          setText(format(value));
         }
       }}
       keyboardType="decimal-pad"

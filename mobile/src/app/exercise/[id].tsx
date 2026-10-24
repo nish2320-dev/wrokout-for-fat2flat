@@ -5,6 +5,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { byId, equipmentLabel, muscleLabel } from '@/data/exercises';
 import { personalRecords } from '@/data/stats';
 import { useActiveWorkout, useStore } from '@/data/store';
+import { fmtWeight } from '@/data/units';
 import { C } from '@/theme';
 import { Btn, Card, CardTitle, Empty, Label, Row, Screen, Tag } from '@/ui/kit';
 
@@ -44,7 +45,7 @@ export default function ExerciseGuide() {
             <View>
               <Label>Your best set</Label>
               <Text style={s.pr}>
-                {pr.reps} × {pr.weight} {state.profile.units}
+                {pr.reps} × {fmtWeight(pr.weight)} {state.profile.units}
               </Text>
             </View>
             <Ionicons name="trophy" size={22} color={C.red} />

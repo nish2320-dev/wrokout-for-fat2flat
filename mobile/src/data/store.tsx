@@ -11,6 +11,7 @@ import {
 } from 'react';
 
 import { AppState, LoggedExercise, Meal, Profile, SetEntry, WeighIn, Workout, initialState } from './types';
+import { convertUnits } from './units';
 
 const KEY = 'fat2flat.state.v1';
 
@@ -168,7 +169,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
 
     updateProfile(patch) {
-      setState((s) => ({ ...s, profile: { ...s.profile, ...patch } }));
+      setState((s) => {
+        // a unit change rewrites stored weights too, so 100 lb doesn't become 100 kg
+        const converted = patch.units ? convertUnits(s, patch.units) : s;
+        return { ...converted, profile: { ...converted.profile, ...patch } };
+      });
     },
 
     resetAll() {

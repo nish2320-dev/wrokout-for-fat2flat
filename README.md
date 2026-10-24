@@ -39,3 +39,11 @@ The screenshots in `screenshots/out/` were designed before the app existed, so
 they are **mockups, not captures of the running app**. App Store Review
 Guideline 2.3.3 requires screenshots to show the app in actual use — recapture
 them from the real app (or update the mockups to match it) before submitting.
+
+## Privacy policy
+
+[`PRIVACY.md`](PRIVACY.md) is the app's privacy policy. App Store Connect needs
+it at a public URL: host it on a public page (GitHub Pages, a Notion page, your
+own site) after filling in the `[DATE]` and `[SUPPORT EMAIL]` placeholders. In
+App Store Connect's App Privacy section, answer **"Data Not Collected"**, which
+matches what the policy says. Keep the two in sync if that ever changes.

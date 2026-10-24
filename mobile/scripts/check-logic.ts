@@ -4,6 +4,7 @@ declare const process: { exit(code: number): never };
 import { generate, planToExercises } from '../src/data/generator';
 import { personalRecords, streak, thisWeek, todayMacros, volume, weeklyVolume } from '../src/data/stats';
 import { AppState, initialState } from '../src/data/types';
+import { convertUnits, fmtWeight } from '../src/data/units';
 
 const DAY = 86400000;
 const now = Date.now();
@@ -61,6 +62,22 @@ const withMeals: AppState = {
   ],
 };
 eq('today macros ignore older meals', todayMacros(withMeals), { calories: 300, protein: 20 });
+
+// --- units ---
+const lb: AppState = { ...s, weighIns: [{ at: now, weight: 200 }] };
+const kg = convertUnits(lb, 'kg');
+eq('switching to kg sets the unit', kg.profile.units, 'kg');
+eq('set weights convert to kg', fmtWeight(kg.workouts[0].exercises[0].sets[0].weight), '45.36');
+eq('weigh-ins convert to kg', fmtWeight(kg.weighIns[0].weight), '90.72');
+let back = kg;
+for (let i = 0; i < 10; i++) back = convertUnits(convertUnits(back, 'lb'), 'kg');
+back = convertUnits(back, 'lb');
+const near = (n: number) => Math.round(n * 1e6) / 1e6;
+eq('repeated switching never drifts sets', back.workouts.map((x) => near(x.exercises[0].sets[0].weight)), [100, 90, 80, 70]);
+eq('repeated switching never drifts weigh-ins', near(back.weighIns[0].weight), 200);
+eq('same unit is a no-op', convertUnits(lb, 'lb'), lb);
+eq('zero weight stays zero', convertUnits({ ...s, workouts: [w(0, 0, 10)] }, 'kg').workouts[0].exercises[0].sets[0].weight, 0);
+eq('fmtWeight trims to two decimals', [fmtWeight(45.359237), fmtWeight(100), fmtWeight(22.25), fmtWeight(99.999)], ['45.36', '100', '22.25', '100']);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

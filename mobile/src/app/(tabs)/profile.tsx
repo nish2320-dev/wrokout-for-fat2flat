@@ -99,7 +99,7 @@ export default function ProfileScreen() {
         <Row>
           <View style={{ flex: 1 }}>
             <CardTitle>Units</CardTitle>
-            <Meta>Applies to weights and volume everywhere.</Meta>
+            <Meta>Switching converts every weight you've logged.</Meta>
           </View>
           <View style={s.seg}>
             {(['lb', 'kg'] as const).map((u) => (

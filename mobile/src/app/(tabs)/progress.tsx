@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { exerciseName } from '@/data/exercises';
 import { useStore } from '@/data/store';
 import { finished, fmtDate, fmtVolume, personalRecords, streak, volume, weeklyVolume } from '@/data/stats';
+import { fmtWeight } from '@/data/units';
 import { C, S } from '@/theme';
 import { Bars, Btn, Card, CardTitle, Empty, Label, Meta, Metric, Name, Row, Screen, Tag, Title, Trend } from '@/ui/kit';
 
@@ -88,7 +89,7 @@ export default function ProgressScreen() {
           <View style={{ flex: 1 }}>
             <CardTitle>Body weight</CardTitle>
             <Meta>
-              {last !== undefined ? `${last} ${units} · ${weights.length} weigh-ins` : 'No weigh-ins yet'}
+              {last !== undefined ? `${fmtWeight(last)} ${units} · ${weights.length} weigh-ins` : 'No weigh-ins yet'}
             </Meta>
           </View>
           {delta !== null && delta !== 0 ? (
@@ -145,7 +146,7 @@ export default function ProgressScreen() {
                 <Meta>{fmtDate(pr.at)}</Meta>
               </View>
               <Text style={s.prVal}>
-                {pr.weight} {units}
+                {fmtWeight(pr.weight)} {units}
               </Text>
             </View>
           ))
