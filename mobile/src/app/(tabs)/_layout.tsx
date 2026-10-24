@@ -9,7 +9,8 @@ type IconName = keyof typeof Ionicons.glyphMap;
 const tab = (title: string, icon: IconName, active: IconName) => ({
   title,
   tabBarIcon: ({ focused, color, size }: { focused: boolean; color: ColorValue; size: number }) => (
-    <Ionicons name={focused ? active : icon} size={size} color={color} />
+    // the tints set below are plain strings; ColorValue is just the wider navigator type
+    <Ionicons name={focused ? active : icon} size={size} color={color as string} />
   ),
 });
 
