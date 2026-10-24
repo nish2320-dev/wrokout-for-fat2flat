@@ -8,6 +8,7 @@ import { byId, exerciseName } from '@/data/exercises';
 import { previousBest } from '@/data/stats';
 import { useActiveWorkout, useStore } from '@/data/store';
 import { fmtWeight } from '@/data/units';
+import { cancelRestEnd, scheduleRestEnd } from '@/notify';
 import { C } from '@/theme';
 import { Btn, Card, CardTitle, Empty, Meta, Row, Screen, Tag } from '@/ui/kit';
 
@@ -38,6 +39,24 @@ export default function ActiveWorkoutScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     }
   }, [now, restEndsAt]);
+
+  // Mirror the timer into a scheduled notification for when the app isn't on
+  // screen. Every change of end time (start, +30s, skip, finish, leaving the
+  // screen) cancels the previous one first.
+  useEffect(() => {
+    if (restEndsAt === null) return;
+    let id: string | null = null;
+    let stale = false;
+    scheduleRestEnd(restEndsAt).then((scheduled) => {
+      if (scheduled === null) return;
+      if (stale) cancelRestEnd(scheduled);
+      else id = scheduled;
+    });
+    return () => {
+      stale = true;
+      if (id !== null) cancelRestEnd(id);
+    };
+  }, [restEndsAt]);
 
   const rest = restEndsAt === null ? null : Math.max(0, Math.ceil((restEndsAt - now) / 1000));
 

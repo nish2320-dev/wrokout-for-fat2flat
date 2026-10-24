@@ -27,6 +27,13 @@ photos, camera, microphone or Apple Health data.
 Because your data never leaves your device, we can't see it, and we can't
 recover it for you if it's lost.
 
+## Notifications
+
+If you allow it, the app sends a reminder when your rest between sets is over.
+These are local notifications: the app schedules them on your device, and
+nothing passes through a server. You can say no, or turn them off later in
+iOS Settings → Fat2Flat Fitness → Notifications, and the app keeps working.
+
 ## Device backups
 
 Your iPhone may include the app's data in your iCloud or computer backups,
