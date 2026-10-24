@@ -20,14 +20,17 @@ to TestFlight, are in [`mobile/README.md`](mobile/README.md).
 
 ## What the app does
 
-A workout tracker that keeps everything on the device — no account, no server.
+A workout tracker that keeps everything on the device — no account, no server of
+its own. The only network use is looking up foods in Open Food Facts.
 
 - Build a workout from your muscle group, available equipment, goal and the
   time you have, or start an empty one.
 - Log sets as you go, with a rest timer and your previous best for each lift.
 - Browse an exercise library with form cues for every movement.
 - Track volume by week, body weight over time, personal records and your streak.
-- Log meals against daily calorie and protein goals.
+- Log meals against daily calorie and protein goals: scan a barcode, search
+  common and packaged foods (calories worked out for your portion), or type
+  them in.
 
 ## Repo notes
 
@@ -45,5 +48,7 @@ them from the real app (or update the mockups to match it) before submitting.
 [`PRIVACY.md`](PRIVACY.md) is the app's privacy policy. App Store Connect needs
 it at a public URL: host it on a public page (GitHub Pages, a Notion page, your
 own site) after filling in the `[DATE]` and `[SUPPORT EMAIL]` placeholders. In
-App Store Connect's App Privacy section, answer **"Data Not Collected"**, which
-matches what the policy says. Keep the two in sync if that ever changes.
+App Store Connect's App Privacy section, answer **"Data Not Collected"**: food
+lookups send only a barcode or search term to Open Food Facts to answer that
+request, which Apple doesn't count as collection. Keep the policy and those
+answers in sync if that ever changes.

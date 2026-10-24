@@ -119,7 +119,7 @@ export default function ProfileScreen() {
       <Card>
         <CardTitle>Your data</CardTitle>
         <Meta>
-          Everything stays on this iPhone. Nothing is uploaded, and there is no account to sign into.
+          Everything stays on this iPhone, and there is no account to sign into. Food lookups send only the barcode or search words to Open Food Facts.
         </Meta>
         <Pressable onPress={confirmReset} style={s.danger} accessibilityRole="button">
           <Ionicons name="trash-outline" size={17} color={C.red} />

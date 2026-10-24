@@ -1,7 +1,8 @@
 # Fat2Flat Fitness — iOS app
 
 An Expo (React Native) workout tracker. Everything is stored on the device —
-no accounts, no server, nothing uploaded.
+no accounts and no server of its own. Food lookups (barcode scan, online
+search) query Open Food Facts; nothing else leaves the phone.
 
 ## Get it running on your iPhone
 
@@ -49,8 +50,12 @@ src/
     workout/active     set logging + rest timer
     workout/library    exercise browser and picker
     exercise/[id]      form guide for one exercise
+    meals/search       common-food list + Open Food Facts search
+    meals/scan         barcode scanner
+    meals/portion      pick an amount, see calories, add the meal
   data/
     exercises.ts       the exercise catalogue and its form cues
+    food.ts            common foods, Open Food Facts lookups, calorie maths
     generator.ts       turns filters into a workout plan
     stats.ts           volume, streaks, PRs, weekly rollups
     store.tsx          app state + AsyncStorage persistence
@@ -67,7 +72,8 @@ npm run check       # runs the generator and stats logic assertions
 npx expo export --platform ios    # full Metro + Hermes bundle
 ```
 
-`npm run check` exercises `data/generator.ts` and `data/stats.ts` directly.
+`npm run check` exercises the `data/` logic (generator, stats, units, food
+parsing and calorie maths) directly.
 Those modules import nothing from React Native, so the assertions run on any
 machine — including Linux CI, where the app itself cannot be built.
 

@@ -5,7 +5,9 @@ _Effective date: [DATE]_
 Fat2Flat Fitness ("the app", "we") is a workout and meal tracker. This policy
 explains what happens to the information you put into it. The short version:
 **everything you enter stays on your device. We don't collect it, see it,
-sell it or share it.**
+sell it or share it.** The only thing that ever leaves your phone is a
+barcode number or food name you choose to look up (see "Food lookups").
+
 
 ## What the app stores
 
@@ -19,13 +21,32 @@ When you use the app, it saves the following **only on your device**:
 
 ## What we collect
 
-**Nothing.** The app has no account or sign-in, and it doesn't connect to any
-server run by us or anyone else. It contains no analytics, advertising,
-tracking or crash-reporting tools. We don't use your location, contacts,
-photos, camera, microphone or Apple Health data.
+**Nothing.** The app has no account or sign-in, and we don't run any server.
+It contains no analytics, advertising, tracking or crash-reporting tools. We
+don't use your location, contacts, photos, microphone or Apple Health data.
 
 Because your data never leaves your device, we can't see it, and we can't
 recover it for you if it's lost.
+
+## Food lookups
+
+When you **scan a barcode** or **search for a food online**, the app sends the
+barcode number or the words you searched for to
+[Open Food Facts](https://world.openfoodfacts.org), a free, nonprofit food
+database, to get calories and protein back. Nothing else is sent — not your
+name, your meals, your workouts or any other app data. As with any website,
+Open Food Facts' servers can see your device's internet (IP) address when it
+answers; their handling of that is covered by the
+[Open Food Facts privacy policy](https://world.openfoodfacts.org/privacy).
+
+Searching the built-in list of common foods, and typing calories in yourself,
+happen entirely on your device.
+
+## Camera
+
+The camera is used only to read food barcodes, and only while the scan screen
+is open, after you allow it. No photos or video are taken, saved or sent. You
+can turn camera access off in iOS Settings → Fat2Flat Fitness.
 
 ## Notifications
 

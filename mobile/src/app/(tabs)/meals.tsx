@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +11,7 @@ import { Btn, Card, CardTitle, Empty, Label, Meta, Metric, Name, Row, Screen, Ti
 
 export default function MealsScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { state, addMeal, removeMeal } = useStore();
 
   const [name, setName] = useState('');
@@ -80,12 +82,17 @@ export default function MealsScreen() {
 
       <Card>
         <CardTitle>Log a meal</CardTitle>
+        <View style={s.pair}>
+          <Btn label="Scan" icon="barcode-outline" onPress={() => router.push('/meals/scan')} style={{ flex: 1 }} />
+          <Btn label="Search" icon="search" ghost onPress={() => router.push('/meals/search')} style={{ flex: 1 }} />
+        </View>
+        <Meta style={{ marginTop: 12 }}>Or enter it yourself:</Meta>
         <TextInput
           value={name}
           onChangeText={setName}
           placeholder="What did you eat?"
           placeholderTextColor={C.muted}
-          style={[s.input, { marginTop: 10 }]}
+          style={[s.input, { marginTop: 6 }]}
           returnKeyType="next"
         />
         <View style={s.pair}>
