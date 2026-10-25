@@ -96,6 +96,15 @@ eq('products without calories are dropped', parseProduct({ product_name: 'Myster
 eq('products without a name are dropped', parseProduct({ nutriments: { 'energy-kcal_100g': 100 } }), null);
 eq('missing protein counts as zero', parseProduct({ product_name: 'Cola', nutriments: { 'energy-kcal_100g': 42 } })?.protein100, 0);
 eq('no serving size means grams only', parseProduct({ product_name: 'Rice', serving_quantity: 0, nutriments: { 'energy-kcal_100g': 360 } })?.serving, undefined);
+const names = (q: string) => searchCommon(q).map((f) => f.name);
+eq('coffee finds black coffee first', names('coffee')[0], 'Coffee, black');
+eq('a typo still finds coffee', names('cofee')[0], 'Coffee, black');
+eq('a swapped-letter typo still finds protein', names('protien shake').length > 0, true);
+eq('protein shake finds shakes', names('protein shake').slice(0, 3).every((n) => n.toLowerCase().includes('shake')), true);
+eq('aliases work (soda finds cola)', names('soda').includes('Cola'), true);
+eq('beef does not turn up beer', names('beef').some((n) => n.startsWith('Beer')), false);
+eq('chicken does not turn up chickpeas', names('chicken').includes('Chickpeas, cooked'), false);
+eq('nonsense finds nothing', names('xyzzy').length, 0);
 eq('common search matches words in any order', searchCommon('yogurt greek').map((f) => f.name), ['Greek yogurt, plain nonfat']);
 eq('common search ignores case and empty input', [searchCommon('BANANA').length, searchCommon('  ').length], [1, 0]);
 eq('common foods have unique ids', new Set(COMMON_FOODS.map((f) => f.id)).size, COMMON_FOODS.length);

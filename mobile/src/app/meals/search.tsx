@@ -18,7 +18,8 @@ export default function FoodSearchScreen() {
   const [query, setQuery] = useState('');
   const [online, setOnline] = useState<Online>({ kind: 'idle' });
 
-  const common = searchCommon(query);
+  // the best few, so the online search button stays in view
+  const common = searchCommon(query).slice(0, 8);
   const q = query.trim();
 
   // Online search runs on demand, not per keystroke: Open Food Facts limits
@@ -47,7 +48,7 @@ export default function FoodSearchScreen() {
             if (online.kind !== 'loading') setOnline({ kind: 'idle' });
           }}
           onSubmitEditing={searchOnline}
-          placeholder="Search foods, e.g. banana or Greek yogurt"
+          placeholder="Search foods and drinks"
           placeholderTextColor={C.muted}
           style={s.searchInput}
           autoFocus
@@ -61,7 +62,7 @@ export default function FoodSearchScreen() {
         <Empty
           icon="nutrition-outline"
           title="Find a food"
-          body="Type what you ate. Common foods show up straight away; search online to find packaged and branded foods."
+          body="Try coffee, protein shake, chicken breast or pizza. Everyday foods show up as you type; search online for packaged and branded foods."
         />
       ) : null}
 
