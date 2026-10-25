@@ -48,7 +48,8 @@ them from the real app (or update the mockups to match it) before submitting.
 
 [`PRIVACY.md`](PRIVACY.md) is the app's privacy policy. App Store Connect needs
 it at a public URL: host it on a public page (GitHub Pages, a Notion page, your
-own site) after filling in the `[DATE]` and `[SUPPORT EMAIL]` placeholders. In
+own site). It is published as a Google Doc in the owner's Drive, alongside a
+support page; keep that copy in sync with this file when either changes. In
 App Store Connect's App Privacy section, answer **"Data Not Collected"**: food
 lookups send only a barcode or search term to Open Food Facts to answer that
 request, which Apple doesn't count as collection. Keep the policy and those

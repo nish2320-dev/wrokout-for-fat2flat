@@ -1,6 +1,6 @@
 # Privacy Policy — Fat2Flat Fitness
 
-_Effective date: [DATE]_
+_Effective date: October 25, 2026_
 
 Fat2Flat Fitness ("the app", "we") is a workout and meal tracker. This policy
 explains what happens to the information you put into it. The short version:
@@ -89,4 +89,4 @@ notes.
 
 ## Contact
 
-Questions about this policy: **[SUPPORT EMAIL]**
+Questions about this policy: **nish2320@gmail.com**
