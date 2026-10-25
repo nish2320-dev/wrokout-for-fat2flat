@@ -36,8 +36,10 @@ its own. The only network use is looking up foods in Open Food Facts.
 ## Repo notes
 
 The two projects share a palette: `mobile/src/theme.ts` and
-`screenshots/src/poster.css` define the same brand tokens, and the app icons are
-rendered by `screenshots/make-icons.mjs` into `mobile/assets/images/`.
+`screenshots/src/poster.css` define the same brand tokens. The app icons come
+from the Fat2Flat logo (`screenshots/assets/fat2flat-logo.png`):
+`screenshots/redraw-logo.py` redraws its emblem sharp at high resolution, and
+`screenshots/make-icons.mjs` renders the icon set into `mobile/assets/images/`.
 
 The screenshots in `screenshots/out/` were designed before the app existed, so
 they are **mockups, not captures of the running app**. App Store Review

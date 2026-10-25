@@ -83,5 +83,6 @@ machine — including Linux CI, where the app itself cannot be built.
   Dark mode would need a second palette in `theme.ts`.
 - iPad is disabled (`supportsTablet: false`). Turning it on means designing for
   the wider layout and supplying iPad screenshots for the App Store.
-- App icons are generated from `../screenshots/make-icons.mjs`, so the icon and
-  the marketing artwork share one brand.
+- App icons are generated from the Fat2Flat logo by `../screenshots/redraw-logo.py`
+  and `../screenshots/make-icons.mjs`, so the icon and the marketing artwork
+  share one brand.
