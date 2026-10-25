@@ -41,7 +41,7 @@ so they aren't repeated here.
 gym,lifting,weightlifting,strength,log,protein,macro,meal,food,barcode,diet,weight loss,routine
 ```
 
-**Support URL**: *the published support page link*
+**Support URL**: https://docs.google.com/document/d/e/2PACX-1vQr3IIcbvTG9MWxvzbjrk_pMNSt-nCGb_rGnhLKvsW8RkUe70ySXZ99k4d6UC9vV8UfdOB5gVmeyFTd/pub
 
 **Description (4000)**
 
