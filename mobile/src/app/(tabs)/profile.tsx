@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -16,6 +16,13 @@ export default function ProfileScreen() {
   const [name, setName] = useState(profile.name);
   const [calorieGoal, setCalorieGoal] = useState(String(profile.calorieGoal));
   const [proteinGoal, setProteinGoal] = useState(String(profile.proteinGoal));
+
+  // The fields hold their own text while typing; follow the saved profile
+  // when it changes underneath them (erase, sample data), or they would keep
+  // showing stale values and write them back on the next blur.
+  useEffect(() => setName(profile.name), [profile.name]);
+  useEffect(() => setCalorieGoal(String(profile.calorieGoal)), [profile.calorieGoal]);
+  useEffect(() => setProteinGoal(String(profile.proteinGoal)), [profile.proteinGoal]);
 
   const done = finished(state);
   const totalVolume = done.reduce((n, w) => n + volume(w), 0);
@@ -44,13 +51,7 @@ export default function ProfileScreen() {
         {
           text: 'Load sample data',
           style: 'destructive',
-          onPress: () => {
-            loadSample();
-            // the name field keeps its own copy, so show the sample's name too
-            setName('Alex');
-            setCalorieGoal('2200');
-            setProteinGoal('170');
-          },
+          onPress: loadSample,
         },
       ],
     );
