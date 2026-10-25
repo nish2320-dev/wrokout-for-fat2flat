@@ -2,6 +2,7 @@
   "expo": {
     "name": "Fat2Flat Fitness",
     "slug": "fat2flat-fitness",
+    "owner": "nish2320",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -51,6 +52,11 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "9a17935b-6905-44f9-9925-65581025dcdf"
+      }
     }
   }
 }
