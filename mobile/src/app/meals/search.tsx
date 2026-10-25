@@ -92,7 +92,11 @@ export default function FoodSearchScreen() {
 
       {online.kind === 'done' ? (
         online.foods.length > 0 ? (
-          <FoodList title="Online results" foods={online.foods} onPick={open} />
+          <>
+            <FoodList title="Online results" foods={online.foods} onPick={open} />
+            {/* Open Food Facts data is ODbL-licensed, which asks for attribution */}
+            <Meta style={{ textAlign: 'center' }}>Food data from Open Food Facts (openfoodfacts.org)</Meta>
+          </>
         ) : (
           <Empty
             icon="search-outline"

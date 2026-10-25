@@ -4,6 +4,7 @@
 |---|---|
 | [`mobile/`](mobile) | The iOS app — Expo / React Native. Start here to run it on a phone. |
 | [`screenshots/`](screenshots) | Generator for the App Store screenshot set and the app icons. |
+| [`docs/app-store-listing.md`](docs/app-store-listing.md) | The App Store Connect listing text, ready to paste. |
 
 ## Run the app on your iPhone
 

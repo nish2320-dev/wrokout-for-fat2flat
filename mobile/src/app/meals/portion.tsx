@@ -64,6 +64,7 @@ export default function PortionScreen() {
           {food.brand ? `${food.brand} · ` : ''}
           {Math.round(food.kcal100)} cal · {food.protein100}g protein per 100 g
         </Meta>
+        {food.id.startsWith('off:') ? <Meta>Food data from Open Food Facts (openfoodfacts.org)</Meta> : null}
       </Card>
 
       <Card>
