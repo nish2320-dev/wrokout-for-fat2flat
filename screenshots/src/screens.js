@@ -382,7 +382,23 @@ const SLIDES = [
   { id: 'log',      headline: 'Log every set<br><em>in seconds.</em>',
     sub: 'Reps, weight and a rest timer, without leaving the rack.', markup: LOG },
   { id: 'library',  headline: 'Master every move<br><em>with built-in guides.</em>',
-    sub: '300+ exercises with form cues and demos.',              markup: LIBRARY },
+    sub: 'Step-by-step form tips for every exercise.',            markup: LIBRARY },
   { id: 'progress', headline: 'Watch your progress<br><em>add up.</em>',
     sub: 'Volume, body weight and PRs, tracked automatically.',   markup: PROGRESS }
+];
+
+/* Captions for real captures of the running app (generate.mjs --real <dir>).
+   Images are matched to these in file-name order, so name the captures
+   01-…, 02-… in this order. Keep every claim true of the shipped app. */
+const REAL_SLIDES = [
+  { id: 'home',     headline: 'Your fitness journey,<br><em>tracked.</em>',
+    sub: 'Workouts, meals and progress in one place.' },
+  { id: 'generate', headline: 'A workout built<br><em>just for you.</em>',
+    sub: 'Pick your gear and goal — get a plan in seconds.' },
+  { id: 'log',      headline: 'Log every set<br><em>in seconds.</em>',
+    sub: 'Last time\'s numbers, PRs and a rest timer that pings you.' },
+  { id: 'food',     headline: 'Scan or search.<br><em>Calories done.</em>',
+    sub: 'Barcode scanning and 150+ everyday foods and drinks.' },
+  { id: 'progress', headline: 'Watch your progress<br><em>add up.</em>',
+    sub: 'Volume, body weight and PRs, tracked automatically.' }
 ];

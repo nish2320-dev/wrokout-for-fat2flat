@@ -1,9 +1,10 @@
 /* -------------------------------------------------------------
    Renders the App Store screenshot set at every required size.
    Usage: node generate.mjs [--sizes 6.9,6.5] [--logo assets/logo.png]
+          node generate.mjs --real <dir of captures> [--sizes 6.9]
    ------------------------------------------------------------- */
 import { chromium } from 'playwright';
-import { mkdir, rm, access } from 'node:fs/promises';
+import { mkdir, rm, access, readdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
@@ -37,7 +38,19 @@ try {
   console.log('no assets/logo.png found — using the built-in wordmark lockup');
 }
 
-await rm(path.join(root, 'out'), { recursive: true, force: true });
+// --real <dir>: frame captures of the running app instead of the mock screens
+const realDir = arg('real', '');
+let realSrcs = null;
+if (realDir) {
+  const files = (await readdir(path.resolve(realDir)))
+    .filter(f => /\.(png|jpe?g)$/i.test(f))
+    .sort();
+  realSrcs = files.map(f => pathToFileURL(path.resolve(realDir, f)).href);
+  console.log(`framing ${files.length} captures from ${realDir}: ${files.join(', ')}`);
+}
+const outName = realSrcs ? 'out-real' : 'out';
+
+await rm(path.join(root, outName), { recursive: true, force: true });
 
 // Honour a pre-installed Chromium when the environment ships one.
 const executablePath = process.env.CHROMIUM_PATH
@@ -49,7 +62,7 @@ const browser = await chromium.launch({
 });
 
 for (const size of sizes) {
-  const dir = path.join(root, 'out', size.label);
+  const dir = path.join(root, outName, size.label);
   await mkdir(dir, { recursive: true });
 
   const page = await browser.newPage({
@@ -59,15 +72,19 @@ for (const size of sizes) {
   await page.goto(page_url, { waitUntil: 'load' });
   await page.evaluate(() => document.fonts.ready);
 
-  const count = await page.evaluate(() => window.__slideCount);
+  const count = realSrcs
+    ? Math.min(realSrcs.length, await page.evaluate(() => window.__realCount))
+    : await page.evaluate(() => window.__slideCount);
   for (let i = 0; i < count; i++) {
     const id = await page.evaluate(
-      ([i, w, h, logo]) => window.__draw(i, w, h, logo),
-      [i, size.w, size.h, logoSrc]
+      ([i, w, h, logo, real]) => window.__draw(i, w, h, logo, real),
+      [i, size.w, size.h, logoSrc, realSrcs ? realSrcs[i] : null]
     );
     await page.evaluate(() => document.fonts.ready);
+    if (realSrcs) await page.waitForFunction(() => [...document.images].every(im => im.complete));
     const fill = await page.evaluate(() => {
       const b = document.querySelector('.body');
+      if (!b) return { over: 0, h: 0 }; // real captures fill the screen exactly
       return { over: b.scrollHeight - b.clientHeight, h: b.clientHeight };
     });
     const file = path.join(dir, `${String(i + 1).padStart(2, '0')}-${id}.png`);
