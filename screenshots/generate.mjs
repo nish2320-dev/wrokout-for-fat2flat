@@ -13,7 +13,10 @@ import path from 'node:path';
 const SIZES = [
   { key: '6.9', label: 'iphone-6.9-1320x2868', w: 1320, h: 2868 }, // iPhone 16/17 Pro Max — required
   { key: '6.5', label: 'iphone-6.5-1242x2688', w: 1242, h: 2688 }, // iPhone 11 Pro Max / XS Max
-  { key: '6.7', label: 'iphone-6.7-1290x2796', w: 1290, h: 2796 }  // iPhone 14/15 Pro Max
+  { key: '6.7', label: 'iphone-6.7-1290x2796', w: 1290, h: 2796 }, // iPhone 14/15 Pro Max
+  // "medium display" iPhones with Dynamic Island
+  { key: '6.3', label: 'iphone-6.3-1206x2622', w: 1206, h: 2622 }, // iPhone 16/17 Pro
+  { key: '6.1', label: 'iphone-6.1-1179x2556', w: 1179, h: 2556 }  // iPhone 15/15 Pro, 16
 ];
 
 const argv = process.argv.slice(2);
