@@ -8,7 +8,6 @@ explains what happens to the information you put into it. The short version:
 sell it or share it.** The only thing that ever leaves your phone is a
 barcode number or food name you choose to look up (see "Food lookups").
 
-
 ## What the app stores
 
 When you use the app, it saves the following **only on your device**:
