@@ -52,10 +52,10 @@ function layout(W, H) {
 
 const px = (n) => `${Math.round(n * 100) / 100}px`;
 
-function draw(slideIndex, W, H, logoSrc, realSrc) {
+function draw(slideIndex, W, H, logoSrc, real) {
   // a real capture replaces the mock markup; it is 393 x 852 pt like the mocks
-  const slide = realSrc
-    ? { ...REAL_SLIDES[slideIndex], markup: `<img class="real" src="${realSrc}" alt="">` }
+  const slide = real
+    ? { ...REAL_SLIDES.find(s => s.id === real.id), markup: `<img class="real" src="${real.src}" alt="">` }
     : SLIDES[slideIndex];
   const vars  = layout(W, H);
   for (const [k, v] of Object.entries(vars)) document.documentElement.style.setProperty(k, v);
@@ -84,4 +84,4 @@ function draw(slideIndex, W, H, logoSrc, realSrc) {
 
 window.__draw = draw;
 window.__slideCount = SLIDES.length;
-window.__realCount = REAL_SLIDES.length;
+window.__realIds = REAL_SLIDES.map(s => s.id);

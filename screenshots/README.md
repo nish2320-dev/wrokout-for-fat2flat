@@ -26,9 +26,9 @@ set frames real captures instead:
 node generate.mjs --real <folder of captures> --sizes 6.9 --logo ../mobile/assets/images/icon.png
 ```
 
-Put five portrait PNG captures in the folder, named so they sort in this
-order: home, generate workout, logging a workout, food search, progress. Their
-captions are `REAL_SLIDES` in `src/screens.js`. An iPhone 15/16 Pro capture
+Name each capture `NN-<id>.png`: the id picks its caption from `REAL_SLIDES` in
+`src/screens.js` (home, generate, log, food, progress, privacy) and NN sets the
+order. An unknown id stops the run rather than guessing a caption. An iPhone 15/16 Pro capture
 (1179 × 2556) is the same 393 × 852 pt shape as the frame, so it fills the
 screen exactly. Output lands in `out-real/<size>/`.
 

@@ -45,7 +45,11 @@ if (realDir) {
   const files = (await readdir(path.resolve(realDir)))
     .filter(f => /\.(png|jpe?g)$/i.test(f))
     .sort();
-  realSrcs = files.map(f => pathToFileURL(path.resolve(realDir, f)).href);
+  // NN-<id>.png: the id picks the caption, NN the order
+  realSrcs = files.map(f => ({
+    id: f.replace(/^\d+-/, '').replace(/\.[^.]+$/, '').toLowerCase(),
+    src: pathToFileURL(path.resolve(realDir, f)).href
+  }));
   console.log(`framing ${files.length} captures from ${realDir}: ${files.join(', ')}`);
 }
 const outName = realSrcs ? 'out-real' : 'out';
@@ -72,9 +76,12 @@ for (const size of sizes) {
   await page.goto(page_url, { waitUntil: 'load' });
   await page.evaluate(() => document.fonts.ready);
 
-  const count = realSrcs
-    ? Math.min(realSrcs.length, await page.evaluate(() => window.__realCount))
-    : await page.evaluate(() => window.__slideCount);
+  if (realSrcs) {
+    const known = await page.evaluate(() => window.__realIds);
+    const unknown = realSrcs.filter(r => !known.includes(r.id)).map(r => r.id);
+    if (unknown.length) throw new Error(`no caption for: ${unknown.join(', ')} (known: ${known.join(', ')})`);
+  }
+  const count = realSrcs ? realSrcs.length : await page.evaluate(() => window.__slideCount);
   for (let i = 0; i < count; i++) {
     const id = await page.evaluate(
       ([i, w, h, logo, real]) => window.__draw(i, w, h, logo, real),

@@ -388,8 +388,8 @@ const SLIDES = [
 ];
 
 /* Captions for real captures of the running app (generate.mjs --real <dir>).
-   Images are matched to these in file-name order, so name the captures
-   01-…, 02-… in this order. Keep every claim true of the shipped app. */
+   A capture named NN-<id>.png gets the slide with that id; NN sets the order.
+   Keep every claim true of the shipped app. */
 const REAL_SLIDES = [
   { id: 'home',     headline: 'Your fitness journey,<br><em>tracked.</em>',
     sub: 'Workouts, meals and progress in one place.' },
@@ -400,5 +400,7 @@ const REAL_SLIDES = [
   { id: 'food',     headline: 'Scan or search.<br><em>Calories done.</em>',
     sub: 'Barcode scanning and 150+ everyday foods and drinks.' },
   { id: 'progress', headline: 'Watch your progress<br><em>add up.</em>',
-    sub: 'Volume, body weight and PRs, tracked automatically.' }
+    sub: 'Volume, body weight and PRs, tracked automatically.' },
+  { id: 'privacy',  headline: 'No account.<br><em>No ads.</em>',
+    sub: 'Your workouts and meals stay on your iPhone.' }
 ];
