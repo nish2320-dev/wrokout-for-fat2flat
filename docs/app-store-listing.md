@@ -12,7 +12,7 @@ limits are Apple's; every field below fits.
 | Primary category | Health & Fitness |
 | Secondary category | Food & Drink |
 | Content rights | "Does your app contain, show, or access third-party content?" → **Yes**, and confirm you have the rights (Open Food Facts data is openly licensed, and the app credits it) |
-| Privacy Policy URL | *the published privacy policy link* |
+| Privacy Policy URL | https://docs.google.com/document/d/e/2PACX-1vSTmib6DKMeCuZLfm6pm52IwW3wLaJ5WPYM430TSgjUePWzYMP-JLP39eNRuUmauFYI4RtU4BJzuIoB/pub |
 
 ## Pricing and Availability
 
