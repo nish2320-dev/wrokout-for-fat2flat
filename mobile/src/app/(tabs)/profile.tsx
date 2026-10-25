@@ -10,7 +10,7 @@ import { Card, CardTitle, Eyebrow, Label, Meta, Metric, Row, Screen, Title } fro
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const { state, updateProfile, resetAll } = useStore();
+  const { state, updateProfile, resetAll, loadSample } = useStore();
   const { profile } = state;
 
   const [name, setName] = useState(profile.name);
@@ -32,6 +32,26 @@ export default function ProfileScreen() {
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Erase everything', style: 'destructive', onPress: resetAll },
+      ],
+    );
+
+  const confirmSample = () =>
+    Alert.alert(
+      'Load sample data?',
+      'This replaces everything on this device with six weeks of example workouts, meals and weigh-ins, for taking screenshots. Use "Erase all data" afterwards to clear it.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Load sample data',
+          style: 'destructive',
+          onPress: () => {
+            loadSample();
+            // the name field keeps its own copy, so show the sample's name too
+            setName('Alex');
+            setCalorieGoal('2200');
+            setProteinGoal('170');
+          },
+        },
       ],
     );
 
@@ -127,7 +147,10 @@ export default function ProfileScreen() {
         </Pressable>
       </Card>
 
-      <Meta>Fat2Flat Fitness</Meta>
+      {/* hidden on purpose: a long press loads demo data for App Store screenshots */}
+      <Pressable onLongPress={confirmSample} delayLongPress={1500}>
+        <Meta>Fat2Flat Fitness</Meta>
+      </Pressable>
     </Screen>
   );
 }

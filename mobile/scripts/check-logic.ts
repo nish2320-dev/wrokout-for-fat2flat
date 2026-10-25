@@ -5,6 +5,7 @@ import { generate, planToExercises } from '../src/data/generator';
 import { personalRecords, streak, thisWeek, todayMacros, volume, weeklyVolume } from '../src/data/stats';
 import { AppState, initialState } from '../src/data/types';
 import { convertUnits, fmtWeight } from '../src/data/units';
+import { sampleState } from '../src/data/sample';
 import { COMMON_FOODS, macrosFor, parseProduct, searchCommon } from '../src/data/food';
 
 const DAY = 86400000;
@@ -109,6 +110,19 @@ eq('common search matches words in any order', searchCommon('yogurt greek').map(
 eq('common search ignores case and empty input', [searchCommon('BANANA').length, searchCommon('  ').length], [1, 0]);
 eq('common foods have unique ids', new Set(COMMON_FOODS.map((f) => f.id)).size, COMMON_FOODS.length);
 eq('common foods have sane values', COMMON_FOODS.every((f) => f.kcal100 >= 0 && f.kcal100 <= 900 && f.protein100 <= 100 && (f.serving?.grams ?? 1) > 0), true);
+
+// --- sample data ---
+const demo = sampleState(now);
+eq('sample has a 4-day streak', streak(demo), 4);
+eq('sample volume shows in all 6 recent weeks', weeklyVolume(demo, 6).every((v) => v > 0), true);
+eq('sample volume grows over time', weeklyVolume(demo, 6)[5] > weeklyVolume(demo, 6)[0], true);
+eq('sample has PRs for every lift', personalRecords(demo).length, 15);
+eq('sample meals land today', todayMacros(demo).calories > 0, true);
+eq('sample has nothing in the future', [...demo.workouts.map((w) => w.finishedAt!), ...demo.meals.map((m) => m.at), ...demo.weighIns.map((x) => x.at)].every((t) => t <= now), true);
+const dawn = new Date(now); dawn.setHours(5, 0, 0, 0);
+const early = sampleState(dawn.getTime());
+eq('sample loaded at 5am has nothing in the future', [...early.workouts.map((w) => w.finishedAt!), ...early.meals.map((m) => m.at), ...early.weighIns.map((x) => x.at)].every((t) => t <= dawn.getTime()), true);
+eq('sample ids are unique', new Set(demo.workouts.map((w) => w.id)).size, demo.workouts.length);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

@@ -11,6 +11,7 @@ import {
 } from 'react';
 
 import { AppState, LoggedExercise, Meal, Profile, SetEntry, WeighIn, Workout, initialState } from './types';
+import { sampleState } from './sample';
 import { convertUnits } from './units';
 
 const KEY = 'fat2flat.state.v1';
@@ -34,6 +35,8 @@ type Store = {
   addWeighIn: (weight: number) => void;
   updateProfile: (patch: Partial<Profile>) => void;
   resetAll: () => void;
+  /** Replaces everything with demo history, for App Store screenshots. */
+  loadSample: () => void;
 };
 
 const Ctx = createContext<Store | null>(null);
@@ -178,6 +181,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     resetAll() {
       setState(initialState);
+    },
+
+    loadSample() {
+      setState(sampleState(Date.now()));
     },
   }), [state, ready, patchActive]);
 
