@@ -25,13 +25,20 @@ export default function ScanScreen() {
   if (!permission.granted) {
     return (
       <Screen scroll={false}>
+        {/* App Review guideline 5.1.1(iv): this screen only explains why the
+            camera is needed. The button must not read "Allow" — the choice
+            belongs to the system prompt that follows. */}
         <Empty
           icon="barcode-outline"
           title="Scan food barcodes"
-          body="Allow camera access to scan the barcode on packaged food and look up its calories. Nothing is recorded or saved."
+          body={
+            permission.canAskAgain
+              ? 'Fat2Flat Fitness uses the camera to read the barcode on packaged food and look up its calories. Nothing is recorded or saved.'
+              : 'Camera access is turned off for Fat2Flat Fitness, so barcodes can’t be scanned. You can turn it on in Settings, or search for foods by name instead.'
+          }
         />
         {permission.canAskAgain ? (
-          <Btn label="Allow camera" icon="camera-outline" onPress={requestPermission} />
+          <Btn label="Continue" icon="camera-outline" onPress={requestPermission} />
         ) : (
           <Btn label="Open Settings" icon="settings-outline" onPress={() => Linking.openSettings()} />
         )}
