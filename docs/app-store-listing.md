@@ -122,6 +122,7 @@ NEW: The Fat2Flat Transformation, a 12-week program built around you.
 • Smart coach: every week it reads your weight trend and suggests a small calorie tweak to keep you on pace. You decide whether to accept it.
 • Weekly check-ins: log your waist, hips and chest, and take progress photos.
 • Before & after: compare any two check-in photos with a slider. Photos stay private on your iPhone.
+• Daily meal plans: Indian and Western meals sized to your calorie and protein targets, for Non-veg, Veg (with eggs) or Hindu Veg (no eggs). More food on workout days, less on rest days. Swap any meal and log it in one tap.
 • 7 new home-friendly leg exercises.
 ```
 
@@ -134,6 +135,7 @@ THE 12-WEEK TRANSFORMATION
 • A smart coach that fine-tunes your calories from your real weight trend
 • Weekly check-ins with waist measurements and private progress photos
 • Before-and-after photo slider
+• Daily meal plans for Non-veg, Veg or Hindu Veg, sized to your targets
 ```
 
 **App Review notes**: append:

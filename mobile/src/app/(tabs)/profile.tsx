@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DIETS } from '@/data/mealplan';
 import { useStore } from '@/data/store';
 import { finished, fmtVolume, personalRecords, volume } from '@/data/stats';
 import { C, S } from '@/theme';
@@ -117,6 +118,24 @@ export default function ProfileScreen() {
       </Card>
 
       <Card>
+        <CardTitle>Food preference</CardTitle>
+        <Meta>Used for your daily meal plan on the Meals tab.</Meta>
+        <View style={s.dietRow}>
+          {DIETS.map((d) => (
+            <Pressable
+              key={d.key}
+              onPress={() => updateProfile({ diet: d.key })}
+              style={[s.dietItem, profile.diet === d.key && s.segOn]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: profile.diet === d.key }}>
+              <Text style={[s.segText, profile.diet === d.key && s.segTextOn]}>{d.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <Meta>{DIETS.find((d) => d.key === profile.diet)?.detail ?? 'Veg includes eggs; Hindu Veg has no eggs.'}</Meta>
+      </Card>
+
+      <Card>
         <Row>
           <View style={{ flex: 1 }}>
             <CardTitle>Units</CardTitle>
@@ -174,6 +193,15 @@ const s = StyleSheet.create({
   },
   pair: { flexDirection: 'row', gap: S.gap, marginTop: 10 },
 
+  dietRow: { flexDirection: 'row', gap: 6, marginTop: 10, marginBottom: 4 },
+  dietItem: {
+    flex: 1,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: C.line2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   seg: { flexDirection: 'row', backgroundColor: C.line2, borderRadius: 10, padding: 3, gap: 3 },
   segItem: { paddingHorizontal: 14, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   segOn: { backgroundColor: C.red },

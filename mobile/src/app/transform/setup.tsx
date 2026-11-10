@@ -3,6 +3,7 @@ import { useState, type ReactNode } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { EQUIPMENT, Equipment } from '@/data/exercises';
+import { DIETS, Diet } from '@/data/mealplan';
 import { startOfDay } from '@/data/stats';
 import { useStore } from '@/data/store';
 import { ACTIVITY, computeTargets, PACES, validateBody } from '@/data/targets';
@@ -25,7 +26,7 @@ export default function TransformSetup() {
 
 function SetupForm() {
   const router = useRouter();
-  const { state, startProgram, updateProgram } = useStore();
+  const { state, startProgram, updateProgram, updateProfile } = useStore();
   const units = state.profile.units;
   const existing = state.program;
   const lastWeight = state.weighIns[state.weighIns.length - 1]?.weight;
@@ -45,6 +46,7 @@ function SetupForm() {
   const [pace, setPace] = useState<Pace>(existing?.pace ?? 'steady');
   const [days, setDays] = useState<Program['daysPerWeek']>(existing?.daysPerWeek ?? 3);
   const [equipment, setEquipment] = useState<Equipment[]>(existing?.equipment ?? ['dumbbells', 'bodyweight']);
+  const [diet, setDiet] = useState<Diet | undefined>(state.profile.diet);
 
   const heightCm = units === 'lb' ? (num(ft) * 12 + (num(inch) || 0)) * 2.54 : num(cm);
   const body: Body = {
@@ -65,6 +67,7 @@ function SetupForm() {
 
   const save = () => {
     if (!targets || problem) return;
+    if (diet) updateProfile({ diet });
     if (existing) {
       updateProgram({ body, pace, daysPerWeek: days, equipment }, targets);
       router.back();
@@ -141,6 +144,15 @@ function SetupForm() {
         {EQUIPMENT.map((e) => (
           <Pill key={e.key} label={e.label} on={equipment.includes(e.key)} onPress={() => toggleEquipment(e.key)} />
         ))}
+      </Section>
+
+      <Section title="How do you eat?">
+        {DIETS.map((d) => (
+          <Pill key={d.key} label={d.label} on={diet === d.key} onPress={() => setDiet(d.key)} />
+        ))}
+        <Meta style={s.full}>
+          {diet ? DIETS.find((d) => d.key === diet)?.detail : 'We’ll build a daily meal plan that fits your targets. Veg includes eggs; Hindu Veg has no eggs.'}
+        </Meta>
       </Section>
 
       <Card>

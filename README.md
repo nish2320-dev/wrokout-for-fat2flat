@@ -32,6 +32,9 @@ its own. The only network use is looking up foods in Open Food Facts.
   targets, a week-by-week plan in three phases, a coach that adjusts calories
   from your weight trend, and weekly check-ins with waist measurements and
   private progress photos (with a before/after slider).
+- Get a daily meal plan (Non-veg, Veg with eggs, or Hindu Veg without eggs) of
+  Indian and Western meals sized to your targets, with more food on workout
+  days; swap any meal and log it in one tap.
 - Track volume by week, body weight over time, personal records and your streak.
 - Log meals against daily calorie and protein goals: scan a barcode, search
   common and packaged foods (calories worked out for your portion), or type

@@ -135,7 +135,7 @@ export function sampleState(now: number): AppState {
     activeWorkoutId: null,
     meals,
     weighIns,
-    profile: { name: 'Alex', calorieGoal: 2250, proteinGoal: 145, units: 'lb' },
+    profile: { name: 'Alex', calorieGoal: 2250, proteinGoal: 145, units: 'lb', diet: 'nonveg' },
     program,
     checkIns,
   };

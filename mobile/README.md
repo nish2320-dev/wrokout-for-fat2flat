@@ -62,6 +62,7 @@ src/
     targets.ts         calorie and protein targets (Mifflin-St Jeor, safety caps)
     program.ts         the 12-week program: phases, day templates, schedule
     coach.ts           weekly weight trend and calorie suggestions
+    mealplan.ts        meal catalogue, diet rules and the daily meal plan
     generator.ts       turns filters into a workout plan
     stats.ts           volume, streaks, PRs, weekly rollups
     store.tsx          app state + AsyncStorage persistence

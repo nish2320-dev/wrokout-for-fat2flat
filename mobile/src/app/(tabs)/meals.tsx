@@ -8,6 +8,7 @@ import { useStore } from '@/data/store';
 import { startOfDay, todayMacros } from '@/data/stats';
 import { C, S } from '@/theme';
 import { Btn, Card, CardTitle, Empty, Label, Meta, Metric, Name, Row, Screen, Title } from '@/ui/kit';
+import { MealPlanCard } from '@/ui/MealPlanCard';
 
 export default function MealsScreen() {
   const insets = useSafeAreaInsets();
@@ -79,6 +80,8 @@ export default function MealsScreen() {
           {Math.max(0, state.profile.calorieGoal - macros.calories)} calories left today
         </Meta>
       </Card>
+
+      <MealPlanCard />
 
       <Card>
         <CardTitle>Log a meal</CardTitle>

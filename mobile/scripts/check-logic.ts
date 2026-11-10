@@ -11,6 +11,7 @@ import { WEEKS, buildSession, preferredIds, checkInDue, nextSession, phaseOf, pr
 import { coachAdvice, weeklyTrend } from '../src/data/coach';
 import { Body, Program } from '../src/data/types';
 import { EXERCISES } from '../src/data/exercises';
+import { DIETS, MEALS, dayTarget, planDay, Diet } from '../src/data/mealplan';
 import { COMMON_FOODS, macrosFor, parseProduct, searchCommon } from '../src/data/food';
 
 const DAY = 86400000;
@@ -186,6 +187,29 @@ eq('the coach waits two weeks after starting', coachAdvice({ ...coachState(-0.2)
 eq('the coach waits a week after a change', coachAdvice({ ...coachState(-0.2), program: { ...coachState(-0.2).program, adjustments: [{ at: now - 2 * DAY, from: 2500, to: 2400, reason: 'x' }] } }, now)?.kind, 'wait');
 eq('sample data has a program in week 6', weekOf(sampleState(now).program!, now), 6);
 eq('sample workouts count toward the program', programProgress(sampleState(now)).done > 0, true);
+
+// --- meal plans ---
+const EGG = /\begg|omelette|shakshuka/i;
+const MEAT = /chicken|turkey|fish|salmon|tuna|mutton|beef|pork|prawn|shrimp/i;
+eq('meal ids are unique', new Set(MEALS.map((m) => m.id)).size, MEALS.length);
+eq('Hindu Veg-tagged meals have no eggs, meat or fish', MEALS.filter((m) => m.diet === 'hinduveg' && (EGG.test(m.name) || MEAT.test(m.name) || EGG.test(m.serving) || MEAT.test(m.serving))).map((m) => m.id), []);
+eq('Veg-tagged meals have no meat or fish', MEALS.filter((m) => m.diet === 'veg' && (MEAT.test(m.name) || MEAT.test(m.serving))).map((m) => m.id), []);
+const days = Array.from({ length: 30 }, (_, i) => `2026-11-${String(i + 1).padStart(2, '0')}`);
+const plansFor = (diet: Diet, calories: number, workoutDay: boolean) => days.map((dateKey) => planDay({ dateKey, diet, calories, workoutDay }));
+eq('Hindu Veg plans never include eggs, meat or fish', plansFor('hinduveg', 2000, true).every((p) => p.meals.every((m) => m.meal.diet === 'hinduveg')), true);
+eq('Veg plans never include meat or fish', plansFor('veg', 2000, false).every((p) => p.meals.every((m) => m.meal.diet !== 'nonveg')), true);
+eq('every diet has options in every slot', DIETS.every((d) => (['breakfast', 'lunch', 'snack', 'dinner'] as const).every((slot) => MEALS.filter((m) => m.slot === slot && (d.key === 'nonveg' || m.diet === 'hinduveg' || (d.key === 'veg' && m.diet === 'veg'))).length >= 3)), true);
+const within = (diet: Diet, calories: number) => plansFor(diet, calories, false).every((p) => Math.abs(p.kcal - calories) <= calories * 0.12);
+eq('plans land within 12% of 1,200 cal', DIETS.every((d) => within(d.key, 1200)), true);
+eq('plans land within 12% of 2,000 cal', DIETS.every((d) => within(d.key, 2000)), true);
+eq('plans land within 12% of 3,200 cal', DIETS.every((d) => within(d.key, 3200)), true);
+eq('the same day always gets the same plan', JSON.stringify(planDay({ dateKey: '2026-11-10', diet: 'veg', calories: 2000, workoutDay: true })) === JSON.stringify(planDay({ dateKey: '2026-11-10', diet: 'veg', calories: 2000, workoutDay: true })), true);
+eq('swapping changes that meal only', (() => { const a = planDay({ dateKey: '2026-11-10', diet: 'nonveg', calories: 2000, workoutDay: false }); const b = planDay({ dateKey: '2026-11-10', diet: 'nonveg', calories: 2000, workoutDay: false, swaps: { lunch: 1 } }); return a.meals[1].meal.id !== b.meals[1].meal.id && a.meals[0].meal.id === b.meals[0].meal.id; })(), true);
+eq('lunch and dinner are never the same meal', plansFor('hinduveg', 2000, false).every((p) => p.meals[1].meal.id !== p.meals[p.meals.length - 1].meal.id), true);
+eq('workout days have a post-workout snack with protein', plansFor('hinduveg', 2000, true).every((p) => p.meals.some((m) => m.label === 'Post-workout' && m.meal.protein >= 12)), true);
+eq('workout and rest days average back to the target over a week', [3, 4, 5].map((d) => Math.abs(dayTarget(2000, d, true) * d + dayTarget(2000, d, false) * (7 - d) - 2000 * 7) <= 40), [true, true, true]);
+eq('no main ingredient appears more than twice in a day', DIETS.every((d) => plansFor(d.key, 2000, false).every((p) => { const c = new Map<string, number>(); for (const m of p.meals) { const k = ['paneer', 'chicken', 'egg'].find((x) => m.meal.name.toLowerCase().includes(x)); if (k) c.set(k, (c.get(k) ?? 0) + 1); } return [...c.values()].every((n) => n <= 2); })), true);
+eq('high-protein plans for non-veg reach decent protein', plansFor('nonveg', 2200, true).every((p) => p.protein >= 90), true);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

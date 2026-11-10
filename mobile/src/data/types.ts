@@ -1,4 +1,5 @@
 import type { Equipment } from './exercises';
+import type { Diet } from './mealplan';
 
 export type SetEntry = { reps: number; weight: number; done: boolean };
 
@@ -29,6 +30,8 @@ export type Profile = {
   calorieGoal: number;
   proteinGoal: number;
   units: 'lb' | 'kg';
+  /** For the meal plan; unset until the user picks one. */
+  diet?: Diet;
 };
 
 export type Sex = 'male' | 'female';
