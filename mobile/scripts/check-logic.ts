@@ -4,6 +4,9 @@ declare const process: { exit(code: number): never };
 import { generate, planToExercises } from '../src/data/generator';
 import { personalRecords, streak, thisWeek, todayMacros, volume, weeklyVolume } from '../src/data/stats';
 import { AppState, initialState } from '../src/data/types';
+import { convertUnits, fmtWeight } from '../src/data/units';
+import { sampleState } from '../src/data/sample';
+import { COMMON_FOODS, macrosFor, parseProduct, searchCommon } from '../src/data/food';
 
 const DAY = 86400000;
 const now = Date.now();
@@ -61,6 +64,65 @@ const withMeals: AppState = {
   ],
 };
 eq('today macros ignore older meals', todayMacros(withMeals), { calories: 300, protein: 20 });
+
+// --- units ---
+const lb: AppState = { ...s, weighIns: [{ at: now, weight: 200 }] };
+const kg = convertUnits(lb, 'kg');
+eq('switching to kg sets the unit', kg.profile.units, 'kg');
+eq('set weights convert to kg', fmtWeight(kg.workouts[0].exercises[0].sets[0].weight), '45.36');
+eq('weigh-ins convert to kg', fmtWeight(kg.weighIns[0].weight), '90.72');
+let back = kg;
+for (let i = 0; i < 10; i++) back = convertUnits(convertUnits(back, 'lb'), 'kg');
+back = convertUnits(back, 'lb');
+const near = (n: number) => Math.round(n * 1e6) / 1e6;
+eq('repeated switching never drifts sets', back.workouts.map((x) => near(x.exercises[0].sets[0].weight)), [100, 90, 80, 70]);
+eq('repeated switching never drifts weigh-ins', near(back.weighIns[0].weight), 200);
+eq('same unit is a no-op', convertUnits(lb, 'lb'), lb);
+eq('zero weight stays zero', convertUnits({ ...s, workouts: [w(0, 0, 10)] }, 'kg').workouts[0].exercises[0].sets[0].weight, 0);
+eq('fmtWeight trims to two decimals', [fmtWeight(45.359237), fmtWeight(100), fmtWeight(22.25), fmtWeight(99.999)], ['45.36', '100', '22.25', '100']);
+
+// --- food ---
+const pb = parseProduct({
+  code: '123',
+  product_name: 'Crunchy Peanut Butter',
+  brands: 'Acme, Acme Foods',
+  serving_size: '2 tbsp (32 g)',
+  serving_quantity: '32',
+  nutriments: { 'energy-kcal_100g': 588, proteins_100g: 25 },
+});
+eq('product parses name, first brand and serving', [pb?.name, pb?.brand, pb?.serving], ['Crunchy Peanut Butter', 'Acme', { grams: 32, label: '2 tbsp (32 g)' }]);
+eq('a serving of peanut butter is 188 cal, 8 g protein', pb && macrosFor(pb, 32), { calories: 188, protein: 8 });
+eq('kJ-only products convert to kcal', parseProduct({ product_name: 'Oat drink', nutriments: { energy_100g: 200 } })?.kcal100, 47.8);
+eq('products without calories are dropped', parseProduct({ product_name: 'Mystery', nutriments: {} }), null);
+eq('products without a name are dropped', parseProduct({ nutriments: { 'energy-kcal_100g': 100 } }), null);
+eq('missing protein counts as zero', parseProduct({ product_name: 'Cola', nutriments: { 'energy-kcal_100g': 42 } })?.protein100, 0);
+eq('no serving size means grams only', parseProduct({ product_name: 'Rice', serving_quantity: 0, nutriments: { 'energy-kcal_100g': 360 } })?.serving, undefined);
+const names = (q: string) => searchCommon(q).map((f) => f.name);
+eq('coffee finds black coffee first', names('coffee')[0], 'Coffee, black');
+eq('a typo still finds coffee', names('cofee')[0], 'Coffee, black');
+eq('a swapped-letter typo still finds protein', names('protien shake').length > 0, true);
+eq('protein shake finds shakes', names('protein shake').slice(0, 3).every((n) => n.toLowerCase().includes('shake')), true);
+eq('aliases work (soda finds cola)', names('soda').includes('Cola'), true);
+eq('beef does not turn up beer', names('beef').some((n) => n.startsWith('Beer')), false);
+eq('chicken does not turn up chickpeas', names('chicken').includes('Chickpeas, cooked'), false);
+eq('nonsense finds nothing', names('xyzzy').length, 0);
+eq('common search matches words in any order', searchCommon('yogurt greek').map((f) => f.name), ['Greek yogurt, plain nonfat']);
+eq('common search ignores case and empty input', [searchCommon('BANANA').length, searchCommon('  ').length], [1, 0]);
+eq('common foods have unique ids', new Set(COMMON_FOODS.map((f) => f.id)).size, COMMON_FOODS.length);
+eq('common foods have sane values', COMMON_FOODS.every((f) => f.kcal100 >= 0 && f.kcal100 <= 900 && f.protein100 <= 100 && (f.serving?.grams ?? 1) > 0), true);
+
+// --- sample data ---
+const demo = sampleState(now);
+eq('sample has a 4-day streak', streak(demo), 4);
+eq('sample volume shows in all 6 recent weeks', weeklyVolume(demo, 6).every((v) => v > 0), true);
+eq('sample volume grows over time', weeklyVolume(demo, 6)[5] > weeklyVolume(demo, 6)[0], true);
+eq('sample has PRs for every lift', personalRecords(demo).length, 15);
+eq('sample meals land today', todayMacros(demo).calories > 0, true);
+eq('sample has nothing in the future', [...demo.workouts.map((w) => w.finishedAt!), ...demo.meals.map((m) => m.at), ...demo.weighIns.map((x) => x.at)].every((t) => t <= now), true);
+const dawn = new Date(now); dawn.setHours(5, 0, 0, 0);
+const early = sampleState(dawn.getTime());
+eq('sample loaded at 5am has nothing in the future', [...early.workouts.map((w) => w.finishedAt!), ...early.meals.map((m) => m.at), ...early.weighIns.map((x) => x.at)].every((t) => t <= dawn.getTime()), true);
+eq('sample ids are unique', new Set(demo.workouts.map((w) => w.id)).size, demo.workouts.length);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

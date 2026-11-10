@@ -184,6 +184,13 @@ body {
   font-size: 15px;
 }
 
+/* a real app capture, drawn at the same logical size as the mock screens */
+.screen img.real {
+  display: block;
+  width: 393px;
+  height: 852px;
+}
+
 /* ============================================================
    In-app UI — authored at iPhone logical pixels (393 x 852)
    ============================================================ */

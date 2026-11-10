@@ -24,7 +24,9 @@ export const Name = ({ children }: { children: ReactNode }) => <Text style={t.na
 export const Label = ({ children, style }: { children: ReactNode; style?: StyleProp<TextStyle> }) => (
   <Text style={[t.label, style]}>{children}</Text>
 );
-export const Meta = ({ children }: { children: ReactNode }) => <Text style={t.meta}>{children}</Text>;
+export const Meta = ({ children, style }: { children: ReactNode; style?: StyleProp<TextStyle> }) => (
+  <Text style={[t.meta, style]}>{children}</Text>
+);
 export const Eyebrow = ({ children }: { children: ReactNode }) => <Text style={t.eyebrow}>{children}</Text>;
 export const Metric = ({ value, unit, small }: { value: string; unit?: string; small?: boolean }) => (
   <Text style={small ? t.metricSm : t.metric}>
@@ -55,7 +57,13 @@ export const Screen = ({ children, scroll = true }: { children: ReactNode; scrol
     <ScrollView
       style={t.screen}
       contentContainerStyle={t.screenContent}
-      showsVerticalScrollIndicator={false}>
+      showsVerticalScrollIndicator={false}
+      // The iOS number pad has no Done key: let a button tap land while it's
+      // open (instead of only closing it), allow dragging the page to dismiss
+      // it, and scroll fields out from under it.
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="interactive"
+      automaticallyAdjustKeyboardInsets>
       {children}
     </ScrollView>
   ) : (

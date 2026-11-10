@@ -16,6 +16,22 @@ node generate.mjs --logo assets/logo.png
 Output lands in `out/<size>/NN-<screen>.png`, ready to upload to
 App Store Connect.
 
+## Framing real captures (what gets submitted)
+
+The mock screens in `out/` were designed before the app existed. App Store
+Review Guideline 2.3.3 wants screenshots of the app in use, so the submitted
+set frames real captures instead:
+
+```bash
+node generate.mjs --real <folder of captures> --sizes 6.9 --logo ../mobile/assets/images/icon.png
+```
+
+Name each capture `NN-<id>.png`: the id picks its caption from `REAL_SLIDES` in
+`src/screens.js` (home, generate, log, food, progress, privacy) and NN sets the
+order. An unknown id stops the run rather than guessing a caption. An iPhone 15/16 Pro capture
+(1179 × 2556) is the same 393 × 852 pt shape as the frame, so it fills the
+screen exactly. Output lands in `out-real/<size>/`.
+
 ## Sizes
 
 | Key   | Pixels      | Devices                            |

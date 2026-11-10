@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -10,12 +10,19 @@ import { Card, CardTitle, Eyebrow, Label, Meta, Metric, Row, Screen, Title } fro
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const { state, updateProfile, resetAll } = useStore();
+  const { state, updateProfile, resetAll, loadSample } = useStore();
   const { profile } = state;
 
   const [name, setName] = useState(profile.name);
   const [calorieGoal, setCalorieGoal] = useState(String(profile.calorieGoal));
   const [proteinGoal, setProteinGoal] = useState(String(profile.proteinGoal));
+
+  // The fields hold their own text while typing; follow the saved profile
+  // when it changes underneath them (erase, sample data), or they would keep
+  // showing stale values and write them back on the next blur.
+  useEffect(() => setName(profile.name), [profile.name]);
+  useEffect(() => setCalorieGoal(String(profile.calorieGoal)), [profile.calorieGoal]);
+  useEffect(() => setProteinGoal(String(profile.proteinGoal)), [profile.proteinGoal]);
 
   const done = finished(state);
   const totalVolume = done.reduce((n, w) => n + volume(w), 0);
@@ -32,6 +39,20 @@ export default function ProfileScreen() {
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Erase everything', style: 'destructive', onPress: resetAll },
+      ],
+    );
+
+  const confirmSample = () =>
+    Alert.alert(
+      'Load sample data?',
+      'This replaces everything on this device with six weeks of example workouts, meals and weigh-ins, for taking screenshots. Use "Erase all data" afterwards to clear it.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Load sample data',
+          style: 'destructive',
+          onPress: loadSample,
+        },
       ],
     );
 
@@ -99,7 +120,7 @@ export default function ProfileScreen() {
         <Row>
           <View style={{ flex: 1 }}>
             <CardTitle>Units</CardTitle>
-            <Meta>Applies to weights and volume everywhere.</Meta>
+            <Meta>Switching converts every weight you've logged.</Meta>
           </View>
           <View style={s.seg}>
             {(['lb', 'kg'] as const).map((u) => (
@@ -119,7 +140,7 @@ export default function ProfileScreen() {
       <Card>
         <CardTitle>Your data</CardTitle>
         <Meta>
-          Everything stays on this iPhone. Nothing is uploaded, and there is no account to sign into.
+          Everything stays on this iPhone, and there is no account to sign into. Food lookups send only the barcode or search words to Open Food Facts.
         </Meta>
         <Pressable onPress={confirmReset} style={s.danger} accessibilityRole="button">
           <Ionicons name="trash-outline" size={17} color={C.red} />
@@ -127,7 +148,10 @@ export default function ProfileScreen() {
         </Pressable>
       </Card>
 
-      <Meta>Fat2Flat Fitness</Meta>
+      {/* hidden on purpose: a long press loads demo data for App Store screenshots */}
+      <Pressable onLongPress={confirmSample} delayLongPress={1500}>
+        <Meta>Fat2Flat Fitness</Meta>
+      </Pressable>
     </Screen>
   );
 }
