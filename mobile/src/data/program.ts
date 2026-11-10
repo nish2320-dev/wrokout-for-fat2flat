@@ -192,9 +192,17 @@ export function buildSession(program: Program, week: number, day: number): Progr
 export const weekSessions = (program: Program, week: number) =>
   SPLITS[program.daysPerWeek].map((_, day) => buildSession(program, week, day));
 
-/** Session keys of finished workouts that were started from the program. */
-export const completedKeys = (workouts: Workout[]) =>
-  new Set(workouts.filter((w) => w.finishedAt !== undefined && w.sessionKey).map((w) => w.sessionKey!));
+/**
+ * Session keys of finished workouts started from this program. Workouts from
+ * before it began belong to an earlier plan, whose "w1-d0" must not tick off
+ * the new plan's week 1.
+ */
+export const completedKeys = (program: Program, workouts: Workout[]) =>
+  new Set(
+    workouts
+      .filter((w) => w.finishedAt !== undefined && w.sessionKey && w.startedAt >= program.startedAt)
+      .map((w) => w.sessionKey!),
+  );
 
 /** The first session of the current week not yet done, or null when the week is complete or the program is over. */
 export function nextSession(state: AppState, now: number): ProgramSession | null {
@@ -202,7 +210,7 @@ export function nextSession(state: AppState, now: number): ProgramSession | null
   if (!program) return null;
   const week = weekOf(program, now);
   if (week > WEEKS) return null;
-  const done = completedKeys(state.workouts);
+  const done = completedKeys(program, state.workouts);
   return weekSessions(program, week).find((sess) => !done.has(sess.key)) ?? null;
 }
 
@@ -210,7 +218,7 @@ export function programProgress(state: AppState) {
   const program = state.program;
   if (!program) return { done: 0, total: 0 };
   const total = WEEKS * program.daysPerWeek;
-  const done = [...completedKeys(state.workouts)].filter((k) => {
+  const done = [...completedKeys(program, state.workouts)].filter((k) => {
     const m = /^w(\d+)-d(\d+)$/.exec(k);
     return m !== null && Number(m[1]) <= WEEKS && Number(m[2]) < program.daysPerWeek;
   }).length;

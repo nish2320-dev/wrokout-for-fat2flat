@@ -166,6 +166,7 @@ eq('sets and reps follow the phase', [buildSession(prog, 2, 0).plan.items[0].rep
 const withDone = { ...initialState, program: prog, workouts: [{ id: 'x', name: 'Upper A', startedAt: now - 3600000, finishedAt: now, exercises: [], sessionKey: 'w3-d0' }] };
 eq('next session skips completed ones', nextSession(withDone, now)?.key, 'w3-d1');
 eq('program progress counts completed sessions', programProgress(withDone), { done: 1, total: 48 });
+eq('workouts from an earlier plan do not count toward a restarted one', programProgress({ ...withDone, workouts: [{ ...withDone.workouts[0], startedAt: prog.startedAt - 86400000, finishedAt: prog.startedAt - 82800000 }] }), { done: 0, total: 48 });
 eq('a check-in is due with none logged', checkInDue(withDone, now), true);
 eq('a check-in is not due right after one', checkInDue({ ...withDone, checkIns: [{ id: 'c', at: now - DAY, photos: {} }] }, now), false);
 

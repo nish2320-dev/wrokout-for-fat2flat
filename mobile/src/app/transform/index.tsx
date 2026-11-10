@@ -48,7 +48,7 @@ export default function TransformScreen() {
   const finished = week > WEEKS;
   const phase = phaseOf(Math.min(week, WEEKS));
   const progress = programProgress(state);
-  const done = completedKeys(state.workouts);
+  const done = completedKeys(program, state.workouts);
   const sessions = finished ? [] : weekSessions(program, week);
   const next = nextSession(state, now);
   const advice = coachAdvice(state, now);
