@@ -6,9 +6,15 @@ import { personalRecords, streak, thisWeek, todayMacros, volume, weeklyVolume } 
 import { AppState, initialState } from '../src/data/types';
 import { convertUnits, fmtWeight } from '../src/data/units';
 import { sampleState } from '../src/data/sample';
+import { computeTargets, validateBody } from '../src/data/targets';
+import { WEEKS, buildSession, preferredIds, checkInDue, nextSession, phaseOf, programProgress, weekOf, weekSessions } from '../src/data/program';
+import { coachAdvice, weeklyTrend } from '../src/data/coach';
+import { Body, Program } from '../src/data/types';
+import { EXERCISES } from '../src/data/exercises';
 import { COMMON_FOODS, macrosFor, parseProduct, searchCommon } from '../src/data/food';
 
 const DAY = 86400000;
+const startOfDayAt = (t: number) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
 const now = Date.now();
 let pass = 0, fail = 0;
 const eq = (label: string, got: unknown, want: unknown) => {
@@ -123,6 +129,63 @@ const dawn = new Date(now); dawn.setHours(5, 0, 0, 0);
 const early = sampleState(dawn.getTime());
 eq('sample loaded at 5am has nothing in the future', [...early.workouts.map((w) => w.finishedAt!), ...early.meals.map((m) => m.at), ...early.weighIns.map((x) => x.at)].every((t) => t <= dawn.getTime()), true);
 eq('sample ids are unique', new Set(demo.workouts.map((w) => w.id)).size, demo.workouts.length);
+
+// --- transformation targets ---
+const man: Body = { sex: 'male', age: 30, heightCm: 180, startWeight: 90, goalWeight: 80, activity: 'moderate' };
+// Mifflin: 10*90 + 6.25*180 - 5*30 + 5 = 1880; x1.55 = 2914 -> 2910; steady -500
+eq('maintenance from Mifflin-St Jeor', computeTargets(man, 'steady', 'kg').maintenance, 2910);
+eq('steady pace is a 500 cal deficit', computeTargets(man, 'steady', 'kg').calories, 2410);
+eq('protein is 1.8 g/kg of goal weight', computeTargets(man, 'steady', 'kg').protein, 145);
+const smallWoman: Body = { sex: 'female', age: 40, heightCm: 155, startWeight: 130, goalWeight: 115, activity: 'sedentary' };
+const sw = computeTargets(smallWoman, 'fast', 'lb');
+eq('deficit never drops below the safe minimum', sw.calories >= 1200, true);
+eq('deficit never exceeds 25% of maintenance', sw.calories >= sw.maintenance * 0.75 - 5, true);
+eq('a capped target explains itself', sw.note !== undefined, true);
+eq('under-18s get maintenance', computeTargets({ ...man, age: 16 }, 'fast', 'kg').maintaining, true);
+eq('goal above current weight means maintenance', computeTargets({ ...man, goalWeight: 95 }, 'steady', 'kg').calories, 2910);
+eq('lb and kg give the same calories', Math.abs(computeTargets({ ...man, startWeight: 198.4, goalWeight: 176.4 }, 'steady', 'lb').calories - 2410) <= 10, true);
+eq('a healthy setup validates', validateBody(man, 'kg'), null);
+eq('an underweight goal is refused', validateBody({ ...man, goalWeight: 55 }, 'kg') !== null, true);
+
+// --- transformation program ---
+const prog: Program = { startedAt: startOfDayAt(now - 20 * DAY), daysPerWeek: 4, equipment: ['dumbbells', 'bodyweight'], body: man, pace: 'steady', adjustments: [] };
+eq('day 21 of the program is week 3', weekOf(prog, now), 3);
+eq('after 12 weeks the program is over', weekOf({ ...prog, startedAt: startOfDayAt(now - 90 * DAY) }, now), WEEKS + 1);
+eq('phases change every 4 weeks', [1, 4, 5, 8, 9, 12].map((w) => phaseOf(w).key), ['foundation', 'foundation', 'build', 'build', 'shred', 'shred']);
+const sessions = weekSessions(prog, 3);
+eq('a 4-day plan has 4 sessions a week', sessions.length, 4);
+eq('sessions use only the chosen equipment', sessions.every((x) => x.plan.items.every((i) => ['dumbbells', 'bodyweight'].includes(i.exercise.equipment))), true);
+eq('no exercise repeats within a session', sessions.every((x) => new Set(x.plan.items.map((i) => i.exercise.id)).size === x.plan.items.length), true);
+eq('every session has at least 4 exercises', sessions.every((x) => x.plan.items.length >= 4), true);
+const bodyweightOnly = weekSessions({ ...prog, daysPerWeek: 3, equipment: ['bodyweight'] }, 1);
+eq('bodyweight-only plans still train legs', bodyweightOnly.every((x) => x.plan.items.some((i) => i.exercise.muscle === 'legs')), true);
+eq('bodyweight-only sessions have at least 4 exercises', bodyweightOnly.every((x) => x.plan.items.length >= 4), true);
+eq('every program preference names a real exercise', preferredIds().filter((id) => !EXERCISES.some((e) => e.id === id)), []);
+eq('sets and reps follow the phase', [buildSession(prog, 2, 0).plan.items[0].reps, buildSession(prog, 10, 0).plan.items[0].reps], [12, 8]);
+const withDone = { ...initialState, program: prog, workouts: [{ id: 'x', name: 'Upper A', startedAt: now - 3600000, finishedAt: now, exercises: [], sessionKey: 'w3-d0' }] };
+eq('next session skips completed ones', nextSession(withDone, now)?.key, 'w3-d1');
+eq('program progress counts completed sessions', programProgress(withDone), { done: 1, total: 48 });
+eq('a check-in is due with none logged', checkInDue(withDone, now), true);
+eq('a check-in is not due right after one', checkInDue({ ...withDone, checkIns: [{ id: 'c', at: now - DAY, photos: {} }] }, now), false);
+
+// --- smart coach ---
+const weighs = (perWeek: number) => Array.from({ length: 8 }, (_, i) => ({ at: now - (20 - i * 2.5) * DAY, weight: 200 + (perWeek * (i * 2.5)) / 7 }));
+eq('trend reads a steady loss', Math.round((weeklyTrend(weighs(-1), now) ?? 0) * 100) / 100, -1);
+eq('too few weigh-ins means no trend', weeklyTrend(weighs(-1).slice(-3), now), null);
+const coachState = (perWeek: number, calories = 2400) => ({
+  ...initialState,
+  profile: { ...initialState.profile, calorieGoal: calories },
+  program: { ...prog, startedAt: now - 30 * DAY, body: { ...man, startWeight: 200, goalWeight: 180 } },
+  weighIns: weighs(perWeek),
+});
+eq('losing too slowly lowers calories by 100', coachAdvice(coachState(-0.2), now), { kind: 'lower', title: 'Slower than planned', detail: coachAdvice(coachState(-0.2), now)!.detail, to: 2300 });
+eq('on pace holds', coachAdvice(coachState(-1), now)?.kind, 'hold');
+eq('losing too fast raises calories', coachAdvice(coachState(-2.5), now)?.kind, 'raise');
+eq('the coach never goes below the safe minimum', coachAdvice(coachState(-0.2, 1550), now)?.kind, 'hold');
+eq('the coach waits two weeks after starting', coachAdvice({ ...coachState(-0.2), program: { ...coachState(-0.2).program, startedAt: now - 5 * DAY } }, now)?.kind, 'wait');
+eq('the coach waits a week after a change', coachAdvice({ ...coachState(-0.2), program: { ...coachState(-0.2).program, adjustments: [{ at: now - 2 * DAY, from: 2500, to: 2400, reason: 'x' }] } }, now)?.kind, 'wait');
+eq('sample data has a program in week 6', weekOf(sampleState(now).program!, now), 6);
+eq('sample workouts count toward the program', programProgress(sampleState(now)).done > 0, true);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

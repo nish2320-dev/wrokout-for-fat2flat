@@ -1,5 +1,5 @@
 import { startOfDay } from './stats';
-import { AppState, LoggedExercise, Meal, WeighIn, Workout } from './types';
+import { AppState, CheckIn, LoggedExercise, Meal, Program, WeighIn, Workout } from './types';
 
 /**
  * Six weeks of believable history for App Store screenshots: a push/pull/legs
@@ -84,22 +84,59 @@ export function sampleState(now: number): AppState {
     protein,
     at,
   });
-  // today's meals stay in the past even early in the morning
-  const todayAt = (h: number) => Math.min(today + h * HOUR, now - 5 * 60000);
+  // today's meals stay in the past even early in the morning, spaced out
+  // rather than all stamped with the same minute
+  const todayAt = (h: number, back: number) => Math.min(today + h * HOUR, now - back * 50 * 60000);
   const meals: Meal[] = [
-    meal('1', 'Greek yogurt with berries', 100, 17, todayAt(15.5)),
-    meal('2', 'Chicken & rice bowl', 404, 41, todayAt(12.5)),
-    meal('3', 'Protein shake', 241, 32, todayAt(10)),
-    meal('4', 'Oats, banana & peanut butter', 445, 18, todayAt(7.5)),
+    meal('1', 'Greek yogurt with berries', 100, 17, todayAt(15.5, 1)),
+    meal('2', 'Chicken & rice bowl', 404, 41, todayAt(12.5, 2)),
+    meal('3', 'Protein shake', 241, 32, todayAt(10, 3)),
+    meal('4', 'Oats, banana & peanut butter', 445, 18, todayAt(7.5, 4)),
     meal('5', 'Salmon & potatoes', 570, 30, today - DAY + 19 * HOUR),
     meal('6', 'Turkey sandwich', 437, 25, today - DAY + 13 * HOUR),
   ];
+
+  // a 4-day Transformation that began with the oldest workout, now in week 6
+  const programStart = today - oldest * DAY;
+  const program: Program = {
+    startedAt: programStart,
+    daysPerWeek: 4,
+    equipment: ['barbell', 'dumbbells', 'cables', 'machine'],
+    body: { sex: 'male', age: 34, heightCm: 178, startWeight: 196, goalWeight: 180, activity: 'moderate' },
+    pace: 'steady',
+    adjustments: [
+      { at: programStart + 21 * DAY, from: 2350, to: 2250, reason: 'Slower than planned' },
+    ],
+  };
+
+  // tag workouts with program sessions in date order, at most four a week
+  const perWeek = new Map<number, number>();
+  for (const w of [...workouts].reverse()) {
+    const week = Math.floor((startOfDay(w.finishedAt!) - programStart) / (7 * DAY)) + 1;
+    const n = perWeek.get(week) ?? 0;
+    if (n < program.daysPerWeek) {
+      w.sessionKey = `w${week}-d${n}`;
+      perWeek.set(week, n + 1);
+    }
+  }
+
+  // weekly check-ins with the waist coming down about 1 cm a week
+  const checkIns: CheckIn[] = Array.from({ length: 7 }, (_, i) => ({
+    id: `sample-c${i}`,
+    at: Math.min(programStart + i * 7 * DAY + 8 * HOUR, now - 60000),
+    waist: Math.round((97 - i * 0.95) * 10) / 10,
+    hips: Math.round((104 - i * 0.5) * 10) / 10,
+    chest: Math.round((108 - i * 0.3) * 10) / 10,
+    photos: {},
+  }));
 
   return {
     workouts,
     activeWorkoutId: null,
     meals,
     weighIns,
-    profile: { name: 'Alex', calorieGoal: 2200, proteinGoal: 170, units: 'lb' },
+    profile: { name: 'Alex', calorieGoal: 2250, proteinGoal: 145, units: 'lb' },
+    program,
+    checkIns,
   };
 }

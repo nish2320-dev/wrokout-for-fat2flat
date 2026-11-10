@@ -10,7 +10,9 @@ import {
   type ReactNode,
 } from 'react';
 
-import { AppState, LoggedExercise, Meal, Profile, SetEntry, WeighIn, Workout, initialState } from './types';
+import { deleteAllPhotos, deletePhotos } from '@/photos';
+
+import { AppState, CheckIn, LoggedExercise, Meal, Profile, Program, SetEntry, WeighIn, Workout, initialState } from './types';
 import { sampleState } from './sample';
 import { convertUnits } from './units';
 
@@ -22,7 +24,8 @@ type Store = {
   state: AppState;
   /** False until the persisted state has been read back from disk. */
   ready: boolean;
-  startWorkout: (name: string, exercises: LoggedExercise[]) => string;
+  /** `sessionKey` ties the workout to a Transformation session. */
+  startWorkout: (name: string, exercises: LoggedExercise[], sessionKey?: string) => string;
   finishWorkout: () => void;
   discardWorkout: () => void;
   addExercise: (exerciseId: string) => void;
@@ -35,6 +38,15 @@ type Store = {
   addWeighIn: (weight: number) => void;
   updateProfile: (patch: Partial<Profile>) => void;
   resetAll: () => void;
+  /** Starts (or restarts) the Transformation and sets the daily targets it computed. */
+  startProgram: (program: Program, targets: { calories: number; protein: number }, weight: number) => void;
+  /** Changes the plan's settings without restarting week 1. */
+  updateProgram: (patch: Partial<Program>, targets: { calories: number; protein: number }) => void;
+  endProgram: () => void;
+  /** Accepts the coach's suggested calorie target. */
+  applyCoach: (to: number, reason: string) => void;
+  addCheckIn: (checkIn: Omit<CheckIn, 'id' | 'at'>) => void;
+  removeCheckIn: (id: string) => void;
   /** Replaces everything with demo history, for App Store screenshots. */
   loadSample: () => void;
 };
@@ -84,12 +96,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     state,
     ready,
 
-    startWorkout(name, exercises) {
+    startWorkout(name, exercises, sessionKey) {
       const id = uid();
       setState((s) => ({
         ...s,
         activeWorkoutId: id,
-        workouts: [{ id, name, startedAt: Date.now(), exercises }, ...s.workouts],
+        workouts: [{ id, name, startedAt: Date.now(), exercises, ...(sessionKey ? { sessionKey } : {}) }, ...s.workouts],
       }));
       return id;
     },
@@ -179,11 +191,66 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       });
     },
 
+    startProgram(program, targets, weight) {
+      setState((s) => ({
+        ...s,
+        program,
+        profile: { ...s.profile, calorieGoal: targets.calories, proteinGoal: targets.protein },
+        // the starting weight is the first point on the coach's trend
+        weighIns: [...s.weighIns, { at: Date.now(), weight }],
+      }));
+    },
+
+    updateProgram(patch, targets) {
+      setState((s) =>
+        s.program
+          ? {
+              ...s,
+              program: { ...s.program, ...patch },
+              profile: { ...s.profile, calorieGoal: targets.calories, proteinGoal: targets.protein },
+            }
+          : s,
+      );
+    },
+
+    endProgram() {
+      setState((s) => ({ ...s, program: null }));
+    },
+
+    applyCoach(to, reason) {
+      setState((s) =>
+        s.program
+          ? {
+              ...s,
+              profile: { ...s.profile, calorieGoal: to },
+              program: {
+                ...s.program,
+                adjustments: [...s.program.adjustments, { at: Date.now(), from: s.profile.calorieGoal, to, reason }],
+              },
+            }
+          : s,
+      );
+    },
+
+    addCheckIn(checkIn) {
+      setState((s) => ({ ...s, checkIns: [...s.checkIns, { ...checkIn, id: uid(), at: Date.now() }] }));
+    },
+
+    removeCheckIn(id) {
+      setState((s) => {
+        const gone = s.checkIns.find((c) => c.id === id);
+        if (gone) deletePhotos([gone.photos.front, gone.photos.side]);
+        return { ...s, checkIns: s.checkIns.filter((c) => c.id !== id) };
+      });
+    },
+
     resetAll() {
+      deleteAllPhotos();
       setState(initialState);
     },
 
     loadSample() {
+      deleteAllPhotos();
       setState(sampleState(Date.now()));
     },
   }), [state, ready, patchActive]);
@@ -202,4 +269,4 @@ export function useActiveWorkout(): Workout | null {
   return state.workouts.find((w) => w.id === state.activeWorkoutId) ?? null;
 }
 
-export type { LoggedExercise, Meal, Profile, SetEntry, WeighIn, Workout };
+export type { CheckIn, LoggedExercise, Meal, Profile, Program, SetEntry, WeighIn, Workout };

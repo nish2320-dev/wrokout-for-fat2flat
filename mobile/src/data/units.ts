@@ -14,7 +14,7 @@ const convert = (n: number, from: Units, to: Units) => {
   return to === 'kg' ? n / LB_PER_KG : n * LB_PER_KG;
 };
 
-/** Rewrites every stored weight (sets and weigh-ins) into the new unit. */
+/** Rewrites every stored weight (sets, weigh-ins, program weights) into the new unit. */
 export function convertUnits(s: AppState, to: Units): AppState {
   const from = s.profile.units;
   if (from === to) return s;
@@ -29,7 +29,32 @@ export function convertUnits(s: AppState, to: Units): AppState {
       })),
     })),
     weighIns: s.weighIns.map((x) => ({ ...x, weight: convert(x.weight, from, to) })),
+    // height and body measurements are stored in cm, so only the program's weights change
+    program: s.program && {
+      ...s.program,
+      body: {
+        ...s.program.body,
+        startWeight: convert(s.program.body.startWeight, from, to),
+        goalWeight: convert(s.program.body.goalWeight, from, to),
+      },
+    },
   };
+}
+
+const CM_PER_IN = 2.54;
+
+/** Body measurements live in cm; lb users see inches. */
+export const lengthUnit = (units: Units) => (units === 'lb' ? 'in' : 'cm');
+export const cmToDisplay = (cm: number, units: Units) => (units === 'lb' ? cm / CM_PER_IN : cm);
+export const displayToCm = (n: number, units: Units) => (units === 'lb' ? n * CM_PER_IN : n);
+/** A measurement for display, one decimal at most. */
+export const fmtLength = (cm: number, units: Units) => `${Math.round(cmToDisplay(cm, units) * 10) / 10}`;
+
+/** Height as 5'10" for lb users, 178 cm otherwise. */
+export function fmtHeight(cm: number, units: Units) {
+  if (units === 'kg') return `${Math.round(cm)} cm`;
+  const inches = Math.round(cm / CM_PER_IN);
+  return `${Math.floor(inches / 12)}'${inches % 12}"`;
 }
 
 /** A weight for display: at most two decimals (22.25 kg plates), no trailing zeros. */
