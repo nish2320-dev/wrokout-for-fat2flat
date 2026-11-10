@@ -200,7 +200,7 @@ function TransformCard() {
       <View style={s.tf}>
         <Row>
           <Text style={s.tfEyebrow}>
-            {week > WEEKS ? 'TRANSFORMATION COMPLETE' : `${phaseOf(week).label.toUpperCase()} · WEEK ${week} OF ${WEEKS}`}
+            {week > WEEKS ? 'TRANSFORMATION COMPLETE' : `YOUR TRANSFORMATION · WEEK ${week} OF ${WEEKS}`}
           </Text>
           {due ? (
             <View style={s.tfDue}>
@@ -211,6 +211,7 @@ function TransformCard() {
         <Text style={s.tfTitle}>
           {week > WEEKS ? 'See your results' : next ? `Up next: ${next.plan.name}` : 'This week is done 💪'}
         </Text>
+        {week <= WEEKS ? <Text style={s.tfBody}>{phaseOf(week).label} phase · tap for your plan, coach and check-ins</Text> : null}
         <View style={s.tfTrack}>
           <View style={[s.tfFill, { width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }]} />
         </View>
