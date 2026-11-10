@@ -3,7 +3,7 @@
     "name": "Fat2Flat Fitness",
     "slug": "fat2flat-fitness",
     "owner": "nish2320",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "fat2flat",
@@ -43,9 +43,17 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Fat2Flat Fitness uses the camera to scan barcodes on food packaging and look up their calories.",
+          "cameraPermission": "Fat2Flat Fitness uses the camera to scan barcodes on food packaging and, if you choose, to take progress photos. Photos stay on your iPhone.",
           "microphonePermission": false,
           "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Fat2Flat Fitness lets you choose progress photos from your library. They stay on your iPhone and are never uploaded.",
+          "cameraPermission": "Fat2Flat Fitness uses the camera to scan barcodes on food packaging and, if you choose, to take progress photos. Photos stay on your iPhone.",
+          "microphonePermission": false
         }
       ]
     ],

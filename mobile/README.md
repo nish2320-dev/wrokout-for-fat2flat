@@ -53,13 +53,20 @@ src/
     meals/search       common-food list + Open Food Facts search
     meals/scan         barcode scanner
     meals/portion      pick an amount, see calories, add the meal
+    transform/         the 12-week Transformation: setup and weekly plan
+    checkin            weekly weight, measurements and progress photos
+    photos             before/after photo slider
   data/
     exercises.ts       the exercise catalogue and its form cues
     food.ts            common foods, Open Food Facts lookups, calorie maths
+    targets.ts         calorie and protein targets (Mifflin-St Jeor, safety caps)
+    program.ts         the 12-week program: phases, day templates, schedule
+    coach.ts           weekly weight trend and calorie suggestions
     generator.ts       turns filters into a workout plan
     stats.ts           volume, streaks, PRs, weekly rollups
     store.tsx          app state + AsyncStorage persistence
     types.ts
+  photos.ts            progress photos, stored by file name in the app's documents
   ui/kit.tsx           shared components (cards, pills, charts, buttons)
   theme.ts             brand tokens, shared with the marketing screenshots
 ```
@@ -72,8 +79,8 @@ npm run check       # runs the generator and stats logic assertions
 npx expo export --platform ios    # full Metro + Hermes bundle
 ```
 
-`npm run check` exercises the `data/` logic (generator, stats, units, food
-parsing and calorie maths) directly.
+`npm run check` exercises the `data/` logic (generator, stats, units, food,
+Transformation targets, program and coach) directly.
 Those modules import nothing from React Native, so the assertions run on any
 machine — including Linux CI, where the app itself cannot be built.
 

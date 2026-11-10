@@ -24,8 +24,18 @@ export const Name = ({ children }: { children: ReactNode }) => <Text style={t.na
 export const Label = ({ children, style }: { children: ReactNode; style?: StyleProp<TextStyle> }) => (
   <Text style={[t.label, style]}>{children}</Text>
 );
-export const Meta = ({ children, style }: { children: ReactNode; style?: StyleProp<TextStyle> }) => (
-  <Text style={[t.meta, style]}>{children}</Text>
+export const Meta = ({
+  children,
+  style,
+  numberOfLines,
+}: {
+  children: ReactNode;
+  style?: StyleProp<TextStyle>;
+  numberOfLines?: number;
+}) => (
+  <Text style={[t.meta, style]} numberOfLines={numberOfLines}>
+    {children}
+  </Text>
 );
 export const Eyebrow = ({ children }: { children: ReactNode }) => <Text style={t.eyebrow}>{children}</Text>;
 export const Metric = ({ value, unit, small }: { value: string; unit?: string; small?: boolean }) => (

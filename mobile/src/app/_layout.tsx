@@ -25,6 +25,10 @@ export default function RootLayout() {
           <Stack.Screen name="meals/search" options={{ title: 'Search food', headerBackTitle: 'Meals' }} />
           <Stack.Screen name="meals/scan" options={{ title: 'Scan barcode', headerBackTitle: 'Meals' }} />
           <Stack.Screen name="meals/portion" options={{ title: 'Add food' }} />
+          <Stack.Screen name="transform/index" options={{ title: 'Transformation', headerBackTitle: 'Back' }} />
+          <Stack.Screen name="transform/setup" options={{ title: 'Set up your plan' }} />
+          <Stack.Screen name="checkin" options={{ title: 'Weekly check-in' }} />
+          <Stack.Screen name="photos" options={{ title: 'Before & after' }} />
         </Stack>
       </StoreProvider>
     </SafeAreaProvider>

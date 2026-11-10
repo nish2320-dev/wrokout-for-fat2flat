@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,12 +7,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { exerciseName } from '@/data/exercises';
 import { useStore } from '@/data/store';
 import { finished, fmtDate, fmtVolume, personalRecords, streak, volume, weeklyVolume } from '@/data/stats';
-import { fmtWeight } from '@/data/units';
+import { cmToDisplay, fmtLength, fmtWeight, lengthUnit } from '@/data/units';
 import { C, S } from '@/theme';
 import { Bars, Btn, Card, CardTitle, Empty, Label, Meta, Metric, Name, Row, Screen, Tag, Title, Trend } from '@/ui/kit';
 
 export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { state, addWeighIn } = useStore();
   const [weight, setWeight] = useState('');
 
@@ -124,6 +126,8 @@ export default function ProgressScreen() {
         </View>
       </Card>
 
+      <BodyCard onCheckIn={() => router.push('/checkin')} onCompare={() => router.push('/photos')} />
+
       <Card flush>
         <Row style={{ paddingHorizontal: 14, paddingBottom: 10 }}>
           <CardTitle>Personal records</CardTitle>
@@ -157,6 +161,51 @@ export default function ProgressScreen() {
         <Meta>Finish your first workout to start filling these out.</Meta>
       ) : null}
     </Screen>
+  );
+}
+
+/** Waist trend and the latest measurements from weekly check-ins. */
+function BodyCard({ onCheckIn, onCompare }: { onCheckIn: () => void; onCompare: () => void }) {
+  const { state } = useStore();
+  const units = state.profile.units;
+  const len = lengthUnit(units);
+  const withWaist = state.checkIns.filter((c) => c.waist !== undefined);
+  const latest = state.checkIns[state.checkIns.length - 1];
+  const photos = state.checkIns.filter((c) => c.photos.front || c.photos.side).length;
+  const change = withWaist.length >= 2 ? withWaist[withWaist.length - 1].waist! - withWaist[0].waist! : null;
+
+  return (
+    <Card>
+      <Row style={{ marginBottom: 9 }}>
+        <View style={{ flex: 1 }}>
+          <CardTitle>Body</CardTitle>
+          <Meta>
+            {withWaist.length > 0
+              ? `Waist ${fmtLength(withWaist[withWaist.length - 1].waist!, units)} ${len} · ${state.checkIns.length} check-ins`
+              : 'Track your waist: the scale doesn’t show fat turning into muscle'}
+          </Meta>
+        </View>
+        {change !== null && Math.abs(change) >= 0.1 ? (
+          <Tag tone={change < 0 ? 'green' : 'grey'} label={`${change > 0 ? '+' : '−'}${fmtLength(Math.abs(change), units)} ${len}`} />
+        ) : null}
+      </Row>
+      {withWaist.length >= 2 ? <Trend points={withWaist.map((c) => cmToDisplay(c.waist!, units))} /> : null}
+      {latest && (latest.hips !== undefined || latest.chest !== undefined) ? (
+        <Meta style={{ marginTop: 6 }}>
+          Latest: {[
+            latest.waist !== undefined ? `waist ${fmtLength(latest.waist, units)}` : null,
+            latest.hips !== undefined ? `hips ${fmtLength(latest.hips, units)}` : null,
+            latest.chest !== undefined ? `chest ${fmtLength(latest.chest, units)}` : null,
+          ]
+            .filter(Boolean)
+            .join(' · ')} {len}
+        </Meta>
+      ) : null}
+      <View style={{ flexDirection: 'row', gap: S.gap, marginTop: 12 }}>
+        <Btn label="Check in" icon="camera-outline" onPress={onCheckIn} style={{ flex: 1 }} />
+        {photos >= 2 ? <Btn label="Before & after" icon="images-outline" ghost onPress={onCompare} style={{ flex: 1 }} /> : null}
+      </View>
+    </Card>
   );
 }
 

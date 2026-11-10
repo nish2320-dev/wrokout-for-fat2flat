@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { exerciseName } from '@/data/exercises';
+import { checkInDue, nextSession, phaseOf, programProgress, weekOf, WEEKS } from '@/data/program';
 import { useActiveWorkout, useStore } from '@/data/store';
 import { durationMin, finished, fmtDate, fmtVolume, setCount, streak, thisWeek, todayMacros, volume } from '@/data/stats';
 import { C, S } from '@/theme';
@@ -58,6 +59,8 @@ export default function HomeScreen() {
           </Card>
         </Pressable>
       ) : null}
+
+      <TransformCard />
 
       <View style={s.pair}>
         <Card style={s.half}>
@@ -163,6 +166,65 @@ export default function HomeScreen() {
   );
 }
 
+/** The Transformation's front door: an invitation before it starts, today's session after. */
+function TransformCard() {
+  const router = useRouter();
+  const { state } = useStore();
+  const program = state.program;
+  const now = Date.now();
+
+  if (!program) {
+    return (
+      <Pressable onPress={() => router.push('/transform/setup')} accessibilityRole="button">
+        <View style={s.tf}>
+          <Text style={s.tfEyebrow}>NEW · 12-WEEK PROGRAM</Text>
+          <Text style={s.tfTitle}>Start your Fat2Flat Transformation</Text>
+          <Text style={s.tfBody}>
+            Personal calorie and protein targets, a workout plan for every week, and a coach that adjusts as you go.
+          </Text>
+          <View style={s.tfBtn}>
+            <Ionicons name="flame" size={15} color="#fff" />
+            <Text style={s.tfBtnText}>Build my plan</Text>
+          </View>
+        </View>
+      </Pressable>
+    );
+  }
+
+  const week = weekOf(program, now);
+  const progress = programProgress(state);
+  const next = nextSession(state, now);
+  const due = checkInDue(state, now);
+  return (
+    <Pressable onPress={() => router.push('/transform')} accessibilityRole="button">
+      <View style={s.tf}>
+        <Row>
+          <Text style={s.tfEyebrow}>
+            {week > WEEKS ? 'TRANSFORMATION COMPLETE' : `${phaseOf(week).label.toUpperCase()} · WEEK ${week} OF ${WEEKS}`}
+          </Text>
+          {due ? (
+            <View style={s.tfDue}>
+              <Text style={s.tfDueText}>Check-in due</Text>
+            </View>
+          ) : null}
+        </Row>
+        <Text style={s.tfTitle}>
+          {week > WEEKS ? 'See your results' : next ? `Up next: ${next.plan.name}` : 'This week is done 💪'}
+        </Text>
+        <View style={s.tfTrack}>
+          <View style={[s.tfFill, { width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }]} />
+        </View>
+        <Row>
+          <Text style={s.tfMeta}>
+            {progress.done} of {progress.total} workouts
+          </Text>
+          <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.6)" />
+        </Row>
+      </View>
+    </Pressable>
+  );
+}
+
 function QuickItem({
   icon,
   label,
@@ -204,6 +266,28 @@ const s = StyleSheet.create({
   resume: { backgroundColor: C.ink, borderColor: C.ink },
   resumeTitle: { fontSize: 15, fontWeight: '800', color: '#fff', letterSpacing: -0.2 },
   resumeMeta: { fontSize: 12, fontWeight: '500', color: 'rgba(255,255,255,0.6)', marginTop: 2 },
+
+  tf: { backgroundColor: C.ink, borderRadius: S.radius, padding: 15, gap: 7 },
+  tfEyebrow: { color: C.redLight, fontSize: 10.5, fontWeight: '800', letterSpacing: 0.9 },
+  tfTitle: { color: '#fff', fontSize: 18, fontWeight: '800', letterSpacing: -0.5 },
+  tfBody: { color: 'rgba(255,255,255,0.7)', fontSize: 13, lineHeight: 18 },
+  tfBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    height: 34,
+    paddingHorizontal: 14,
+    borderRadius: 17,
+    backgroundColor: C.red,
+    marginTop: 4,
+  },
+  tfBtnText: { color: '#fff', fontSize: 13, fontWeight: '800' },
+  tfDue: { height: 20, paddingHorizontal: 8, borderRadius: 10, backgroundColor: C.red, justifyContent: 'center' },
+  tfDueText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+  tfTrack: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.15)', overflow: 'hidden' },
+  tfFill: { height: '100%', borderRadius: 3, backgroundColor: C.red },
+  tfMeta: { color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: '600' },
 
   pair: { flexDirection: 'row', gap: S.gap },
   half: { flex: 1 },

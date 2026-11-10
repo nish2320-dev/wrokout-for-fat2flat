@@ -109,3 +109,37 @@ The camera is used only to read barcodes; no photos are taken or stored.
 ```
 
 Contact: your name, phone and email (only Apple's reviewers see these).
+
+## Version 1.1: "The Fat2Flat Transformation"
+
+**What's New in This Version (4000)**
+
+```
+NEW: The Fat2Flat Transformation, a 12-week program built around you.
+
+• Personal targets: enter your stats and goal and get daily calorie and protein targets, with safe limits built in.
+• A plan for every week: Foundation, Build and Shred phases, 3–5 workouts a week, built from the equipment you have. Even bodyweight-only plans train your whole body.
+• Smart coach: every week it reads your weight trend and suggests a small calorie tweak to keep you on pace. You decide whether to accept it.
+• Weekly check-ins: log your waist, hips and chest, and take progress photos.
+• Before & after: compare any two check-in photos with a slider. Photos stay private on your iPhone.
+• 7 new home-friendly leg exercises.
+```
+
+**Description**: add this block after "SEE YOUR PROGRESS":
+
+```
+THE 12-WEEK TRANSFORMATION
+• Personal calorie and protein targets from your stats and goal
+• A week-by-week workout plan in three phases: Foundation, Build, Shred
+• A smart coach that fine-tunes your calories from your real weight trend
+• Weekly check-ins with waist measurements and private progress photos
+• Before-and-after photo slider
+```
+
+**App Review notes**: append:
+
+```
+Version 1.1 adds the 12-week Transformation (Home → "Build my plan"). Progress photos at weekly check-ins are taken with the camera or chosen from the photo library and are stored only inside the app on the device; nothing is uploaded. Sample data for testing: on the Profile tab, long-press the "Fat2Flat Fitness" footer for 2 seconds and choose "Load sample data".
+```
+
+**App Privacy**: unchanged, "Data Not Collected". Photos, measurements and plan details never leave the device.

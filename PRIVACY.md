@@ -1,6 +1,6 @@
 # Privacy Policy — Fat2Flat Fitness
 
-_Effective date: October 25, 2026_
+_Effective date: November 10, 2026_
 
 Fat2Flat Fitness ("the app", "we") is a workout and meal tracker. This policy
 explains what happens to the information you put into it. The short version:
@@ -14,7 +14,10 @@ When you use the app, it saves the following **only on your device**:
 
 - Workouts you log: exercises, sets, reps, weights and times
 - Meals you log: names, calories and protein
-- Body-weight entries
+- Body-weight entries, body measurements (waist, hips, chest) and any
+  progress photos you take or choose
+- Your Transformation plan, if you start one: the age, sex, height, weights
+  and activity level you enter to calculate your targets
 - Your profile settings: the name you choose for the greeting, your daily
   calorie and protein goals, and your preferred units (lb or kg)
 
@@ -41,11 +44,17 @@ answers; their handling of that is covered by the
 Searching the built-in list of common foods, and typing calories in yourself,
 happen entirely on your device.
 
-## Camera
+## Camera and progress photos
 
-The camera is used only to read food barcodes, and only while the scan screen
-is open, after you allow it. No photos or video are taken, saved or sent. You
-can turn camera access off in iOS Settings → Fat2Flat Fitness.
+The camera is used to read food barcodes and, if you choose, to take progress
+photos at your weekly check-ins. Barcode scanning takes no photos. You can also
+pick progress photos from your photo library; the app only receives the
+photos you choose.
+
+**Progress photos are stored only inside the app on your iPhone.** They are
+never uploaded, shared or seen by us. You can delete a check-in and its photos
+at any time, and "Erase all data" removes them all. You can turn camera or
+photo access off in iOS Settings → Fat2Flat Fitness.
 
 ## Notifications
 
@@ -66,7 +75,8 @@ by us. We have no access to them.
 You're in control of your data at all times:
 
 - **In the app:** Profile → **Erase all data** permanently deletes every
-  workout, meal and weigh-in on the device.
+  workout, meal, weigh-in, check-in and progress photo on the device. Single
+  check-ins can be deleted from the check-in screen.
 - **Deleting the app** removes all of its data from the device.
 
 ## Children
@@ -77,8 +87,10 @@ personal information, it collects none from children.
 ## Health information
 
 The app is a personal log, not a medical device. Calorie, protein and
-workout suggestions are general guidance, not medical advice. Talk to a
-doctor before starting a new exercise or diet program.
+workout suggestions, including the Transformation plan and its coach, are
+general guidance, not medical advice. The details you enter for your plan are
+used only on your iPhone to calculate them. Talk to a doctor before starting a
+new exercise or diet program.
 
 ## Changes to this policy
 

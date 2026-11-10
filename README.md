@@ -28,6 +28,10 @@ its own. The only network use is looking up foods in Open Food Facts.
   time you have, or start an empty one.
 - Log sets as you go, with a rest timer and your previous best for each lift.
 - Browse an exercise library with form cues for every movement.
+- Follow the 12-week Fat2Flat Transformation: personal calorie and protein
+  targets, a week-by-week plan in three phases, a coach that adjusts calories
+  from your weight trend, and weekly check-ins with waist measurements and
+  private progress photos (with a before/after slider).
 - Track volume by week, body weight over time, personal records and your streak.
 - Log meals against daily calorie and protein goals: scan a barcode, search
   common and packaged foods (calories worked out for your portion), or type
