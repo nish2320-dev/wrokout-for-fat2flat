@@ -20,6 +20,7 @@ import { useActiveWorkout, useStore } from '@/data/store';
 import { fmtLength, fmtWeight, lengthUnit } from '@/data/units';
 import { C, S } from '@/theme';
 import { Btn, Card, CardTitle, Empty, Eyebrow, Label, Meta, Metric, Name, Row, Screen, Tag } from '@/ui/kit';
+import { MealPlanCard } from '@/ui/MealPlanCard';
 
 const DAY = 86400000;
 
@@ -166,6 +167,8 @@ export default function TransformScreen() {
           })}
         </Card>
       )}
+
+      {week <= WEEKS ? <MealPlanCard /> : null}
 
       {advice ? (
         <Card>
