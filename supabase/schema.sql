@@ -1,0 +1,210 @@
+-- Fat2Flat Fitness: coach features.
+-- Paste this whole file into Supabase → SQL Editor → New query → Run.
+-- Safe to run again: it only creates what is missing and replaces functions/policies.
+--
+-- Who can see what (enforced by row-level security, not by the app):
+--   • A client sees and changes only their own row, messages and photos.
+--   • A coach sees only the clients who joined them with their code, and
+--     those clients' photos only while the client has photo sharing on.
+--   • Nobody can list coaches or guess who else uses the app.
+
+-- ── Tables ──────────────────────────────────────────────────────────────
+
+create table if not exists public.coaches (
+  user_id    uuid primary key references auth.users on delete cascade,
+  name       text not null check (char_length(name) between 1 and 60),
+  code       text not null unique check (code ~ '^[A-Z0-9]{6}$'),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.clients (
+  user_id      uuid primary key references auth.users on delete cascade,
+  coach_id     uuid not null references public.coaches (user_id) on delete cascade,
+  name         text not null check (char_length(name) between 1 and 60),
+  share_photos boolean not null default false,
+  push_token   text,
+  summary      jsonb not null default '{}'::jsonb,
+  snapshot     jsonb not null default '{}'::jsonb,
+  joined_at    timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+create index if not exists clients_coach_idx on public.clients (coach_id);
+
+create table if not exists public.messages (
+  id         uuid primary key default gen_random_uuid(),
+  coach_id   uuid not null references public.coaches (user_id) on delete cascade,
+  client_id  uuid not null references public.clients (user_id) on delete cascade,
+  body       text not null check (char_length(body) between 1 and 1000),
+  created_at timestamptz not null default now(),
+  read_at    timestamptz
+);
+create index if not exists messages_client_idx on public.messages (client_id, created_at desc);
+
+alter table public.coaches  enable row level security;
+alter table public.clients  enable row level security;
+alter table public.messages enable row level security;
+
+-- ── Column-level grants: what the app may write directly ────────────────
+-- Rows are created through the functions below, so a client can never pick
+-- their own coach_id, and a coach can never change a client's data.
+
+revoke all on public.coaches, public.clients, public.messages from anon;
+revoke insert, update, delete on public.coaches, public.clients, public.messages from authenticated;
+grant select on public.coaches, public.clients, public.messages to authenticated;
+grant update (name) on public.coaches to authenticated;
+grant update (name, share_photos, push_token, summary, snapshot, updated_at) on public.clients to authenticated;
+grant delete on public.clients to authenticated;
+grant insert (coach_id, client_id, body) on public.messages to authenticated;
+grant update (read_at) on public.messages to authenticated;
+grant delete on public.messages to authenticated;
+
+-- ── Policies ────────────────────────────────────────────────────────────
+
+drop policy if exists "coach reads own row" on public.coaches;
+create policy "coach reads own row" on public.coaches for select to authenticated
+  using (user_id = auth.uid());
+
+drop policy if exists "client reads their coach" on public.coaches;
+create policy "client reads their coach" on public.coaches for select to authenticated
+  using (user_id in (select coach_id from public.clients where user_id = auth.uid()));
+
+drop policy if exists "coach renames self" on public.coaches;
+create policy "coach renames self" on public.coaches for update to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+drop policy if exists "client reads own row" on public.clients;
+create policy "client reads own row" on public.clients for select to authenticated
+  using (user_id = auth.uid());
+
+drop policy if exists "coach reads their clients" on public.clients;
+create policy "coach reads their clients" on public.clients for select to authenticated
+  using (coach_id = auth.uid());
+
+drop policy if exists "client updates own row" on public.clients;
+create policy "client updates own row" on public.clients for update to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+drop policy if exists "client leaves or coach removes" on public.clients;
+create policy "client leaves or coach removes" on public.clients for delete to authenticated
+  using (user_id = auth.uid() or coach_id = auth.uid());
+
+drop policy if exists "read own messages" on public.messages;
+create policy "read own messages" on public.messages for select to authenticated
+  using (client_id = auth.uid() or coach_id = auth.uid());
+
+drop policy if exists "coach messages own clients" on public.messages;
+create policy "coach messages own clients" on public.messages for insert to authenticated
+  with check (
+    coach_id = auth.uid()
+    and exists (select 1 from public.clients c where c.user_id = client_id and c.coach_id = auth.uid())
+  );
+
+drop policy if exists "client marks read" on public.messages;
+create policy "client marks read" on public.messages for update to authenticated
+  using (client_id = auth.uid()) with check (client_id = auth.uid());
+
+drop policy if exists "coach deletes own messages" on public.messages;
+create policy "coach deletes own messages" on public.messages for delete to authenticated
+  using (coach_id = auth.uid());
+
+-- ── Functions the app calls ─────────────────────────────────────────────
+
+-- Makes the signed-in user a coach (or renames them) and returns their code.
+create or replace function public.become_coach(p_name text)
+returns text
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_code text;
+  v_alphabet constant text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; -- no 0/O, 1/I
+begin
+  if auth.uid() is null then raise exception 'Not signed in'; end if;
+  if char_length(trim(coalesce(p_name, ''))) = 0 then raise exception 'Enter your name'; end if;
+  select code into v_code from coaches where user_id = auth.uid();
+  if found then
+    update coaches set name = trim(p_name) where user_id = auth.uid();
+    return v_code;
+  end if;
+  loop
+    v_code := '';
+    for i in 1..6 loop
+      v_code := v_code || substr(v_alphabet, 1 + floor(random() * length(v_alphabet))::int, 1);
+    end loop;
+    begin
+      insert into coaches (user_id, name, code) values (auth.uid(), trim(p_name), v_code);
+      return v_code;
+    exception when unique_violation then
+      -- code taken: try another
+    end;
+  end loop;
+end;
+$$;
+
+-- Joins the coach with this code (switching coach if already joined) and
+-- returns the coach's name.
+create or replace function public.join_coach(p_code text, p_name text, p_share_photos boolean)
+returns text
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_coach coaches%rowtype;
+begin
+  if auth.uid() is null then raise exception 'Not signed in'; end if;
+  if char_length(trim(coalesce(p_name, ''))) = 0 then raise exception 'Enter your name'; end if;
+  select * into v_coach from coaches where code = upper(replace(trim(coalesce(p_code, '')), ' ', ''));
+  if not found then raise exception 'No coach has that code. Check it and try again.'; end if;
+  if v_coach.user_id = auth.uid() then raise exception 'That is your own coach code.'; end if;
+  insert into clients (user_id, coach_id, name, share_photos)
+  values (auth.uid(), v_coach.user_id, trim(p_name), coalesce(p_share_photos, false))
+  on conflict (user_id) do update
+    set coach_id = excluded.coach_id,
+        name = excluded.name,
+        share_photos = excluded.share_photos,
+        joined_at = case when clients.coach_id = excluded.coach_id then clients.joined_at else now() end;
+  return v_coach.name;
+end;
+$$;
+
+-- Permanently deletes the signed-in user and everything tied to them.
+-- The app removes the user's photos from storage first.
+create or replace function public.delete_my_account()
+returns void
+language plpgsql security definer set search_path = public
+as $$
+begin
+  if auth.uid() is null then raise exception 'Not signed in'; end if;
+  delete from auth.users where id = auth.uid();
+end;
+$$;
+
+revoke execute on function public.become_coach(text) from public, anon;
+revoke execute on function public.join_coach(text, text, boolean) from public, anon;
+revoke execute on function public.delete_my_account() from public, anon;
+grant execute on function public.become_coach(text) to authenticated;
+grant execute on function public.join_coach(text, text, boolean) to authenticated;
+grant execute on function public.delete_my_account() to authenticated;
+
+-- ── Progress photos (private storage) ───────────────────────────────────
+-- Files live at progress-photos/<client user id>/<file name>.
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('progress-photos', 'progress-photos', false, 5242880, array['image/jpeg', 'image/png', 'image/heic'])
+on conflict (id) do nothing;
+
+drop policy if exists "client manages own photos" on storage.objects;
+create policy "client manages own photos" on storage.objects for all to authenticated
+  using (bucket_id = 'progress-photos' and (storage.foldername(name))[1] = auth.uid()::text)
+  with check (bucket_id = 'progress-photos' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "coach views shared photos" on storage.objects;
+create policy "coach views shared photos" on storage.objects for select to authenticated
+  using (
+    bucket_id = 'progress-photos'
+    and exists (
+      select 1 from public.clients c
+      -- objects.name, not name: clients has its own name column
+      where c.user_id::text = (storage.foldername(objects.name))[1]
+        and c.coach_id = auth.uid()
+        and c.share_photos
+    )
+  );

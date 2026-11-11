@@ -8,6 +8,7 @@ import { checkInDue, nextSession, phaseOf, programProgress, weekOf, WEEKS } from
 import { useActiveWorkout, useStore } from '@/data/store';
 import { durationMin, finished, fmtDate, fmtVolume, setCount, streak, thisWeek, todayMacros, volume } from '@/data/stats';
 import { C, S } from '@/theme';
+import { CoachNoteCard } from '@/ui/CoachNoteCard';
 import { Card, CardTitle, Empty, Eyebrow, Label, Meta, Metric, Name, Ring, Row, Screen, Tag } from '@/ui/kit';
 
 export default function HomeScreen() {
@@ -44,14 +45,17 @@ export default function HomeScreen() {
         ) : null}
       </Row>
 
+      <CoachNoteCard />
+
       {active ? (
         <Pressable onPress={() => router.push('/workout/active')}>
           <Card style={s.resume}>
             <Row>
               <View style={{ flex: 1 }}>
-                <Text style={s.resumeTitle}>{active.name} in progress</Text>
+                <Text style={s.resumeEyebrow}>WORKOUT IN PROGRESS</Text>
+                <Text style={s.resumeTitle}>{active.name}</Text>
                 <Text style={s.resumeMeta}>
-                  {setCount(active)} of {active.exercises.reduce((n, e) => n + e.sets.length, 0)} sets done
+                  {setCount(active)} of {active.exercises.reduce((n, e) => n + e.sets.length, 0)} sets done · tap to continue
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color="#fff" />
@@ -264,9 +268,11 @@ const s = StyleSheet.create({
   },
   streakText: { fontSize: 12, fontWeight: '700', color: C.red },
 
-  resume: { backgroundColor: C.ink, borderColor: C.ink },
+  // red, so it never reads as the (dark) Transformation card below it
+  resume: { backgroundColor: C.red, borderColor: C.red },
+  resumeEyebrow: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: 'rgba(255,255,255,0.8)', marginBottom: 2 },
   resumeTitle: { fontSize: 15, fontWeight: '800', color: '#fff', letterSpacing: -0.2 },
-  resumeMeta: { fontSize: 12, fontWeight: '500', color: 'rgba(255,255,255,0.6)', marginTop: 2 },
+  resumeMeta: { fontSize: 12, fontWeight: '500', color: 'rgba(255,255,255,0.85)', marginTop: 2 },
 
   tf: { backgroundColor: C.ink, borderRadius: S.radius, padding: 15, gap: 7 },
   tfEyebrow: { color: C.redLight, fontSize: 10.5, fontWeight: '800', letterSpacing: 0.9 },

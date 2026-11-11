@@ -3,7 +3,7 @@
     "name": "Fat2Flat Fitness",
     "slug": "fat2flat-fitness",
     "owner": "nish2320",
-    "version": "1.1.0",
+    "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "fat2flat",
@@ -14,7 +14,8 @@
       "bundleIdentifier": "com.fat2flat.fitness",
       "config": {
         "usesNonExemptEncryption": false
-      }
+      },
+      "usesAppleSignIn": true
     },
     "android": {
       "package": "com.fat2flat.fitness",
@@ -43,7 +44,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Fat2Flat Fitness uses the camera to scan barcodes on food packaging and, if you choose, to take progress photos. Photos stay on your iPhone.",
+          "cameraPermission": "Fat2Flat Fitness uses the camera to scan barcodes on food packaging and, if you choose, to take progress photos. Photos stay on your iPhone unless you share them with your coach.",
           "microphonePermission": false,
           "recordAudioAndroid": false
         }
@@ -51,11 +52,13 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Fat2Flat Fitness lets you choose progress photos from your library. They stay on your iPhone and are never uploaded.",
-          "cameraPermission": "Fat2Flat Fitness uses the camera to scan barcodes on food packaging and, if you choose, to take progress photos. Photos stay on your iPhone.",
+          "photosPermission": "Fat2Flat Fitness lets you choose progress photos from your library. They stay on your iPhone unless you choose to share them with your coach.",
+          "cameraPermission": "Fat2Flat Fitness uses the camera to scan barcodes on food packaging and, if you choose, to take progress photos. Photos stay on your iPhone unless you share them with your coach.",
           "microphonePermission": false
         }
-      ]
+      ],
+      "expo-apple-authentication",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -64,7 +67,9 @@
     "extra": {
       "eas": {
         "projectId": "9a17935b-6905-44f9-9925-65581025dcdf"
-      }
+      },
+      "supabaseUrl": "",
+      "supabaseKey": ""
     }
   }
 }

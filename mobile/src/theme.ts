@@ -16,6 +16,8 @@ export const C = {
   redWash: '#FDECEB',
   green: '#17A34A',
   greenWash: '#E7F6ED',
+  amber: '#B25E00',
+  amberWash: '#FFF2DF',
 } as const;
 
 export const S = {

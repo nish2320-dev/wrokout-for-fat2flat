@@ -9,6 +9,7 @@ import { useStore } from '@/data/store';
 import { ACTIVITY, computeTargets, PACES, validateBody } from '@/data/targets';
 import { Activity, Body, Pace, Program, Sex } from '@/data/types';
 import { fmtWeight } from '@/data/units';
+import { askNotifications } from '@/notify';
 import { C, S } from '@/theme';
 import { Btn, Card, CardTitle, Eyebrow, Label, Meta, Metric, Pill, Row, Screen } from '@/ui/kit';
 
@@ -77,6 +78,8 @@ function SetupForm() {
         targets,
         current,
       );
+      // for the workout and check-in reminders; the plan works without them
+      askNotifications();
       router.replace('/transform');
     }
   };

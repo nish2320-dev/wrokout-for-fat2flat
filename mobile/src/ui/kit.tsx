@@ -144,9 +144,9 @@ export function Btn({
   );
 }
 
-export const Tag = ({ label, tone = 'red' }: { label: string; tone?: 'red' | 'grey' | 'green' }) => (
-  <View style={[t.tag, tone === 'grey' && t.tagGrey, tone === 'green' && t.tagGreen]}>
-    <Text style={[t.tagText, tone === 'grey' && t.tagTextGrey, tone === 'green' && t.tagTextGreen]}>
+export const Tag = ({ label, tone = 'red' }: { label: string; tone?: 'red' | 'grey' | 'green' | 'amber' }) => (
+  <View style={[t.tag, tone === 'grey' && t.tagGrey, tone === 'green' && t.tagGreen, tone === 'amber' && t.tagAmber]}>
+    <Text style={[t.tagText, tone === 'grey' && t.tagTextGrey, tone === 'green' && t.tagTextGreen, tone === 'amber' && t.tagTextAmber]}>
       {label}
     </Text>
   </View>
@@ -326,9 +326,11 @@ const t = StyleSheet.create({
   },
   tagGrey: { backgroundColor: '#F0F2F5' },
   tagGreen: { backgroundColor: C.greenWash },
+  tagAmber: { backgroundColor: C.amberWash },
   tagText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.3, color: C.red },
   tagTextGrey: { color: C.muted },
   tagTextGreen: { color: C.green },
+  tagTextAmber: { color: C.amber },
 
   ring: { width: 54, height: 54 },
   ringSvg: { position: 'absolute' },

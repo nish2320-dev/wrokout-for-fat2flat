@@ -12,6 +12,7 @@ import { coachAdvice, weeklyTrend } from '../src/data/coach';
 import { Body, Program } from '../src/data/types';
 import { EXERCISES } from '../src/data/exercises';
 import { DIETS, MEALS, dayTarget, planDay, Diet } from '../src/data/mealplan';
+import { attentionScore, flags, planReminders, snapshot, snapshotToState, suggestNote, summarize } from '../src/data/sharing';
 import { COMMON_FOODS, macrosFor, parseProduct, searchCommon } from '../src/data/food';
 
 const DAY = 86400000;
@@ -211,6 +212,52 @@ eq('workout days have a post-workout snack with protein', plansFor('hinduveg', 2
 eq('workout and rest days average back to the target over a week', [3, 4, 5].map((d) => Math.abs(dayTarget(2000, d, true) * d + dayTarget(2000, d, false) * (7 - d) - 2000 * 7) <= 40), [true, true, true]);
 eq('no main ingredient appears more than twice in a day', DIETS.every((d) => plansFor(d.key, 2000, false).every((p) => { const c = new Map<string, number>(); for (const m of p.meals) { const k = ['paneer', 'chicken', 'egg'].find((x) => m.meal.name.toLowerCase().includes(x)); if (k) c.set(k, (c.get(k) ?? 0) + 1); } return [...c.values()].every((n) => n <= 2); })), true);
 eq('high-protein plans for non-veg reach decent protein', plansFor('nonveg', 2200, true).every((p) => p.protein >= 90), true);
+
+// --- coach sharing ---
+const sam = sampleState(now);
+const sum = summarize(sam, now);
+eq('summary: sample is in program week 6', sum.week, 6);
+eq('summary: planned workouts follow the plan', sum.plannedThisWeek, 4);
+eq('summary: weight is tracked', sum.weightNow !== null && sum.weightStart === 196, true);
+eq('summary: weight change over a week is negative for the sample', (sum.weightChange7d ?? 0) < 0, true);
+eq('summary: meals today are counted', sum.caloriesToday > 0 && sum.daysLogged7d >= 1, true);
+eq('summary: waist in cm from check-ins', sum.waistStart, 97);
+const snapNo = snapshot(sam, now, false);
+eq('snapshot without photo sharing strips photo names', snapNo.checkIns.every((c) => Object.keys(c.photos).length === 0), true);
+const withPhoto = { ...sam, checkIns: [{ id: 'c', at: now, photos: { front: 'a.jpg' } }] };
+eq('snapshot with photo sharing keeps photo names', snapshot(withPhoto, now, true).checkIns[0].photos.front, 'a.jpg');
+eq('snapshot drops unfinished workouts', snapshot({ ...sam, workouts: [{ id: 'x', name: 'x', startedAt: now, exercises: [] }] }, now, false).workouts.length, 0);
+eq('snapshot drops meals older than 30 days', snapshot({ ...sam, meals: [{ id: 'm', name: 'm', calories: 1, protein: 1, at: now - 40 * DAY }] }, now, false).meals.length, 0);
+eq('snapshot round-trips into the same summary', JSON.stringify(summarize(snapshotToState(snapshot(sam, now, true)), now)), JSON.stringify(sum));
+eq('snapshotToState tolerates junk', snapshotToState(null).workouts.length, 0);
+
+const fresh = summarize({ ...initialState, program: { ...sam.program!, startedAt: startOfDayAt(now) } }, now);
+eq('a brand-new client is flagged with no workouts', flags(fresh, now)[0].key, 'inactive');
+eq('a brand-new client gets a welcome note', suggestNote('Priya Shah', fresh, now).startsWith('Hey Priya, welcome aboard'), true);
+const idle = { ...sum, lastWorkoutAt: now - 8 * DAY };
+eq('8 days idle is flagged red', flags(idle, now)[0], { key: 'inactive', label: 'No workout in 8 days', tone: 'red' });
+eq('idle note mentions the days', suggestNote('Sam', idle, now).includes('8 days'), true);
+const onTrack = { ...sum, lastWorkoutAt: now, workoutsThisWeek: 4, lastCheckInAt: now, daysLogged7d: 5, avgCalories7d: sum.calorieGoal, avgProtein7d: sum.proteinGoal };
+eq('a client doing everything is on track', flags(onTrack, now).map((f) => f.key), ['ontrack']);
+eq('on-track note praises weight lost', suggestNote('Alex', onTrack, now).startsWith('Great work Alex! You\'re down'), true);
+const behind = { ...onTrack, workoutsThisWeek: 0, weekStartAt: startOfDayAt(now) - 5 * DAY };
+eq('0 of 4 with 2 days left is behind', flags(behind, now)[0].key, 'behind');
+eq('0 of 4 on day 1 is not behind yet', flags({ ...behind, weekStartAt: startOfDayAt(now) }, now)[0].key, 'ontrack');
+eq('a summary from last week is not flagged behind', flags({ ...behind, weekStartAt: startOfDayAt(now) - 9 * DAY }, now)[0].key, 'ontrack');
+eq('overeating is flagged', flags({ ...onTrack, avgCalories7d: Math.round(sum.calorieGoal * 1.3) }, now)[0].key, 'calories');
+eq('low protein tip follows the diet', suggestNote('A', { ...onTrack, avgProtein7d: 50, diet: 'hinduveg' }, now).includes('paneer, dal'), true);
+eq('no meal logs is flagged', flags({ ...onTrack, daysLogged7d: 0, avgCalories7d: null }, now)[0].key, 'nolog');
+eq('red clients sort above amber above on track', attentionScore(idle, now) > attentionScore(behind, now) && attentionScore(behind, now) > attentionScore(onTrack, now), true);
+
+const rem = planReminders(sam, now);
+eq('reminders: none without a program', planReminders(initialState, now).length, 0);
+eq('reminders: all in the future', rem.every((r) => r.at > now), true);
+eq('reminders: check-in is always scheduled', rem.some((r) => r.id === 'checkin'), true);
+eq('reminders: no workout nudge after training today', rem.some((r) => r.id === 'workout'), false);
+const restDay = { ...initialState, program: { ...sam.program!, startedAt: startOfDayAt(now) } };
+eq('reminders: workout nudge names the next session', planReminders(restDay, now).find((r) => r.id === 'workout')?.title.endsWith('is up next'), true);
+eq('reminders: weigh-in nudge only when overdue', planReminders({ ...sam, weighIns: [{ at: now - 4 * DAY, weight: 190 }] }, now).some((r) => r.id === 'weigh'), true);
+eq('reminders: no weigh-in nudge after a recent weigh-in', planReminders({ ...sam, weighIns: [{ at: now - DAY, weight: 190 }] }, now).some((r) => r.id === 'weigh'), false);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

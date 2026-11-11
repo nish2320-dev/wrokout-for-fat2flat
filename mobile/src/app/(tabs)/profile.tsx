@@ -1,18 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DIETS } from '@/data/mealplan';
 import { useStore } from '@/data/store';
 import { finished, fmtVolume, personalRecords, volume } from '@/data/stats';
 import { C, S } from '@/theme';
+import { CoachSettings } from '@/ui/CoachSettings';
 import { Card, CardTitle, Eyebrow, Label, Meta, Metric, Row, Screen, Title } from '@/ui/kit';
+import { useCloud } from '@/cloud/CloudProvider';
+import { askNotifications } from '@/notify';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { state, updateProfile, resetAll, loadSample } = useStore();
   const { profile } = state;
+  const cloud = useCloud();
 
   const [name, setName] = useState(profile.name);
   const [calorieGoal, setCalorieGoal] = useState(String(profile.calorieGoal));
@@ -156,10 +160,33 @@ export default function ProfileScreen() {
         </Row>
       </Card>
 
+      {state.program ? (
+        <Card>
+          <Row>
+            <View style={{ flex: 1, paddingRight: 10 }}>
+              <CardTitle>Reminders</CardTitle>
+              <Meta>A nudge for your next workout, weekly check-in and weigh-ins.</Meta>
+            </View>
+            <Switch
+              value={profile.reminders !== false}
+              onValueChange={(on) => {
+                updateProfile({ reminders: on });
+                if (on) askNotifications();
+              }}
+              trackColor={{ true: C.red, false: C.line }}
+            />
+          </Row>
+        </Card>
+      ) : null}
+
+      <CoachSettings />
+
       <Card>
         <CardTitle>Your data</CardTitle>
         <Meta>
-          Everything stays on this iPhone, and there is no account to sign into. Food lookups send only the barcode or search words to Open Food Facts.
+          {cloud.membership
+            ? `Everything is stored on this iPhone, and a copy of your progress is shared with ${cloud.membership.coachName}. Food lookups send only the barcode or search words to Open Food Facts.`
+            : 'Everything stays on this iPhone. Food lookups send only the barcode or search words to Open Food Facts.'}
         </Meta>
         <Pressable onPress={confirmReset} style={s.danger} accessibilityRole="button">
           <Ionicons name="trash-outline" size={17} color={C.red} />

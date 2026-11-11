@@ -32,6 +32,8 @@ export type Profile = {
   units: 'lb' | 'kg';
   /** For the meal plan; unset until the user picks one. */
   diet?: Diet;
+  /** Transformation reminders (next workout, check-in, weigh-in). On unless turned off. */
+  reminders?: boolean;
 };
 
 export type Sex = 'male' | 'female';
