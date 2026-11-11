@@ -68,8 +68,8 @@
       "eas": {
         "projectId": "9a17935b-6905-44f9-9925-65581025dcdf"
       },
-      "supabaseUrl": "",
-      "supabaseKey": ""
+      "supabaseUrl": "https://iycgmlwiglrvlyetkwzi.supabase.co",
+      "supabaseKey": "sb_publishable_YA2VUAbkR1j9SIYpCwfQ2g_umicJo2B"
     }
   }
 }
