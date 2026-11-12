@@ -7,15 +7,15 @@ import { errorText } from '@/cloud/supabase';
 import { C } from '@/theme';
 import { Btn } from '@/ui/kit';
 
-/** Apple's own button on iPhone (App Review expects it); a plain one elsewhere. */
+/** Apple's own button on iPhone (App Review expects it); Google on Android. */
 export function SignInButton() {
-  const { signIn } = useCloud();
+  const { signIn, signInWithGoogle } = useCloud();
   const [busy, setBusy] = useState(false);
 
   const go = async () => {
     setBusy(true);
     try {
-      await signIn();
+      await (Platform.OS === 'ios' ? signIn() : signInWithGoogle());
     } catch (e) {
       Alert.alert('Could not sign in', errorText(e));
     } finally {
@@ -41,5 +41,5 @@ export function SignInButton() {
       />
     );
   }
-  return <Btn label="Continue with Apple" icon="logo-apple" onPress={go} />;
+  return <Btn label="Continue with Google" icon="logo-google" onPress={go} />;
 }

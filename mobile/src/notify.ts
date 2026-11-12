@@ -14,6 +14,14 @@ Notifications.setNotificationHandler({
   },
 });
 
+// Android shows nothing without a channel; one is enough for rest, reminders and coach notes
+if (Platform.OS === 'android') {
+  Notifications.setNotificationChannelAsync('default', {
+    name: 'Reminders and coach notes',
+    importance: Notifications.AndroidImportance.HIGH,
+  }).catch(() => {});
+}
+
 /** Asks for notification permission if it hasn't been answered yet. */
 export async function askNotifications() {
   try {

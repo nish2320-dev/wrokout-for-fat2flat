@@ -32,11 +32,12 @@ don't use your location, contacts, microphone or Apple Health data.
 
 If a personal trainer gives you their coach code, you can choose to share your
 progress with them (Profile → Join my coach). To do this you sign in with
-Apple, and the following is stored on our database provider, Supabase, so your
+Apple (iPhone) or Google (Android), and the following is stored on our database provider, Supabase, so your
 coach can see it:
 
-- Your Apple account ID and the email Apple gives us (which can be a private
-  relay address if you choose "Hide My Email"), and the name you enter
+- Your Apple or Google account ID and the email it gives us (with Apple this
+  can be a private relay address if you choose "Hide My Email"), and the name
+  you enter
 - Your workouts, weigh-ins, body measurements, meals and calorie and protein
   totals, and your Transformation plan and targets
 - Your progress photos, **only if you turn on "Share progress photos"**
@@ -89,7 +90,7 @@ If you allow it, the app sends a reminder when your rest between sets is over,
 and, if you are on the Transformation, reminders for your next workout, weekly
 check-in and weigh-ins. These are scheduled on your device. If you join a
 coach, notes from your coach are also delivered as notifications through
-Apple's and Expo's push notification services, which see only the note's text
+Apple's, Google's and Expo's push notification services, which see only the note's text
 and your device's notification address. You can turn notifications off in iOS
 Settings → Fat2Flat Fitness → Notifications, and the app keeps working.
 

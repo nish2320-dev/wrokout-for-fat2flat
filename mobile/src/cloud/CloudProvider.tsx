@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { File } from 'expo-file-system';
+import * as Linking from 'expo-linking';
+import * as WebBrowser from 'expo-web-browser';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState, Platform } from 'react-native';
 
@@ -33,8 +35,10 @@ type Cloud = {
   /** Notes from the coach, newest first. */
   notes: Note[];
   lastSyncedAt: number | null;
-  /** Resolves false if the user cancelled. */
+  /** Sign in with Apple (iPhone). Resolves false if the user cancelled. */
   signIn: () => Promise<boolean>;
+  /** Sign in with Google in a browser sheet (Android). Resolves false if the user cancelled. */
+  signInWithGoogle: () => Promise<boolean>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
   joinCoach: (code: string, name: string, sharePhotos: boolean) => Promise<string>;
@@ -208,6 +212,28 @@ export function CloudProvider({ children }: { children: ReactNode }) {
           if ((e as { code?: string }).code === 'ERR_REQUEST_CANCELED') return false;
           throw e;
         }
+      },
+
+      async signInWithGoogle() {
+        const sb = need();
+        // Google signs in on Supabase's page, which hands back a one-time code
+        // through the app's own link (fat2flat://auth); the code becomes a session here.
+        const redirectTo = Linking.createURL('auth');
+        const { data, error } = await sb.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo, skipBrowserRedirect: true, queryParams: { prompt: 'select_account' } },
+        });
+        if (error) throw error;
+        const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+        if (result.type !== 'success') return false;
+        const params = new URL(result.url).searchParams;
+        const problem = params.get('error_description') ?? params.get('error');
+        if (problem) throw new Error(problem);
+        const code = params.get('code');
+        if (!code) throw new Error('Google sign-in did not finish. Please try again.');
+        const { error: exchangeError } = await sb.auth.exchangeCodeForSession(code);
+        if (exchangeError) throw exchangeError;
+        return true;
       },
 
       async signOut() {

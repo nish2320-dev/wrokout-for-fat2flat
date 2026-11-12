@@ -49,6 +49,7 @@ export default function RootLayout() {
             <Stack.Screen name="coach/join" options={{ title: 'Join my coach' }} />
             <Stack.Screen name="coach/index" options={{ title: 'My clients', headerBackTitle: 'Back' }} />
             <Stack.Screen name="coach/[id]" options={{ title: 'Client', headerBackTitle: 'Clients' }} />
+            <Stack.Screen name="auth" options={{ headerShown: false, animation: 'none' }} />
           </Stack>
         </CloudProvider>
       </StoreProvider>

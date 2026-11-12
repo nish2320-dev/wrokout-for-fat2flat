@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { useCloud } from '@/cloud/CloudProvider';
 import { errorText } from '@/cloud/supabase';
@@ -81,7 +81,7 @@ export function CoachSettings() {
       {cloud.userId ? (
         <Card>
           <CardTitle>Account</CardTitle>
-          <Meta>Signed in with Apple.</Meta>
+          <Meta>Signed in with {Platform.OS === 'ios' ? 'Apple' : 'Google'}.</Meta>
           <Row style={{ marginTop: 12, gap: 9 }}>
             <Btn label="Sign out" icon="log-out-outline" ghost onPress={() => run('Could not sign out', cloud.signOut)} style={{ flex: 1 }} />
             <Btn label="Delete account" icon="trash-outline" ghost onPress={confirmDelete} style={{ flex: 1 }} />

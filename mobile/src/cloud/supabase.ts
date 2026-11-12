@@ -25,6 +25,8 @@ export const supabase: SupabaseClient | null = cloudEnabled
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: false,
+        // Google sign-in returns a one-time code to the app rather than tokens in the link
+        flowType: 'pkce',
       },
     })
   : null;
