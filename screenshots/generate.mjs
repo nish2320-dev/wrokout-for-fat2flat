@@ -16,7 +16,9 @@ const SIZES = [
   { key: '6.7', label: 'iphone-6.7-1290x2796', w: 1290, h: 2796 }, // iPhone 14/15 Pro Max
   // "medium display" iPhones with Dynamic Island
   { key: '6.3', label: 'iphone-6.3-1206x2622', w: 1206, h: 2622 }, // iPhone 16/17 Pro
-  { key: '6.1', label: 'iphone-6.1-1179x2556', w: 1179, h: 2556 }  // iPhone 15/15 Pro, 16
+  { key: '6.1', label: 'iphone-6.1-1179x2556', w: 1179, h: 2556 }, // iPhone 15/15 Pro, 16
+  // Google Play phone screenshots: 9:16 (Play rejects anything longer than 2:1)
+  { key: 'play', label: 'android-phone-1080x1920', w: 1080, h: 1920 }
 ];
 
 const argv = process.argv.slice(2);
@@ -55,7 +57,8 @@ if (realDir) {
   }));
   console.log(`framing ${files.length} captures from ${realDir}: ${files.join(', ')}`);
 }
-const outName = realSrcs ? 'out-real' : 'out';
+// --out keeps sets apart (each run clears its own folder)
+const outName = arg('out', realSrcs ? 'out-real' : 'out');
 
 await rm(path.join(root, outName), { recursive: true, force: true });
 

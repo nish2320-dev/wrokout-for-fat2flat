@@ -402,5 +402,13 @@ const REAL_SLIDES = [
   { id: 'progress', headline: 'Watch your progress<br><em>add up.</em>',
     sub: 'Volume, body weight and PRs, tracked automatically.' },
   { id: 'privacy',  headline: 'No account.<br><em>No ads.</em>',
-    sub: 'Your workouts and meals stay on your iPhone.' }
+    sub: 'Your workouts and meals stay on your iPhone.' },
+  { id: 'transform', headline: 'A 12-week plan<br><em>built around you.</em>',
+    sub: 'Foundation, Build and Shred, with the gear you have.' },
+  { id: 'mealplan', headline: 'Meal plans that<br><em>fit your targets.</em>',
+    sub: 'Indian and Western meals: Non-veg, Veg or Hindu Veg.' },
+  { id: 'coach',    headline: 'Coach your clients<br><em>in one place.</em>',
+    sub: 'See who needs a nudge first. Clients join with your code.' },
+  { id: 'client',   headline: 'The right note,<br><em>in one tap.</em>',
+    sub: 'Suggested messages based on each client\'s week.' }
 ];
