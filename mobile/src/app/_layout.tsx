@@ -26,7 +26,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <StoreProvider>
         <CloudProvider>
-        <HealthProvider>
+          <HealthProvider>
             <Reminders />
             <StatusBar style="dark" />
             <Stack
@@ -53,7 +53,7 @@ export default function RootLayout() {
               <Stack.Screen name="coach/[id]" options={{ title: 'Client', headerBackTitle: 'Clients' }} />
               <Stack.Screen name="auth" options={{ headerShown: false, animation: 'none' }} />
             </Stack>
-        </HealthProvider>
+          </HealthProvider>
         </CloudProvider>
       </StoreProvider>
     </SafeAreaProvider>
