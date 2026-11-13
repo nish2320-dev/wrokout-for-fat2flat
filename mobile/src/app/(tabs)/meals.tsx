@@ -86,7 +86,8 @@ export default function MealsScreen() {
       <Card>
         <CardTitle>Log a meal</CardTitle>
         <View style={s.pair}>
-          <Btn label="Scan" icon="barcode-outline" onPress={() => router.push('/meals/scan')} style={{ flex: 1 }} />
+          <Btn label="Photo" icon="camera-outline" onPress={() => router.push('/meals/photo')} style={{ flex: 1 }} />
+          <Btn label="Scan" icon="barcode-outline" ghost onPress={() => router.push('/meals/scan')} style={{ flex: 1 }} />
           <Btn label="Search" icon="search" ghost onPress={() => router.push('/meals/search')} style={{ flex: 1 }} />
         </View>
         <Meta style={{ marginTop: 12 }}>Or enter it yourself:</Meta>

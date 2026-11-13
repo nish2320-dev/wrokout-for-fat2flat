@@ -3,7 +3,7 @@ import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { clientNotes, getClient, hasSummary, photoUrls, removeClient, sendNote, type ClientDetail, type SentNote } from '@/cloud/coachApi';
+import { clientNotes, getClient, hasSummary, markRepliesRead, photoUrls, removeClient, sendNote, setTargets, type ClientDetail, type SentNote } from '@/cloud/coachApi';
 import { useCloud } from '@/cloud/CloudProvider';
 import { errorText } from '@/cloud/supabase';
 import { fmtSleep, fmtSteps } from '@/data/health';
@@ -11,7 +11,8 @@ import { flags, snapshotToState, suggestNote, timeAgo, type SharedSnapshot } fro
 import { fmtDate, fmtVolume, setCount, volume } from '@/data/stats';
 import { fmtLength, fmtWeight, lengthUnit } from '@/data/units';
 import { C, S } from '@/theme';
-import { Btn, Card, CardTitle, Label, Meta, Metric, Row, Screen, Tag, Trend } from '@/ui/kit';
+import { ChatThread } from '@/ui/Chat';
+import { Btn, Card, CardTitle, Label, Meta, Metric, Pill, Row, Screen, Tag, Trend } from '@/ui/kit';
 
 const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${fmtWeight(Math.abs(Math.round(n * 10) / 10))}`;
 
@@ -35,6 +36,7 @@ export default function ClientScreen() {
       if (!c) return;
       navigation.setOptions({ title: c.name });
       setNotes(await clientNotes(id));
+      markRepliesRead(id).catch(() => {});
       const snap = c.snapshot as SharedSnapshot;
       if (c.share_photos && snap.v === 1) {
         const withPhotos = snap.checkIns.filter((x) => x.photos.front || x.photos.side);
@@ -127,8 +129,14 @@ export default function ClientScreen() {
       </View>
 
       <Card>
-        <CardTitle>Send a note</CardTitle>
-        <Meta>A suggestion based on their week. Edit it to make it yours.</Meta>
+        <CardTitle>Messages</CardTitle>
+        <View style={{ marginTop: 8 }}>
+          <ChatThread
+            messages={notes.map((n) => ({ ...n, mine: !n.from_client }))}
+            emptyText="No messages yet. Send a note to get started."
+          />
+        </View>
+        <Meta style={{ marginTop: 10 }}>Suggested from their week. Edit it to make it yours.</Meta>
         <TextInput value={draft} onChangeText={setDraft} multiline placeholder="Write a note…" placeholderTextColor={C.faint} style={s.note} maxLength={1000} />
         <Row style={{ gap: S.gap }}>
           {summary ? (
@@ -136,20 +144,9 @@ export default function ClientScreen() {
           ) : null}
           <Btn label={sending ? 'Sending…' : 'Send'} icon="send" onPress={send} disabled={!draft.trim() || sending} style={{ flex: 1 }} />
         </Row>
-        {notes.length > 0 ? (
-          <View style={{ marginTop: 12, gap: 8 }}>
-            <Label>Sent</Label>
-            {notes.slice(0, 5).map((n) => (
-              <View key={n.id} style={s.sent}>
-                <Text style={s.sentBody}>{n.body}</Text>
-                <Meta>
-                  {timeAgo(n.created_at, now)} · {n.read_at ? 'Read' : 'Not read yet'}
-                </Meta>
-              </View>
-            ))}
-          </View>
-        ) : null}
       </Card>
+
+      <TargetsCard client={client} onSaved={load} />
 
       {summary ? (
         <Card>
@@ -302,6 +299,65 @@ export default function ClientScreen() {
   );
 }
 
+/** The coach sets the client's daily calories, protein and workouts per week. */
+function TargetsCard({ client, onSaved }: { client: ClientDetail; onSaved: () => void }) {
+  const summary = hasSummary(client.summary) ? client.summary : null;
+  const current = client.coach_targets;
+  const [cal, setCal] = useState(String(current?.calorieGoal ?? summary?.calorieGoal ?? ''));
+  const [pro, setPro] = useState(String(current?.proteinGoal ?? summary?.proteinGoal ?? ''));
+  const [days, setDays] = useState<3 | 4 | 5 | null>(current?.daysPerWeek ?? ((summary?.plannedThisWeek as 3 | 4 | 5 | null) ?? null));
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+  const onPlan = summary?.plannedThisWeek != null;
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await setTargets(client.user_id, { calorieGoal: parseInt(cal, 10), proteinGoal: parseInt(pro, 10), daysPerWeek: onPlan ? days : null, note: note.trim() });
+      setNote('');
+      Alert.alert('Targets saved', `${client.name.split(' ')[0]}’s app will update the next time they open it.`);
+      onSaved();
+    } catch (e) {
+      Alert.alert('Could not save', errorText(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardTitle>Targets</CardTitle>
+      <Meta>
+        {current
+          ? `You last set these ${timeAgo(current.at, Date.now())}.`
+          : 'Their app set these from their stats. Change them and their plan updates.'}
+      </Meta>
+      <Row style={{ gap: S.gap, marginTop: 10 }}>
+        <View style={{ flex: 1, gap: 4 }}>
+          <Label>Calories / day</Label>
+          <TextInput value={cal} onChangeText={(v) => setCal(v.replace(/[^0-9]/g, ''))} keyboardType="number-pad" style={s.field} />
+        </View>
+        <View style={{ flex: 1, gap: 4 }}>
+          <Label>Protein (g) / day</Label>
+          <TextInput value={pro} onChangeText={(v) => setPro(v.replace(/[^0-9]/g, ''))} keyboardType="number-pad" style={s.field} />
+        </View>
+      </Row>
+      {onPlan ? (
+        <View style={{ marginTop: 10, gap: 6 }}>
+          <Label>Workouts per week</Label>
+          <Row style={{ justifyContent: 'flex-start', gap: 8 }}>
+            {([3, 4, 5] as const).map((d) => (
+              <Pill key={d} label={`${d} days`} on={days === d} onPress={() => setDays(d)} />
+            ))}
+          </Row>
+        </View>
+      ) : null}
+      <TextInput value={note} onChangeText={setNote} placeholder="Why the change? (optional, they’ll see it)" placeholderTextColor={C.faint} style={[s.field, { marginTop: 10 }]} maxLength={300} />
+      <Btn label={saving ? 'Saving…' : 'Save targets'} icon="checkmark" onPress={save} disabled={saving || !cal || !pro} style={{ marginTop: 10 }} />
+    </Card>
+  );
+}
+
 function Stat({ label, value, unit }: { label: string; value: string; unit?: string }) {
   return (
     <View style={{ flex: 1 }}>
@@ -339,8 +395,17 @@ const s = StyleSheet.create({
     marginVertical: 10,
     textAlignVertical: 'top',
   },
-  sent: { backgroundColor: C.wash, borderRadius: 10, padding: 10, gap: 4 },
-  sentBody: { fontSize: 13, color: C.ink, lineHeight: 18 },
+  field: {
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: C.wash,
+    borderWidth: 1,
+    borderColor: C.line,
+    paddingHorizontal: 12,
+    fontSize: 15,
+    fontWeight: '600',
+    color: C.ink,
+  },
   line: { fontSize: 13, fontWeight: '700', color: C.ink, flexShrink: 1, marginRight: 8 },
   photo: { flex: 1, aspectRatio: 3 / 4, borderRadius: 8, backgroundColor: C.line2 },
   noPhoto: { borderWidth: 1, borderColor: C.line, borderStyle: 'dashed' },

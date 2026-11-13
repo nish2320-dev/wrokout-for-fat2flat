@@ -105,6 +105,6 @@ Regenerate the screenshots with
 - Collected (not shared with third parties), purpose **App functionality**, **optional**:
   - Personal info: **Name**, **Email address**, **User IDs**
   - Health and fitness: **Health info** (weight, body fat, measurements, sleep, resting heart rate), **Fitness info** (workouts, steps, calories burned)
-  - Photos and videos: **Photos** (progress photos, only if the user turns sharing on)
-  - App activity: **Other user-generated content** (meals, coach notes)
+  - Photos and videos: **Photos** (progress photos, only if the user turns sharing on; meal photos are sent for a calorie estimate and **processed ephemerally**, not stored)
+  - App activity: **Other user-generated content** (meals, coach chat messages)
 - Not collected: location, contacts, financial info, browsing, device IDs for ads.

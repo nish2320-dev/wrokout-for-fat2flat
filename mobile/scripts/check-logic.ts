@@ -15,6 +15,7 @@ import { DIETS, MEALS, dayTarget, planDay, Diet } from '../src/data/mealplan';
 import { attentionScore, flags, planReminders, snapshot, snapshotToState, suggestNote, summarize } from '../src/data/sharing';
 import { emptyHealth, fmtSleep, mergeHealth, prettyKind, sharedHealth, sleepByDay, weekAverages } from '../src/data/health';
 import { activeDays } from '../src/data/stats';
+import { addGlasses, applyTargets, unseenTargets, waterToday } from '../src/data/extras';
 import { COMMON_FOODS, macrosFor, parseProduct, searchCommon } from '../src/data/food';
 
 const DAY = 86400000;
@@ -297,6 +298,20 @@ eq('health: coach summary has no health when not shared', summarize(merged, now)
 eq('health: a shared watch run counts as the last workout', summarize({ ...sharing, workouts: [] }, now).lastWorkoutAt, now - 2 * DAY + 1800000);
 eq('health: snapshot round-trips health for the coach', JSON.stringify(summarize(snapshotToState(snapshot(sharing, now, false)), now).health), JSON.stringify(summarize(sharing, now).health));
 eq('health: snapshot leaves health out when not shared', snapshot(merged, now, false).health, undefined);
+
+// --- water & coach targets ---
+const w1 = addGlasses([], 1, now);
+eq('water: a glass is added today', waterToday({ ...initialState, water: addGlasses(w1, 2, now) }, now), 3);
+eq('water: never below zero', waterToday({ ...initialState, water: addGlasses(w1, -5, now) }, now), 0);
+eq('water: old days are dropped', addGlasses([{ date: today0 - 40 * DAY, glasses: 3 }], 1, now).length, 1);
+const tgt = { calorieGoal: 1900, proteinGoal: 140, daysPerWeek: 5 as const, note: 'Cut a little', at: now };
+const applied = applyTargets(sam, tgt, now);
+eq('targets: calories and protein applied', [applied.profile.calorieGoal, applied.profile.proteinGoal], [1900, 140]);
+eq('targets: workouts per week applied to the plan', applied.program?.daysPerWeek, 5);
+eq('targets: logged as a coach adjustment', applied.program?.adjustments.slice(-1)[0].reason, 'Set by your coach');
+eq('targets: shown until acknowledged', unseenTargets(applied), true);
+eq('targets: applying the same targets again changes nothing', applyTargets(applied, tgt, now) === applied, true);
+eq('targets: no plan, still sets goals', applyTargets(initialState, { ...tgt, daysPerWeek: null }, now).profile.calorieGoal, 1900);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

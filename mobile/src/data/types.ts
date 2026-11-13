@@ -58,7 +58,22 @@ export type Profile = {
   diet?: Diet;
   /** Transformation reminders (next workout, check-in, weigh-in). On unless turned off. */
   reminders?: boolean;
+  /** Daily water goal in glasses (250 ml / 8 oz). */
+  waterGoal?: number;
+  /** The welcome tour has been shown. */
+  seenWelcome?: boolean;
+  /** When the coach's latest targets were applied, and when the user acknowledged them. */
+  coachTargetsAt?: number;
+  coachTargetsSeenAt?: number;
+  /** The coach's note with their latest targets. */
+  coachTargetsNote?: string;
 };
+
+/** Targets a coach set from their phone. */
+export type CoachTargets = { calorieGoal: number; proteinGoal: number; daysPerWeek: 3 | 4 | 5 | null; note: string; at: number };
+
+/** Glasses of water on a day; `date` is local midnight. */
+export type WaterDay = { date: number; glasses: number };
 
 export type Sex = 'male' | 'female';
 export type Activity = 'sedentary' | 'light' | 'moderate' | 'active';
@@ -111,6 +126,7 @@ export type AppState = {
   checkIns: CheckIn[];
   /** Absent until the user connects a health app. */
   health?: HealthState;
+  water?: WaterDay[];
 };
 
 export const initialState: AppState = {

@@ -7,8 +7,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { AppState, Platform } from 'react-native';
 
 import { sharedPhotoNames, snapshot, summarize } from '@/data/sharing';
+import type { CoachTargets } from '@/data/types';
 import { useStore } from '@/data/store';
-import { pushToken } from '@/notify';
+import { pushToken, sendPush } from '@/notify';
 import { photoUri } from '@/photos';
 
 import { cloudEnabled, PHOTO_BUCKET, supabase } from './supabase';
@@ -22,7 +23,12 @@ import { cloudEnabled, PHOTO_BUCKET, supabase } from './supabase';
 
 export type Membership = { coachId: string; coachName: string; name: string; sharePhotos: boolean };
 export type CoachInfo = { name: string; code: string };
-export type Note = { id: string; body: string; created_at: string; read_at: string | null };
+/** A chat message between the client and their coach. */
+export type Note = { id: string; body: string; created_at: string; read_at: string | null; from_client: boolean };
+
+/** One food the meal-photo AI recognised. */
+export type MealGuessItem = { name: string; portion: string; calories: number; protein: number };
+export type MealGuess = { items: MealGuessItem[]; confidence: 'high' | 'medium' | 'low'; note: string };
 
 type Cloud = {
   /** False when the build has no Supabase project configured. */
@@ -32,7 +38,7 @@ type Cloud = {
   userId: string | null;
   membership: Membership | null;
   coach: CoachInfo | null;
-  /** Notes from the coach, newest first. */
+  /** The conversation with the coach, newest first. */
   notes: Note[];
   lastSyncedAt: number | null;
   /** Sign in with Apple (iPhone). Resolves false if the user cancelled. */
@@ -47,6 +53,12 @@ type Cloud = {
   becomeCoach: (name: string) => Promise<string>;
   deleteAccount: () => Promise<void>;
   markRead: (id: string) => Promise<void>;
+  /** Marks every coach message read (opening the chat). */
+  markAllRead: () => Promise<void>;
+  /** Sends a message to the coach (and a notification to their phone). */
+  sendToCoach: (body: string) => Promise<void>;
+  /** Estimates a meal from a photo (base64 JPEG). Works without an account. */
+  analyzeMeal: (base64: string, diet?: string) => Promise<MealGuess>;
 };
 
 const Ctx = createContext<Cloud | null>(null);
@@ -84,7 +96,7 @@ async function syncPhotos(uid: string, names: string[]) {
 }
 
 export function CloudProvider({ children }: { children: ReactNode }) {
-  const { state, ready: storeReady } = useStore();
+  const { state, ready: storeReady, applyCoachTargets } = useStore();
   const [ready, setReady] = useState(!cloudEnabled);
   const [userId, setUserId] = useState<string | null>(null);
   const [membership, setMembership] = useState<Membership | null>(null);
@@ -96,11 +108,13 @@ export function CloudProvider({ children }: { children: ReactNode }) {
   // restore the saved sign-in and follow changes to it
   useEffect(() => {
     if (!supabase) return;
+    // a guest session (used only for meal photos) is not "signed in" for coach features
+    const realUser = (u?: { id: string; is_anonymous?: boolean } | null) => (u && !u.is_anonymous ? u.id : null);
     supabase.auth.getSession().then(({ data }) => {
-      setUserId(data.session?.user.id ?? null);
+      setUserId(realUser(data.session?.user));
       setReady(true);
     });
-    const { data } = supabase.auth.onAuthStateChange((_e, session) => setUserId(session?.user.id ?? null));
+    const { data } = supabase.auth.onAuthStateChange((_e, session) => setUserId(realUser(session?.user)));
     return () => data.subscription.unsubscribe();
   }, []);
 
@@ -112,22 +126,23 @@ export function CloudProvider({ children }: { children: ReactNode }) {
       return;
     }
     const [mine, coachRow, inbox] = await Promise.all([
-      supabase.from('clients').select('coach_id, name, share_photos').eq('user_id', userId).maybeSingle(),
+      supabase.from('clients').select('coach_id, name, share_photos, coach_targets').eq('user_id', userId).maybeSingle(),
       supabase.from('coaches').select('name, code').eq('user_id', userId).maybeSingle(),
-      supabase.from('messages').select('id, body, created_at, read_at').eq('client_id', userId).order('created_at', { ascending: false }).limit(20),
+      supabase.from('messages').select('id, body, created_at, read_at, from_client').eq('client_id', userId).order('created_at', { ascending: false }).limit(60),
     ]);
     // a failed request (offline) keeps what we had rather than looking like "not joined"
     if (!mine.error) {
       if (mine.data) {
         const { data: c } = await supabase.from('coaches').select('name').eq('user_id', mine.data.coach_id).maybeSingle();
         setMembership({ coachId: mine.data.coach_id, coachName: c?.name ?? 'your coach', name: mine.data.name, sharePhotos: mine.data.share_photos });
+        if (mine.data.coach_targets) applyCoachTargets(mine.data.coach_targets as CoachTargets);
       } else {
         setMembership(null);
       }
     }
     if (!coachRow.error) setCoach(coachRow.data ?? null);
-    if (!inbox.error) setNotes(inbox.data ?? []);
-  }, [userId]);
+    if (!inbox.error) setNotes((inbox.data ?? []) as Note[]);
+  }, [userId, applyCoachTargets]);
 
   useEffect(() => {
     refresh().catch(() => {});
@@ -165,6 +180,18 @@ export function CloudProvider({ children }: { children: ReactNode }) {
     }, 3000);
     return () => clearTimeout(timer);
   }, [state, userId, membership, storeReady]);
+
+  // let clients' replies reach the coach's phone
+  const coachToken = useRef<string | null>(null);
+  useEffect(() => {
+    if (!supabase || !userId || !coach) return;
+    pushToken().then((token) => {
+      if (token && token !== coachToken.current) {
+        coachToken.current = token;
+        supabase!.from('coaches').update({ push_token: token }).eq('user_id', userId).then(() => {});
+      }
+    });
+  }, [userId, coach]);
 
   // give the coach a way to reach this phone
   useEffect(() => {
@@ -295,6 +322,48 @@ export function CloudProvider({ children }: { children: ReactNode }) {
         setMembership(null);
         setCoach(null);
         setNotes([]);
+      },
+
+      async markAllRead() {
+        const sb = need();
+        const uid = needUser();
+        const at = new Date().toISOString();
+        setNotes((ns) => ns.map((n) => (!n.from_client && !n.read_at ? { ...n, read_at: at } : n)));
+        await sb.from('messages').update({ read_at: at }).eq('client_id', uid).eq('from_client', false).is('read_at', null);
+      },
+
+      async sendToCoach(body) {
+        const sb = need();
+        const uid = needUser();
+        if (!membership) throw new Error('Join your coach first.');
+        const text = body.trim();
+        const { data, error } = await sb
+          .from('messages')
+          .insert({ coach_id: membership.coachId, client_id: uid, body: text, from_client: true })
+          .select('id, body, created_at, read_at, from_client')
+          .single();
+        if (error) throw error;
+        setNotes((ns) => [data as Note, ...ns]);
+        const { data: c } = await sb.rpc('my_coach');
+        const token = (c as { push_token: string | null }[] | null)?.[0]?.push_token;
+        if (token) await sendPush(token, membership.name, text);
+      },
+
+      async analyzeMeal(base64, diet) {
+        const sb = need();
+        // meal photos work for everyone: without an account, a guest session identifies the phone for fair-use limits
+        const { data: s } = await sb.auth.getSession();
+        if (!s.session) {
+          const { error } = await sb.auth.signInAnonymously();
+          if (error) throw new Error('Meal photos aren’t available right now. Please try again later.');
+        }
+        const { data, error } = await sb.functions.invoke('analyze-meal', { body: { image: base64, diet: diet ?? null } });
+        if (error) {
+          const ctx = (error as { context?: Response }).context;
+          const msg = ctx ? ((await ctx.json().catch(() => null)) as { error?: string } | null)?.error : null;
+          throw new Error(msg ?? 'Couldn’t read that photo. Check your connection and try again.');
+        }
+        return data as MealGuess;
       },
 
       async markRead(id) {

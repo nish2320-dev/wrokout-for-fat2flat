@@ -1,3 +1,4 @@
+import { waterToday } from './extras';
 import { sharedHealth, weekAverages } from './health';
 import type { Diet } from './mealplan';
 import { completedKeys, nextSession, WEEKS, weekOf } from './program';
@@ -101,6 +102,8 @@ export type ClientSummary = {
   /** Waist in cm. */
   waistNow: number | null;
   waistStart: number | null;
+  /** Glasses of water logged today. */
+  waterToday?: number;
   /** From the client's health app, only when they share it. */
   health?: {
     stepsToday: number | null;
@@ -197,6 +200,7 @@ export function summarize(state: AppState, now: number): ClientSummary {
     lastCheckInAt: checkIns[checkIns.length - 1]?.at ?? null,
     waistNow: waists[waists.length - 1]?.waist ?? null,
     waistStart: waists[0]?.waist ?? null,
+    ...(state.water?.length ? { waterToday: waterToday(state, now) } : {}),
     ...(healthSummary ? { health: healthSummary } : {}),
   };
 }

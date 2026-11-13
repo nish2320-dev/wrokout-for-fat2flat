@@ -12,3 +12,18 @@
 private `progress-photos` bucket. `bash supabase/test/run.sh` runs it against
 a throwaway local Postgres with stubbed auth/storage and checks who can read
 and write what (needs PostgreSQL 16 installed locally).
+
+## Version 2.0 additions (chat, coach targets, meal photo AI)
+
+1. **Re-run `schema.sql`** in the SQL Editor (it only adds what's missing).
+2. **Allow anonymous sign-ins**: Authentication → Sign In / Providers →
+   "Allow anonymous sign-ins" → on. Meal photos use a guest session so they
+   work without an account; guests can't do anything else (coach features
+   check for a real sign-in, and row-level security gives them no rows).
+3. **Deploy the meal photo function**: Edge Functions → Deploy a new function →
+   Via editor → name `analyze-meal` → paste `functions/analyze-meal/index.ts`
+   → Deploy.
+4. **Add the AI key**: create an API key at console.anthropic.com (add a few
+   dollars of credit), then Edge Functions → Secrets → add
+   `ANTHROPIC_API_KEY`. The key lives only in Supabase, never in the app.
+   Each photo costs roughly 1–2 cents; the function allows 25 per person per day.

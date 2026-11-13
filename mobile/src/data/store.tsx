@@ -13,7 +13,8 @@ import {
 import { deleteAllPhotos, deletePhotos } from '@/photos';
 
 import { emptyHealth, HealthPull, mergeHealth } from './health';
-import { AppState, CheckIn, HealthState, LoggedExercise, Meal, Profile, Program, SetEntry, WeighIn, Workout, initialState } from './types';
+import { addGlasses, applyTargets } from './extras';
+import { AppState, CheckIn, CoachTargets, HealthState, LoggedExercise, Meal, Profile, Program, SetEntry, WeighIn, Workout, initialState } from './types';
 import { sampleState } from './sample';
 import { convertUnits } from './units';
 
@@ -54,6 +55,10 @@ type Store = {
   applyHealth: (pull: HealthPull) => void;
   /** Changes health settings; null disconnects and forgets the imported data (typed-in weigh-ins stay). */
   updateHealth: (patch: Partial<HealthState> | null) => void;
+  /** Adds (or with a negative number removes) glasses of water today. */
+  addWater: (glasses: number) => void;
+  /** Applies targets the coach set; the Home screen then tells the user. */
+  applyCoachTargets: (t: CoachTargets) => void;
 };
 
 const Ctx = createContext<Store | null>(null);
@@ -261,6 +266,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     applyHealth(pull) {
       setState((s) => mergeHealth(s, pull, Date.now()));
+    },
+
+    addWater(glasses) {
+      setState((s) => ({ ...s, water: addGlasses(s.water ?? [], glasses, Date.now()) }));
+    },
+
+    applyCoachTargets(targets) {
+      setState((s) => applyTargets(s, targets, Date.now()));
     },
 
     updateHealth(patch) {

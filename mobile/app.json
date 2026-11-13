@@ -55,7 +55,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Fat2Flat Fitness uses the camera to scan barcodes on food packaging and, if you choose, to take progress photos. Photos stay on your iPhone unless you share them with your coach.",
+          "cameraPermission": "Fat2Flat Fitness uses the camera to scan food barcodes, photograph meals for calorie estimates and, if you choose, take progress photos.",
           "microphonePermission": false,
           "recordAudioAndroid": false
         }
@@ -63,8 +63,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Fat2Flat Fitness lets you choose progress photos from your library. They stay on your iPhone unless you choose to share them with your coach.",
-          "cameraPermission": "Fat2Flat Fitness uses the camera to scan barcodes on food packaging and, if you choose, to take progress photos. Photos stay on your iPhone unless you share them with your coach.",
+          "photosPermission": "Fat2Flat Fitness lets you choose meal photos for calorie estimates and progress photos from your library.",
+          "cameraPermission": "Fat2Flat Fitness uses the camera to scan food barcodes, photograph meals for calorie estimates and, if you choose, take progress photos.",
           "microphonePermission": false
         }
       ],

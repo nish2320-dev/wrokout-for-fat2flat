@@ -40,21 +40,35 @@ create table if not exists public.messages (
 );
 create index if not exists messages_client_idx on public.messages (client_id, created_at desc);
 
+-- v2 additions: two-way chat, coach-set targets, coach notifications, AI usage
+alter table public.messages add column if not exists from_client boolean not null default false;
+alter table public.coaches add column if not exists push_token text;
+alter table public.clients add column if not exists coach_targets jsonb;
+
+create table if not exists public.ai_usage (
+  user_id uuid not null references auth.users on delete cascade,
+  day     date not null default current_date,
+  count   integer not null default 0,
+  primary key (user_id, day)
+);
+
 alter table public.coaches  enable row level security;
 alter table public.clients  enable row level security;
 alter table public.messages enable row level security;
+alter table public.ai_usage enable row level security; -- no policies: only the server function touches it
 
 -- ── Column-level grants: what the app may write directly ────────────────
 -- Rows are created through the functions below, so a client can never pick
 -- their own coach_id, and a coach can never change a client's data.
 
-revoke all on public.coaches, public.clients, public.messages from anon;
+revoke all on public.coaches, public.clients, public.messages, public.ai_usage from anon;
+revoke all on public.ai_usage from authenticated;
 revoke insert, update, delete on public.coaches, public.clients, public.messages from authenticated;
 grant select on public.coaches, public.clients, public.messages to authenticated;
-grant update (name) on public.coaches to authenticated;
+grant update (name, push_token) on public.coaches to authenticated;
 grant update (name, share_photos, push_token, summary, snapshot, updated_at) on public.clients to authenticated;
 grant delete on public.clients to authenticated;
-grant insert (coach_id, client_id, body) on public.messages to authenticated;
+grant insert (coach_id, client_id, body, from_client) on public.messages to authenticated;
 grant update (read_at) on public.messages to authenticated;
 grant delete on public.messages to authenticated;
 
@@ -96,12 +110,23 @@ drop policy if exists "coach messages own clients" on public.messages;
 create policy "coach messages own clients" on public.messages for insert to authenticated
   with check (
     coach_id = auth.uid()
+    and not from_client
     and exists (select 1 from public.clients c where c.user_id = client_id and c.coach_id = auth.uid())
   );
 
+drop policy if exists "client messages their coach" on public.messages;
+create policy "client messages their coach" on public.messages for insert to authenticated
+  with check (
+    client_id = auth.uid()
+    and from_client
+    and coach_id = (select c.coach_id from public.clients c where c.user_id = auth.uid())
+  );
+
 drop policy if exists "client marks read" on public.messages;
-create policy "client marks read" on public.messages for update to authenticated
-  using (client_id = auth.uid()) with check (client_id = auth.uid());
+drop policy if exists "recipient marks read" on public.messages;
+create policy "recipient marks read" on public.messages for update to authenticated
+  using ((client_id = auth.uid() and not from_client) or (coach_id = auth.uid() and from_client))
+  with check ((client_id = auth.uid() and not from_client) or (coach_id = auth.uid() and from_client));
 
 drop policy if exists "coach deletes own messages" on public.messages;
 create policy "coach deletes own messages" on public.messages for delete to authenticated
@@ -165,6 +190,44 @@ begin
 end;
 $$;
 
+-- The coach sets a client's daily calories, protein and workouts per week;
+-- the client's app applies them the next time it opens.
+create or replace function public.set_client_targets(p_client uuid, p_targets jsonb)
+returns void
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_cal int := (p_targets->>'calorieGoal')::int;
+  v_pro int := (p_targets->>'proteinGoal')::int;
+  v_days int := nullif(p_targets->>'daysPerWeek', '')::int;
+begin
+  if auth.uid() is null then raise exception 'Not signed in'; end if;
+  if not exists (select 1 from clients where user_id = p_client and coach_id = auth.uid()) then
+    raise exception 'That person is not your client.';
+  end if;
+  if v_cal is null or v_cal < 1000 or v_cal > 6000 then raise exception 'Calories must be between 1,000 and 6,000.'; end if;
+  if v_pro is null or v_pro < 30 or v_pro > 400 then raise exception 'Protein must be between 30 and 400 g.'; end if;
+  if v_days is not null and v_days not in (3, 4, 5) then raise exception 'Workouts per week must be 3, 4 or 5.'; end if;
+  update clients set coach_targets = jsonb_build_object(
+    'calorieGoal', v_cal,
+    'proteinGoal', v_pro,
+    'daysPerWeek', v_days,
+    'note', left(coalesce(p_targets->>'note', ''), 300),
+    'at', (extract(epoch from now()) * 1000)::bigint
+  ) where user_id = p_client;
+end;
+$$;
+
+-- The coach's name and notification address, for the client's app to message them.
+create or replace function public.my_coach()
+returns table (name text, push_token text)
+language sql security definer set search_path = public stable
+as $$
+  select co.name, co.push_token from coaches co
+  join clients cl on cl.coach_id = co.user_id
+  where cl.user_id = auth.uid();
+$$;
+
 -- Permanently deletes the signed-in user and everything tied to them.
 -- The app removes the user's photos from storage first.
 create or replace function public.delete_my_account()
@@ -180,6 +243,10 @@ $$;
 revoke execute on function public.become_coach(text) from public, anon;
 revoke execute on function public.join_coach(text, text, boolean) from public, anon;
 revoke execute on function public.delete_my_account() from public, anon;
+revoke execute on function public.set_client_targets(uuid, jsonb) from public, anon;
+revoke execute on function public.my_coach() from public, anon;
+grant execute on function public.set_client_targets(uuid, jsonb) to authenticated;
+grant execute on function public.my_coach() to authenticated;
 grant execute on function public.become_coach(text) to authenticated;
 grant execute on function public.join_coach(text, text, boolean) to authenticated;
 grant execute on function public.delete_my_account() to authenticated;

@@ -3,7 +3,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { hasSummary, listClients, type ClientRow } from '@/cloud/coachApi';
+import { hasSummary, listClients, unreadReplies, type ClientRow } from '@/cloud/coachApi';
 import { useCloud } from '@/cloud/CloudProvider';
 import { errorText } from '@/cloud/supabase';
 import { attentionScore, flags, timeAgo as ago } from '@/data/sharing';
@@ -22,6 +22,7 @@ export default function CoachHome() {
   const cloud = useCloud();
   const { state } = useStore();
   const [clients, setClients] = useState<ClientRow[] | null>(null);
+  const [unread, setUnread] = useState<Set<string>>(new Set());
   const [name, setName] = useState(state.profile.name);
   const [busy, setBusy] = useState(false);
   const coachId = cloud.coach ? cloud.userId : null;
@@ -30,6 +31,7 @@ export default function CoachHome() {
     if (!coachId) return;
     try {
       setClients(await listClients(coachId));
+      setUnread(await unreadReplies(coachId).catch(() => new Set<string>()));
     } catch (e) {
       Alert.alert('Could not load clients', errorText(e));
       setClients((c) => c ?? []);
@@ -142,7 +144,10 @@ export default function CoachHome() {
                 <Text style={s.avatarText}>{c.name.trim().charAt(0).toUpperCase()}</Text>
               </View>
               <View style={{ flex: 1, gap: 4 }}>
-                <Text style={s.name}>{c.name}</Text>
+                <Row style={{ justifyContent: 'flex-start', gap: 6 }}>
+                  <Text style={s.name}>{c.name}</Text>
+                  {unread.has(c.user_id) ? <Tag label="New message" /> : null}
+                </Row>
                 {hasSummary(c.summary) ? (
                   <>
                     <View style={s.tags}>

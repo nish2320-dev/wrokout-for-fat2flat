@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -9,14 +10,20 @@ import { useActiveWorkout, useStore } from '@/data/store';
 import { durationMin, finished, fmtDate, fmtVolume, setCount, streak, thisWeek, todayMacros, volume } from '@/data/stats';
 import { C, S } from '@/theme';
 import { TodayActivity } from '@/ui/ActivityCard';
-import { CoachNoteCard } from '@/ui/CoachNoteCard';
+import { WaterCard } from '@/ui/WaterCard';
+import { CoachNoteCard, CoachTargetsCard } from '@/ui/CoachNoteCard';
 import { Card, CardTitle, Empty, Eyebrow, Label, Meta, Metric, Name, Ring, Row, Screen, Tag } from '@/ui/kit';
 
 export default function HomeScreen() {
-  const { state, startWorkout } = useStore();
+  const { state, ready, startWorkout } = useStore();
   const active = useActiveWorkout();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+
+  // the first time the app opens, show the short tour
+  useEffect(() => {
+    if (ready && !state.profile.seenWelcome) router.push('/welcome');
+  }, [ready, state.profile.seenWelcome, router]);
 
   const macros = todayMacros(state);
   const week = thisWeek(state);
@@ -47,6 +54,7 @@ export default function HomeScreen() {
       </Row>
 
       <CoachNoteCard />
+      <CoachTargetsCard />
 
       {active ? (
         <Pressable onPress={() => router.push('/workout/active')}>
@@ -97,6 +105,8 @@ export default function HomeScreen() {
           </Row>
         </Card>
       </View>
+
+      <WaterCard />
 
       <TodayActivity />
 

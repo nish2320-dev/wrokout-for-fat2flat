@@ -44,8 +44,10 @@ coach can see it:
 - Your Apple Health / Health Connect data (steps, sleep, resting heart rate,
   active calories, body fat and watch workouts from the last two weeks),
   **only if you turn on "Share with my coach"**
-- Notes your coach sends you, and a notification address so they reach your
-  phone
+- Messages between you and your coach, and a notification address so their
+  messages reach your phone
+- Targets your coach sets for you (daily calories, protein and workouts per
+  week), which your app applies
 
 **Only your coach can see your shared data.** It is protected so that no other
 user, coach or client can read it. We don't sell it, use it for advertising,
@@ -76,6 +78,18 @@ body fat and watch workouts are shared with that coach only (see "Sharing with a
 coach"). You can turn sharing off, or disconnect in Profile, at any time, and
 change what the app can access in the Health app (iPhone) or Health Connect
 settings (Android). Disconnecting removes the imported data from the app.
+
+## Meal photos (optional)
+
+If you photograph a meal to estimate its calories, the photo (made smaller on
+your phone first) is sent securely to our server and then to **Anthropic**, the
+company that makes the Claude AI, which returns an estimate of the foods,
+calories and protein. The photo is used only to make that estimate: we don't
+store it, and Anthropic processes it under its commercial terms, which don't
+allow using it to train its models. To keep the service fair, the app uses an
+anonymous ID (not linked to your name or email unless you've signed in) to
+limit how many photos can be analysed per day. Nothing is sent unless you take
+or choose a photo on the Meal photo screen.
 
 ## Food lookups
 

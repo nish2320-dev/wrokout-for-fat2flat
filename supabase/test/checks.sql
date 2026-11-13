@@ -94,6 +94,30 @@ select set_config('request.jwt.claim.sub', :coach, false);
 select pg_temp.eq((select count(*) from clients), 1, 'coach no longer sees bob');
 select pg_temp.eq((select count(*) from storage.objects), 1, 'coach no longer sees bob photo');
 
+-- two-way chat
+select set_config('request.jwt.claim.sub', :alice, false);
+insert into messages (coach_id, client_id, body, from_client) values (:coach, auth.uid(), 'Thanks coach!', true);
+select pg_temp.must_fail('insert into messages (coach_id, client_id, body, from_client) values (' || quote_literal(:coach) || ', auth.uid(), ''fake coach note'', false)', 'client posts as coach');
+select pg_temp.must_fail('insert into messages (coach_id, client_id, body, from_client) values (' || quote_literal(:coach2) || ', auth.uid(), ''hi'', true)', 'client messages a coach they did not join');
+update messages set read_at = now() where from_client;
+select pg_temp.eq((select count(*) from messages where from_client and read_at is not null), 0, 'client cannot mark own message read');
+select pg_temp.eq((select count(*) from my_coach()), 1, 'client sees their coach via my_coach');
+select set_config('request.jwt.claim.sub', :coach, false);
+select pg_temp.must_fail('insert into messages (coach_id, client_id, body, from_client) values (auth.uid(), ' || quote_literal(:alice) || ', ''spoof'', true)', 'coach posts as client');
+update messages set read_at = now() where from_client;
+select pg_temp.eq((select count(*) from messages where from_client and read_at is not null), 1, 'coach marks client reply read');
+-- coach-set targets
+select set_client_targets(:alice, '{"calorieGoal": 1900, "proteinGoal": 140, "daysPerWeek": 4, "note": "Cut a little"}');
+select pg_temp.must_fail('select set_client_targets(' || quote_literal(:alice) || ', ''{"calorieGoal": 500, "proteinGoal": 140}'')', 'unsafe calories');
+select pg_temp.must_fail('update clients set coach_targets = ''{}'' where user_id = ' || quote_literal(:alice), 'coach writes targets directly');
+select set_config('request.jwt.claim.sub', :coach2, false);
+select pg_temp.must_fail('select set_client_targets(' || quote_literal(:alice) || ', ''{"calorieGoal": 2000, "proteinGoal": 140}'')', 'other coach sets targets');
+select set_config('request.jwt.claim.sub', :alice, false);
+select pg_temp.eq((select count(*) from clients where (coach_targets->>'calorieGoal')::int = 1900), 1, 'client sees coach targets');
+select pg_temp.must_fail('update clients set coach_targets = ''{"calorieGoal": 4000}'' where user_id = auth.uid()', 'client edits coach targets');
+select pg_temp.must_fail('select set_client_targets(auth.uid(), ''{"calorieGoal": 2000, "proteinGoal": 140}'')', 'client sets own targets via rpc');
+select pg_temp.must_fail('select * from ai_usage', 'client reads ai usage');
+
 -- alice deletes her account: row and messages are gone
 select set_config('request.jwt.claim.sub', :alice, false);
 select delete_my_account();

@@ -44,6 +44,7 @@ export default function RootLayout() {
               <Stack.Screen name="meals/search" options={{ title: 'Search food', headerBackTitle: 'Meals' }} />
               <Stack.Screen name="meals/scan" options={{ title: 'Scan barcode', headerBackTitle: 'Meals' }} />
               <Stack.Screen name="meals/portion" options={{ title: 'Add food' }} />
+            <Stack.Screen name="meals/photo" options={{ title: 'Meal photo', headerBackTitle: 'Meals' }} />
               <Stack.Screen name="transform/index" options={{ title: 'Transformation', headerBackTitle: 'Back' }} />
               <Stack.Screen name="transform/setup" options={{ title: 'Set up your plan' }} />
               <Stack.Screen name="checkin" options={{ title: 'Weekly check-in' }} />
@@ -52,6 +53,8 @@ export default function RootLayout() {
               <Stack.Screen name="coach/index" options={{ title: 'My clients', headerBackTitle: 'Back' }} />
               <Stack.Screen name="coach/[id]" options={{ title: 'Client', headerBackTitle: 'Clients' }} />
               <Stack.Screen name="auth" options={{ headerShown: false, animation: 'none' }} />
+            <Stack.Screen name="chat" options={{ title: 'Your coach', headerBackTitle: 'Back' }} />
+            <Stack.Screen name="welcome" options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }} />
             </Stack>
           </HealthProvider>
         </CloudProvider>

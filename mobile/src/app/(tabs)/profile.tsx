@@ -22,6 +22,7 @@ export default function ProfileScreen() {
   const [name, setName] = useState(profile.name);
   const [calorieGoal, setCalorieGoal] = useState(String(profile.calorieGoal));
   const [proteinGoal, setProteinGoal] = useState(String(profile.proteinGoal));
+  const [waterGoal, setWaterGoal] = useState(String(profile.waterGoal ?? 8));
 
   // The fields hold their own text while typing; follow the saved profile
   // when it changes underneath them (erase, sample data), or they would keep
@@ -29,13 +30,14 @@ export default function ProfileScreen() {
   useEffect(() => setName(profile.name), [profile.name]);
   useEffect(() => setCalorieGoal(String(profile.calorieGoal)), [profile.calorieGoal]);
   useEffect(() => setProteinGoal(String(profile.proteinGoal)), [profile.proteinGoal]);
+  useEffect(() => setWaterGoal(String(profile.waterGoal ?? 8)), [profile.waterGoal]);
 
   const done = finished(state);
   const totalVolume = done.reduce((n, w) => n + volume(w), 0);
 
-  const commitGoal = (key: 'calorieGoal' | 'proteinGoal', raw: string, fallback: number) => {
+  const commitGoal = (key: 'calorieGoal' | 'proteinGoal' | 'waterGoal', raw: string, fallback: number) => {
     const n = parseInt(raw, 10);
-    updateProfile({ [key]: Number.isNaN(n) || n <= 0 ? fallback : n });
+    updateProfile({ [key]: Number.isNaN(n) || n <= 0 ? fallback : key === 'waterGoal' ? Math.min(n, 20) : n });
   };
 
   const confirmReset = () =>
@@ -115,6 +117,16 @@ export default function ProfileScreen() {
               value={proteinGoal}
               onChangeText={(t) => setProteinGoal(t.replace(/[^0-9]/g, ''))}
               onBlur={() => commitGoal('proteinGoal', proteinGoal, profile.proteinGoal)}
+              keyboardType="number-pad"
+              style={s.input}
+            />
+          </View>
+          <View style={{ flex: 1, gap: 6 }}>
+            <Eyebrow>Water (glasses)</Eyebrow>
+            <TextInput
+              value={waterGoal}
+              onChangeText={(t) => setWaterGoal(t.replace(/[^0-9]/g, ''))}
+              onBlur={() => commitGoal('waterGoal', waterGoal, profile.waterGoal ?? 8)}
               keyboardType="number-pad"
               style={s.input}
             />

@@ -63,7 +63,8 @@ export function CoachSettings() {
                 trackColor={{ true: C.red, false: C.line }}
               />
             </Row>
-            <Btn label="Stop sharing" icon="close" ghost onPress={confirmLeave} style={{ marginTop: 12 }} />
+            <Btn label={`Message ${m.coachName}`} icon="chatbubble-outline" onPress={() => router.push('/chat')} style={{ marginTop: 12 }} />
+            <Btn label="Stop sharing" icon="close" ghost onPress={confirmLeave} style={{ marginTop: 9 }} />
           </>
         ) : (
           <>
