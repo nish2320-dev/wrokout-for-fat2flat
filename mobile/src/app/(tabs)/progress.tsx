@@ -10,6 +10,7 @@ import { finished, fmtDate, fmtVolume, personalRecords, streak, volume, weeklyVo
 import { cmToDisplay, fmtLength, fmtWeight, lengthUnit } from '@/data/units';
 import { C, S } from '@/theme';
 import { WeekActivity } from '@/ui/ActivityCard';
+import { BadgeShelf } from '@/ui/Badges';
 import { Bars, Btn, Card, CardTitle, Empty, Label, Meta, Metric, Name, Row, Screen, Tag, Title, Trend } from '@/ui/kit';
 
 export default function ProgressScreen() {
@@ -126,6 +127,8 @@ export default function ProgressScreen() {
           </Pressable>
         </View>
       </Card>
+
+      <BadgeShelf />
 
       <WeekActivity />
 

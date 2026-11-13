@@ -6,9 +6,9 @@ Fat2Flat Fitness ("the app", "we") is a workout and meal tracker. This policy
 explains what happens to the information you put into it. The short version:
 **by default, everything you enter stays on your device.** Information only
 leaves your phone when you use a feature that needs it: looking up a food (see
-"Food lookups"), estimating a meal from a photo (see "Meal photos"), joining a
-coach (see "Sharing with a coach"), and anonymous error reports (see "Error
-reports"). We never sell your information or use it for advertising.
+"Food lookups"), estimating a meal from a photo (see "Meal photos"), asking the
+AI assistant (see "AI assistant"), joining a coach (see "Sharing with a
+coach"), and anonymous error reports (see "Error reports"). We never sell your information or use it for advertising.
 
 ## What the app stores
 
@@ -29,7 +29,8 @@ When you use the app, it saves the following on your device (and, only if you jo
 information about you.** The app contains no advertising or tracking tools and
 no analytics. We don't use your location, contacts or microphone. The only
 things that reach our servers without an account are the meal photos you choose
-to analyse (not stored) and anonymous error reports, described below.
+to analyse and the questions you ask the AI assistant (neither is stored), and
+anonymous error reports, described below.
 
 Because your data is stored on your device, we can't see it, and we can't
 recover it for you if it's lost.
@@ -96,6 +97,20 @@ allow using it to train its models. To keep the service fair, the app uses an
 anonymous ID (not linked to your name or email unless you've signed in) to
 limit how many photos can be analysed per day. Nothing is sent unless you take
 or choose a photo on the Meal photo screen.
+
+## AI assistant (optional)
+
+When you ask a question in "Ask Fat2Flat", your question, the recent
+conversation and a short summary of your own plan and progress (for example
+your daily targets, Transformation week, recent workouts, today's meals and
+weight trend) are sent securely to our server and then to Anthropic, the
+company that makes the Claude AI, to write the answer. We don't store your
+questions or answers on our server, and Anthropic's commercial terms don't
+allow using them to train its models. The conversation is saved on your phone
+so you can scroll back, and you can clear it at any time. If you join a coach,
+they can read your recent questions and answers only if you turn on "Share AI
+assistant chats". A daily question limit applies, using the same anonymous ID
+as meal photos.
 
 ## Error reports
 

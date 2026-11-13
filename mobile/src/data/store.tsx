@@ -14,7 +14,8 @@ import { deleteAllPhotos, deletePhotos } from '@/photos';
 
 import { emptyHealth, HealthPull, mergeHealth } from './health';
 import { addGlasses, applyTargets } from './extras';
-import { AppState, CheckIn, CoachTargets, HealthState, LoggedExercise, Meal, Profile, Program, SetEntry, WeighIn, Workout, initialState } from './types';
+import { badges } from './badges';
+import { AppState, AssistantMessage, CheckIn, CoachTargets, HealthState, LoggedExercise, Meal, Profile, Program, SetEntry, WeighIn, Workout, initialState } from './types';
 import { sampleState } from './sample';
 import { convertUnits } from './units';
 
@@ -59,6 +60,9 @@ type Store = {
   addWater: (glasses: number) => void;
   /** Applies targets the coach set; the Home screen then tells the user. */
   applyCoachTargets: (t: CoachTargets) => void;
+  /** Adds a message to the AI assistant conversation (kept to the last 60). */
+  addAssistantMessage: (m: Omit<AssistantMessage, 'id' | 'at'>) => void;
+  clearAssistant: () => void;
 };
 
 const Ctx = createContext<Store | null>(null);
@@ -261,7 +265,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     loadSample() {
       deleteAllPhotos();
-      setState(sampleState(Date.now()));
+      const now = Date.now();
+      const sample = sampleState(now);
+      // the demo shouldn't open with a pile of badge celebrations
+      sample.profile.seenBadges = badges(sample, now).filter((b) => b.earned).map((b) => b.id);
+      setState(sample);
     },
 
     applyHealth(pull) {
@@ -270,6 +278,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     addWater(glasses) {
       setState((s) => ({ ...s, water: addGlasses(s.water ?? [], glasses, Date.now()) }));
+    },
+
+    addAssistantMessage(m) {
+      setState((s) => ({ ...s, assistant: [...(s.assistant ?? []), { ...m, id: uid(), at: Date.now() }].slice(-60) }));
+    },
+
+    clearAssistant() {
+      setState((s) => ({ ...s, assistant: [] }));
     },
 
     applyCoachTargets(targets) {

@@ -3,7 +3,7 @@ import { sharedHealth, weekAverages } from './health';
 import type { Diet } from './mealplan';
 import { completedKeys, nextSession, WEEKS, weekOf } from './program';
 import { startOfDay } from './stats';
-import { AppState, CheckIn, HealthDay, HealthWorkout, initialState, Meal, Program, WeighIn, Workout } from './types';
+import { AppState, AssistantMessage, CheckIn, HealthDay, HealthWorkout, initialState, Meal, Program, WeighIn, Workout } from './types';
 
 /**
  * What a client shares with their coach, and the coach-side logic that reads
@@ -25,6 +25,8 @@ export type SharedSnapshot = {
   checkIns: CheckIn[];
   /** Two weeks of health-app data, only if the client chose to share it. */
   health?: { days: HealthDay[]; workouts: HealthWorkout[]; bodyFat?: { at: number; percent: number } };
+  /** Recent AI assistant conversation, only if the client chose to share it. */
+  assistant?: AssistantMessage[];
 };
 
 export function snapshot(state: AppState, now: number, sharePhotos: boolean): SharedSnapshot {
@@ -49,6 +51,7 @@ export function snapshot(state: AppState, now: number, sharePhotos: boolean): Sh
     weighIns: state.weighIns.filter((x) => x.at >= since(365)),
     checkIns: state.checkIns.map((c) => ({ ...c, photos: sharePhotos ? c.photos : {} })),
     ...(health ? { health } : {}),
+    ...(state.profile.shareAssistant && state.assistant?.length ? { assistant: state.assistant.slice(-30) } : {}),
   };
 }
 
@@ -64,6 +67,7 @@ export function snapshotToState(s: SharedSnapshot | null | undefined): AppState 
     program: s.program ?? null,
     profile: { ...initialState.profile, ...s.profile },
     ...(s.health ? { health: { enabled: true, shareWithCoach: true, ...s.health } } : {}),
+    ...(s.assistant ? { assistant: s.assistant } : {}),
   };
 }
 

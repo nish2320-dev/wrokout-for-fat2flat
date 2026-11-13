@@ -48,9 +48,10 @@ alter table public.clients add column if not exists coach_targets jsonb;
 create table if not exists public.ai_usage (
   user_id uuid not null references auth.users on delete cascade,
   day     date not null default current_date,
-  count   integer not null default 0,
+  count   integer not null default 0,   -- meal photos
   primary key (user_id, day)
 );
+alter table public.ai_usage add column if not exists chat_count integer not null default 0; -- AI assistant messages
 
 alter table public.coaches  enable row level security;
 alter table public.clients  enable row level security;

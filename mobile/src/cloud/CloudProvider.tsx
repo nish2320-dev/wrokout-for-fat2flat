@@ -59,6 +59,8 @@ type Cloud = {
   sendToCoach: (body: string) => Promise<void>;
   /** Estimates a meal from a photo (base64 JPEG). Works without an account. */
   analyzeMeal: (base64: string, diet?: string) => Promise<MealGuess>;
+  /** Asks the AI assistant; works without an account. Resolves to its reply. */
+  askAssistant: (turns: { role: 'user' | 'assistant'; content: string }[], context: string) => Promise<string>;
 };
 
 const Ctx = createContext<Cloud | null>(null);
@@ -93,6 +95,25 @@ async function syncPhotos(uid: string, names: string[]) {
     stale.forEach((n) => uploaded.delete(n));
   }
   await AsyncStorage.setItem(uploadedKey(uid), JSON.stringify([...uploaded])).catch(() => {});
+}
+
+/**
+ * Calls one of our edge functions. AI features work for everyone: without an
+ * account, a guest session identifies the phone for fair-use limits.
+ */
+async function callFunction(sb: NonNullable<typeof supabase>, name: string, body: unknown, fallback: string) {
+  const { data: s } = await sb.auth.getSession();
+  if (!s.session) {
+    const { error } = await sb.auth.signInAnonymously();
+    if (error) throw new Error('This isn’t available right now. Please try again later.');
+  }
+  const { data, error } = await sb.functions.invoke(name, { body: body as Record<string, unknown> });
+  if (error) {
+    const ctx = (error as { context?: Response }).context;
+    const msg = ctx ? ((await ctx.json().catch(() => null)) as { error?: string } | null)?.error : null;
+    throw new Error(msg ?? fallback);
+  }
+  return data;
 }
 
 export function CloudProvider({ children }: { children: ReactNode }) {
@@ -350,20 +371,13 @@ export function CloudProvider({ children }: { children: ReactNode }) {
       },
 
       async analyzeMeal(base64, diet) {
-        const sb = need();
-        // meal photos work for everyone: without an account, a guest session identifies the phone for fair-use limits
-        const { data: s } = await sb.auth.getSession();
-        if (!s.session) {
-          const { error } = await sb.auth.signInAnonymously();
-          if (error) throw new Error('Meal photos aren’t available right now. Please try again later.');
-        }
-        const { data, error } = await sb.functions.invoke('analyze-meal', { body: { image: base64, diet: diet ?? null } });
-        if (error) {
-          const ctx = (error as { context?: Response }).context;
-          const msg = ctx ? ((await ctx.json().catch(() => null)) as { error?: string } | null)?.error : null;
-          throw new Error(msg ?? 'Couldn’t read that photo. Check your connection and try again.');
-        }
+        const data = await callFunction(need(), 'analyze-meal', { image: base64, diet: diet ?? null }, 'Couldn’t read that photo. Check your connection and try again.');
         return data as MealGuess;
+      },
+
+      async askAssistant(turns, context) {
+        const data = await callFunction(need(), 'assistant', { messages: turns, context }, 'Couldn’t reach the assistant. Check your connection and try again.');
+        return String((data as { reply?: string }).reply ?? '');
       },
 
       async markRead(id) {

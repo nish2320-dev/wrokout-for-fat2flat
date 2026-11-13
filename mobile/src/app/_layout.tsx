@@ -63,6 +63,8 @@ export default function RootLayout() {
               <Stack.Screen name="coach/[id]" options={{ title: 'Client', headerBackTitle: 'Clients' }} />
               <Stack.Screen name="auth" options={{ headerShown: false, animation: 'none' }} />
             <Stack.Screen name="chat" options={{ title: 'Your coach', headerBackTitle: 'Back' }} />
+            <Stack.Screen name="assistant" options={{ title: 'Ask Fat2Flat', headerBackTitle: 'Back' }} />
+            <Stack.Screen name="share" options={{ title: 'Share your progress', headerBackTitle: 'Back' }} />
             <Stack.Screen name="invite/[code]" options={{ headerShown: false, animation: 'none' }} />
             </Stack>
           </HealthProvider>

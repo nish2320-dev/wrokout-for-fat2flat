@@ -69,10 +69,17 @@ export type Profile = {
   coachTargetsNote?: string;
   /** When the App Store / Play rating prompt was last requested. */
   reviewAskedAt?: number;
+  /** Let the coach read conversations with the AI assistant. */
+  shareAssistant?: boolean;
+  /** Badges the user has already been shown. */
+  seenBadges?: string[];
 };
 
 /** Targets a coach set from their phone. */
 export type CoachTargets = { calorieGoal: number; proteinGoal: number; daysPerWeek: 3 | 4 | 5 | null; note: string; at: number };
+
+/** A message in the conversation with the in-app AI assistant. */
+export type AssistantMessage = { id: string; role: 'user' | 'assistant'; content: string; at: number };
 
 /** Glasses of water on a day; `date` is local midnight. */
 export type WaterDay = { date: number; glasses: number };
@@ -129,6 +136,8 @@ export type AppState = {
   /** Absent until the user connects a health app. */
   health?: HealthState;
   water?: WaterDay[];
+  /** Conversation with the AI assistant (newest last), kept on the phone. */
+  assistant?: AssistantMessage[];
 };
 
 export const initialState: AppState = {

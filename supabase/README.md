@@ -36,3 +36,10 @@ and write what (needs PostgreSQL 16 installed locally).
 - The coach invite page is `docs/join/index.html`, served by GitHub Pages at
   `https://nish2320-dev.github.io/wrokout-for-fat2flat/join/?code=XXXXXX`
   (repo Settings → Pages → Deploy from a branch → folder `/docs`).
+
+## Version 2.1: AI assistant
+
+1. Re-run `schema.sql` (adds `ai_usage.chat_count`).
+2. Edge Functions → Deploy a new function → Via editor → name `assistant` →
+   paste `functions/assistant/index.ts` → Deploy → Settings → turn **off**
+   "Verify JWT with legacy secret" → Save. Uses the existing `ANTHROPIC_API_KEY`.

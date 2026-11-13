@@ -16,6 +16,8 @@ import { attentionScore, flags, planReminders, snapshot, snapshotToState, sugges
 import { emptyHealth, fmtSleep, mergeHealth, prettyKind, sharedHealth, sleepByDay, weekAverages } from '../src/data/health';
 import { activeDays } from '../src/data/stats';
 import { addGlasses, applyTargets, shouldAskForReview, unseenTargets, waterToday } from '../src/data/extras';
+import { assistantContext, recentTurns } from '../src/data/assistant';
+import { badges, bestStreak, newBadges } from '../src/data/badges';
 import { COMMON_FOODS, macrosFor, parseProduct, searchCommon } from '../src/data/food';
 
 const DAY = 86400000;
@@ -317,6 +319,28 @@ eq('review: not before 5 workouts', shouldAskForReview(4, undefined, now), false
 eq('review: asked at the 5th workout', shouldAskForReview(5, undefined, now), true);
 eq('review: not again within 4 months', shouldAskForReview(20, now - 30 * DAY, now), false);
 eq('review: again after 4 months', shouldAskForReview(20, now - 130 * DAY, now), true);
+
+// --- AI assistant ---
+const ctx = assistantContext(sam, now, 'Coach Nish');
+eq('assistant: context names the targets', ctx.includes('2,250 calories, 145 g protein'), true);
+eq('assistant: context has the Transformation week', ctx.includes('week 6 of 12'), true);
+eq('assistant: context mentions the coach', ctx.includes('Coach Nish'), true);
+eq('assistant: context is short enough to send', ctx.length < 6000, true);
+eq('assistant: works for a brand-new user', assistantContext(initialState, now, null).includes('No workouts logged yet'), true);
+const convo = Array.from({ length: 15 }, (_, i) => ({ id: String(i), role: (i % 2 ? 'assistant' : 'user') as 'user' | 'assistant', content: 'm' + i, at: i }));
+eq('assistant: sends at most 12 turns, starting with a question', [recentTurns(convo).length <= 12, recentTurns(convo)[0].role], [true, 'user']);
+
+eq('assistant: chats not shared unless the client allows it', snapshot({ ...sam, assistant: convo }, now, false).assistant, undefined);
+eq('assistant: chats shared when allowed', snapshot({ ...sam, assistant: convo, profile: { ...sam.profile, shareAssistant: true } }, now, false).assistant?.length, 15);
+
+// --- badges ---
+const got = (st: AppState) => badges(st, now).filter((b) => b.earned).map((b) => b.id);
+eq('badges: none for a new user', got(initialState), []);
+eq('badges: sample earns workout and weight badges', ['workout-1', 'workout-10', 'lost-5lb', 'lost-10lb', 'checkin-4', 'phase-build'].every((id) => got(sam).includes(id)), true);
+eq('badges: sample has a 4-day best streak', bestStreak(sam), 4);
+eq('badges: kg users get kg milestones', badges({ ...initialState, profile: { ...initialState.profile, units: 'kg' } }, now).some((b) => b.id === 'lost-2kg'), true);
+eq('badges: seen badges are not new again', newBadges({ ...sam, profile: { ...sam.profile, seenBadges: got(sam) } }, now).length, 0);
+eq('badges: ids are unique', new Set(badges(sam, now).map((b) => b.id)).size, badges(sam, now).length);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

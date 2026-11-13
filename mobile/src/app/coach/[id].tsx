@@ -148,6 +148,27 @@ export default function ClientScreen() {
 
       <TargetsCard client={client} onSaved={load} />
 
+      {st.assistant?.length ? (
+        <Card>
+          <CardTitle>Questions to the AI assistant</CardTitle>
+          <Meta style={{ marginTop: 2 }}>Shared by {client.name.split(' ')[0]}; the most recent first.</Meta>
+          <View style={{ marginTop: 10, gap: 10 }}>
+            {[...st.assistant].reverse().filter((m) => m.role === 'user').slice(0, 6).map((q) => {
+              const all = st.assistant!;
+              const i = all.findIndex((m) => m.id === q.id);
+              const a = all[i + 1]?.role === 'assistant' ? all[i + 1] : undefined;
+              return (
+                <View key={q.id} style={{ gap: 3 }}>
+                  <Text style={s.line}>“{q.content}”</Text>
+                  {a ? <Meta numberOfLines={3}>AI: {a.content}</Meta> : null}
+                  <Meta>{timeAgo(q.at, now)}</Meta>
+                </View>
+              );
+            })}
+          </View>
+        </Card>
+      ) : null}
+
       {summary ? (
         <Card>
           <CardTitle>

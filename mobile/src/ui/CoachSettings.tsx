@@ -5,6 +5,7 @@ import { Alert, Platform, Pressable, StyleSheet, Switch, Text, View } from 'reac
 import { useCloud } from '@/cloud/CloudProvider';
 import { errorText } from '@/cloud/supabase';
 import { timeAgo } from '@/data/sharing';
+import { useStore } from '@/data/store';
 import { C } from '@/theme';
 import { Btn, Card, CardTitle, Meta, Row } from '@/ui/kit';
 
@@ -16,6 +17,7 @@ const run = (title: string, fn: () => Promise<unknown>) => {
 export function CoachSettings() {
   const router = useRouter();
   const cloud = useCloud();
+  const { state, updateProfile } = useStore();
   if (!cloud.enabled) return null;
   const m = cloud.membership;
 
@@ -60,6 +62,17 @@ export function CoachSettings() {
               <Switch
                 value={m.sharePhotos}
                 onValueChange={(on) => run('Could not change photo sharing', () => cloud.setSharePhotos(on))}
+                trackColor={{ true: C.red, false: C.line }}
+              />
+            </Row>
+            <Row style={{ marginTop: 12 }}>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <Text style={s.item}>Share AI assistant chats</Text>
+                <Meta>Your recent questions to Ask Fat2Flat and its answers.</Meta>
+              </View>
+              <Switch
+                value={!!state.profile.shareAssistant}
+                onValueChange={(on) => updateProfile({ shareAssistant: on })}
                 trackColor={{ true: C.red, false: C.line }}
               />
             </Row>
