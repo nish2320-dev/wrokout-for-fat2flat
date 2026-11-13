@@ -4,10 +4,11 @@ _Effective date: version 2.0 release (update this date when 2.0 goes live)_
 
 Fat2Flat Fitness ("the app", "we") is a workout and meal tracker. This policy
 explains what happens to the information you put into it. The short version:
-**by default, everything you enter stays on your device.** The only things
-that ever leave your phone are a barcode or food name you choose to look up
-(see "Food lookups") and, **only if you choose to join a coach**, the progress
-you share with that coach (see "Sharing with a coach").
+**by default, everything you enter stays on your device.** Information only
+leaves your phone when you use a feature that needs it: looking up a food (see
+"Food lookups"), estimating a meal from a photo (see "Meal photos"), joining a
+coach (see "Sharing with a coach"), and anonymous error reports (see "Error
+reports"). We never sell your information or use it for advertising.
 
 ## What the app stores
 
@@ -24,9 +25,14 @@ When you use the app, it saves the following on your device (and, only if you jo
 
 ## What we collect
 
-**If you don't join a coach: nothing.** You don't need an account, and the
-app contains no analytics, advertising, tracking or crash-reporting tools. We
-don't use your location, contacts or microphone.
+**You don't need an account, and if you don't join a coach we keep no personal
+information about you.** The app contains no advertising or tracking tools and
+no analytics. We don't use your location, contacts or microphone. The only
+things that reach our servers without an account are the meal photos you choose
+to analyse (not stored) and anonymous error reports, described below.
+
+Because your data is stored on your device, we can't see it, and we can't
+recover it for you if it's lost.
 
 ## Sharing with a coach (optional)
 
