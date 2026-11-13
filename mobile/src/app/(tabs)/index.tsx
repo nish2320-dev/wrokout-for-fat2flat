@@ -8,6 +8,7 @@ import { checkInDue, nextSession, phaseOf, programProgress, weekOf, WEEKS } from
 import { useActiveWorkout, useStore } from '@/data/store';
 import { durationMin, finished, fmtDate, fmtVolume, setCount, streak, thisWeek, todayMacros, volume } from '@/data/stats';
 import { C, S } from '@/theme';
+import { TodayActivity } from '@/ui/ActivityCard';
 import { CoachNoteCard } from '@/ui/CoachNoteCard';
 import { Card, CardTitle, Empty, Eyebrow, Label, Meta, Metric, Name, Ring, Row, Screen, Tag } from '@/ui/kit';
 
@@ -96,6 +97,8 @@ export default function HomeScreen() {
           </Row>
         </Card>
       </View>
+
+      <TodayActivity />
 
       <Card>
         <Row style={{ marginBottom: 11 }}>

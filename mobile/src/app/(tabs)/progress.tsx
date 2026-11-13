@@ -9,6 +9,7 @@ import { useStore } from '@/data/store';
 import { finished, fmtDate, fmtVolume, personalRecords, streak, volume, weeklyVolume } from '@/data/stats';
 import { cmToDisplay, fmtLength, fmtWeight, lengthUnit } from '@/data/units';
 import { C, S } from '@/theme';
+import { WeekActivity } from '@/ui/ActivityCard';
 import { Bars, Btn, Card, CardTitle, Empty, Label, Meta, Metric, Name, Row, Screen, Tag, Title, Trend } from '@/ui/kit';
 
 export default function ProgressScreen() {
@@ -125,6 +126,8 @@ export default function ProgressScreen() {
           </Pressable>
         </View>
       </Card>
+
+      <WeekActivity />
 
       <BodyCard onCheckIn={() => router.push('/checkin')} onCompare={() => router.push('/photos')} />
 

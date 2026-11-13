@@ -20,7 +20,7 @@ export function CoachSettings() {
   const m = cloud.membership;
 
   const confirmLeave = () =>
-    Alert.alert(`Stop sharing with ${m?.coachName}?`, 'Your coach will no longer see your progress, and any photos you shared are deleted from the cloud. Everything stays on your iPhone.', [
+    Alert.alert(`Stop sharing with ${m?.coachName}?`, 'Your coach will no longer see your progress, and any photos you shared are deleted from the cloud. Everything stays on your phone.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Stop sharing', style: 'destructive', onPress: () => run('Could not stop sharing', cloud.leaveCoach) },
     ]);
@@ -28,7 +28,7 @@ export function CoachSettings() {
   const confirmDelete = () =>
     Alert.alert(
       'Delete your account?',
-      'This permanently deletes your account and everything stored online for it: shared progress, photos, notes and, if you coach, your coach code and client list. Your workouts and meals on this iPhone stay.',
+      'This permanently deletes your account and everything stored online for it: shared progress, photos, notes and, if you coach, your coach code and client list. Your workouts and meals on this phone stay.',
       [
         { text: 'Cancel', style: 'cancel' },
         {

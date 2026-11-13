@@ -26,7 +26,7 @@ When you use the app, it saves the following on your device (and, only if you jo
 
 **If you don't join a coach: nothing.** You don't need an account, and the
 app contains no analytics, advertising, tracking or crash-reporting tools. We
-don't use your location, contacts, microphone or Apple Health data.
+don't use your location, contacts or microphone.
 
 ## Sharing with a coach (optional)
 
@@ -41,6 +41,9 @@ coach can see it:
 - Your workouts, weigh-ins, body measurements, meals and calorie and protein
   totals, and your Transformation plan and targets
 - Your progress photos, **only if you turn on "Share progress photos"**
+- Your Apple Health / Health Connect data (steps, sleep, resting heart rate,
+  active calories, body fat and watch workouts from the last two weeks),
+  **only if you turn on "Share with my coach"**
 - Notes your coach sends you, and a notification address so they reach your
   phone
 
@@ -56,6 +59,23 @@ You can turn photo sharing off at any time (shared photos are then deleted
 from our database), stop sharing with your coach (Profile → Stop sharing,
 which deletes your photos from our database and removes your coach's access),
 or delete your account (see "Deleting your data").
+
+## Apple Health and Health Connect (optional)
+
+If you connect **Apple Health** (iPhone) or **Health Connect** (Android), the
+app reads the data you allow: steps, active calories, workouts recorded by your
+watch or other apps, weight and body fat (for example from a smart scale), sleep
+and resting heart rate. It saves the workouts and meals you log in the app back
+to Apple Health / Health Connect, if you allow that too.
+
+This health data is used only to show your activity and progress in the app and
+to keep your weigh-ins up to date. It stays on your phone, is never used for
+advertising, and is never sold. If you join a coach and turn on "Share with my
+coach", the last two weeks of steps, sleep, resting heart rate, active calories,
+body fat and watch workouts are shared with that coach only (see "Sharing with a
+coach"). You can turn sharing off, or disconnect in Profile, at any time, and
+change what the app can access in the Health app (iPhone) or Health Connect
+settings (Android). Disconnecting removes the imported data from the app.
 
 ## Food lookups
 

@@ -58,6 +58,18 @@ Play Console → Create app → `Fat2Flat Fitness`, App, Free → then:
 4. After 14 days: Dashboard → **Apply for production** (answer the questions
    about the test), then create a production release.
 
+## Health Connect declaration (before the first release)
+The app reads Health Connect data, so Play Console requires a declaration:
+Play Console → the app → **App content → Health apps** (or **Health Connect
+permissions**). For each permission give the reason:
+- Steps, active calories burned, exercise, sleep, resting heart rate: "Shown to
+  the user as their daily activity and, if they choose, shared with their coach."
+- Weight, body fat: "Imported as the user's weigh-ins for their weight trend and
+  calorie coaching."
+- Write exercise, write nutrition: "Saves the workouts and meals the user logs."
+Approval can take up to a week, plus a few business days before access works.
+Without it, Health Connect refuses to show the permission screen in the store build.
+
 ## Play Store listing
 
 | Field | Value |
@@ -92,7 +104,7 @@ Regenerate the screenshots with
 - Is all data encrypted in transit? **Yes**. Can users request deletion? **Yes** (Profile → Delete account).
 - Collected (not shared with third parties), purpose **App functionality**, **optional**:
   - Personal info: **Name**, **Email address**, **User IDs**
-  - Health and fitness: **Health info** (weight, measurements), **Fitness info** (workouts)
+  - Health and fitness: **Health info** (weight, body fat, measurements, sleep, resting heart rate), **Fitness info** (workouts, steps, calories burned)
   - Photos and videos: **Photos** (progress photos, only if the user turns sharing on)
   - App activity: **Other user-generated content** (meals, coach notes)
 - Not collected: location, contacts, financial info, browsing, device IDs for ads.

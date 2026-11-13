@@ -27,9 +27,16 @@ export const durationMin = (w: Workout) =>
 export const finished = (s: AppState) =>
   s.workouts.filter((w) => w.finishedAt !== undefined);
 
-/** Consecutive days ending today (or yesterday) that have a finished workout. */
+/** Days with a finished workout, logged here or recorded by a watch (via a connected health app). */
+export const activeDays = (s: AppState) =>
+  new Set([
+    ...finished(s).map((w) => startOfDay(w.finishedAt!)),
+    ...(s.health?.enabled ? s.health.workouts.map((w) => startOfDay(w.start)) : []),
+  ]);
+
+/** Consecutive days ending today (or yesterday) that have a workout. */
 export function streak(s: AppState): number {
-  const days = new Set(finished(s).map((w) => startOfDay(w.finishedAt!)));
+  const days = activeDays(s);
   if (days.size === 0) return 0;
 
   const today = startOfDay(Date.now());
@@ -112,7 +119,7 @@ export function thisWeek(s: AppState) {
   const today = new Date();
   const dow = (today.getDay() + 6) % 7; // Mon = 0
   const monday = startOfDay(today.getTime() - dow * DAY);
-  const done = new Set(finished(s).map((w) => startOfDay(w.finishedAt!)));
+  const done = activeDays(s);
   const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
   return labels.map((label, i) => {

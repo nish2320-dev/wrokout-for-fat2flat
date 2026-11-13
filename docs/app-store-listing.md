@@ -160,6 +160,7 @@ NEW: Work with your coach.
 
 • Join your personal trainer with their coach code and share your workouts, weight, measurements and meals so they can keep you on track. Progress photos are shared only if you turn it on.
 • Get notes and tips from your coach right in the app.
+• Connect Apple Health: steps, sleep, heart rate, smart-scale weigh-ins and Apple Watch workouts come in automatically, and your workouts and meals are saved to Health.
 • Smart reminders for your next workout, weekly check-in and weigh-ins.
 • Coaches: get a coach code, see all your clients in one place with who needs attention first, and send notes with ready-made suggestions.
 • Stop sharing or delete your account any time from Profile.
@@ -185,5 +186,6 @@ Version 2.0 adds optional coach sharing. Everything still works without an accou
 To review: Profile → "I'm a coach" → Continue with Apple → enter a name → Get my coach code. On a second device (or after Stop sharing/Sign out), Profile → Join my coach → Continue with Apple → enter that code.
 Demo coach code (already set up, for joining as a client): [ADD CODE HERE]
 Account deletion: Profile → Delete account.
+Apple Health (HealthKit): optional, Profile → Connect Apple Health. The app reads steps, active energy, workouts, body mass, body fat, sleep and resting heart rate to show the user's activity and update their weigh-ins, and writes the workouts and meals they log. Health data is never used for advertising. It is shared with the user's own coach only if they join a coach and turn on "Share with my coach".
 Coach notes are delivered via push notifications; data is stored in Supabase and visible only to the client's coach.
 ```

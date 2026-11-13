@@ -6,6 +6,7 @@ import { Alert, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useCloud } from '@/cloud/CloudProvider';
 import { errorText } from '@/cloud/supabase';
 import { useStore } from '@/data/store';
+import { useHealth } from '@/health/HealthProvider';
 import { askNotifications } from '@/notify';
 import { C } from '@/theme';
 import { Btn, Card, CardTitle, Label, Meta, Row, Screen } from '@/ui/kit';
@@ -21,8 +22,10 @@ const SHARED = [
 /** A client links up with their coach: sign in, enter the coach's code, choose about photos. */
 export default function JoinCoach() {
   const router = useRouter();
-  const { state } = useStore();
+  const { state, updateHealth } = useStore();
   const cloud = useCloud();
+  const health = useHealth();
+  const [shareHealth, setShareHealth] = useState(true);
   const [name, setName] = useState(state.profile.name);
   const [code, setCode] = useState('');
   const [photos, setPhotos] = useState(false);
@@ -55,6 +58,7 @@ export default function JoinCoach() {
     setBusy(true);
     try {
       const coachName = await cloud.joinCoach(code, name.trim(), photos);
+      if (health.connected) updateHealth({ shareWithCoach: shareHealth });
       // ask now, while it's obvious why: notes from the coach and plan reminders
       await askNotifications();
       Alert.alert(`You’re connected to ${coachName}`, 'Your progress will now be shared with them automatically.', [
@@ -89,6 +93,12 @@ export default function JoinCoach() {
             <Ionicons name="images-outline" size={17} color={C.muted} />
             <Text style={[s.item, { color: C.muted }]}>Progress photos only if you turn it on below</Text>
           </Row>
+          {health.connected ? (
+            <Row style={{ justifyContent: 'flex-start', gap: 10 }}>
+              <Ionicons name="heart-outline" size={17} color={C.muted} />
+              <Text style={[s.item, { color: C.muted }]}>{health.appName} data only if you turn it on below</Text>
+            </Row>
+          ) : null}
         </View>
         <Meta style={{ marginTop: 10 }}>Only your coach can see it. You can stop sharing or delete your account at any time in Profile.</Meta>
       </Card>
@@ -124,6 +134,15 @@ export default function JoinCoach() {
             </View>
             <Switch value={photos} onValueChange={setPhotos} trackColor={{ true: C.red, false: C.line }} />
           </Row>
+          {health.connected ? (
+            <Row style={{ marginTop: 12 }}>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <Text style={s.item}>Share {health.appName} data</Text>
+                <Meta>Steps, sleep, heart rate and watch workouts.</Meta>
+              </View>
+              <Switch value={shareHealth} onValueChange={setShareHealth} trackColor={{ true: C.red, false: C.line }} />
+            </Row>
+          ) : null}
           <Btn label={busy ? 'Connecting…' : 'Join my coach'} icon="people" onPress={join} disabled={!ready} style={{ marginTop: 14 }} />
         </Card>
       )}

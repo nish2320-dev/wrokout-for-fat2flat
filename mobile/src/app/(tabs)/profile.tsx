@@ -8,6 +8,7 @@ import { useStore } from '@/data/store';
 import { finished, fmtVolume, personalRecords, volume } from '@/data/stats';
 import { C, S } from '@/theme';
 import { CoachSettings } from '@/ui/CoachSettings';
+import { HealthSettings } from '@/ui/HealthSettings';
 import { Card, CardTitle, Eyebrow, Label, Meta, Metric, Row, Screen, Title } from '@/ui/kit';
 import { useCloud } from '@/cloud/CloudProvider';
 import { askNotifications } from '@/notify';
@@ -179,14 +180,16 @@ export default function ProfileScreen() {
         </Card>
       ) : null}
 
+      <HealthSettings />
+
       <CoachSettings />
 
       <Card>
         <CardTitle>Your data</CardTitle>
         <Meta>
           {cloud.membership
-            ? `Everything is stored on this iPhone, and a copy of your progress is shared with ${cloud.membership.coachName}. Food lookups send only the barcode or search words to Open Food Facts.`
-            : 'Everything stays on this iPhone. Food lookups send only the barcode or search words to Open Food Facts.'}
+            ? `Everything is stored on this phone, and a copy of your progress is shared with ${cloud.membership.coachName}. Food lookups send only the barcode or search words to Open Food Facts.`
+            : 'Everything stays on this phone. Food lookups send only the barcode or search words to Open Food Facts.'}
         </Meta>
         <Pressable onPress={confirmReset} style={s.danger} accessibilityRole="button">
           <Ionicons name="trash-outline" size={17} color={C.red} />

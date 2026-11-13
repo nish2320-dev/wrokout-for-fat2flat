@@ -1,7 +1,8 @@
+import { sharedHealth, weekAverages } from './health';
 import type { Diet } from './mealplan';
 import { completedKeys, nextSession, WEEKS, weekOf } from './program';
 import { startOfDay } from './stats';
-import { AppState, CheckIn, initialState, Meal, Program, WeighIn, Workout } from './types';
+import { AppState, CheckIn, HealthDay, HealthWorkout, initialState, Meal, Program, WeighIn, Workout } from './types';
 
 /**
  * What a client shares with their coach, and the coach-side logic that reads
@@ -21,11 +22,14 @@ export type SharedSnapshot = {
   meals: Meal[];
   weighIns: WeighIn[];
   checkIns: CheckIn[];
+  /** Two weeks of health-app data, only if the client chose to share it. */
+  health?: { days: HealthDay[]; workouts: HealthWorkout[]; bodyFat?: { at: number; percent: number } };
 };
 
 export function snapshot(state: AppState, now: number, sharePhotos: boolean): SharedSnapshot {
   const since = (days: number) => now - days * DAY;
   const { calorieGoal, proteinGoal, units, diet } = state.profile;
+  const health = sharedHealth(state, now);
   return {
     v: 1,
     profile: { calorieGoal, proteinGoal, units, ...(diet ? { diet } : {}) },
@@ -43,6 +47,7 @@ export function snapshot(state: AppState, now: number, sharePhotos: boolean): Sh
     meals: state.meals.filter((m) => m.at >= since(30)),
     weighIns: state.weighIns.filter((x) => x.at >= since(365)),
     checkIns: state.checkIns.map((c) => ({ ...c, photos: sharePhotos ? c.photos : {} })),
+    ...(health ? { health } : {}),
   };
 }
 
@@ -57,6 +62,7 @@ export function snapshotToState(s: SharedSnapshot | null | undefined): AppState 
     checkIns: s.checkIns ?? [],
     program: s.program ?? null,
     profile: { ...initialState.profile, ...s.profile },
+    ...(s.health ? { health: { enabled: true, shareWithCoach: true, ...s.health } } : {}),
   };
 }
 
@@ -95,6 +101,16 @@ export type ClientSummary = {
   /** Waist in cm. */
   waistNow: number | null;
   waistStart: number | null;
+  /** From the client's health app, only when they share it. */
+  health?: {
+    stepsToday: number | null;
+    avgSteps7d: number | null;
+    avgSleep7d: number | null;
+    restingHr: number | null;
+    activeCaloriesToday: number | null;
+    watchWorkouts7d: number;
+    bodyFat: number | null;
+  };
 };
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -136,6 +152,26 @@ export function summarize(state: AppState, now: number): ClientSummary {
   const checkIns = [...state.checkIns].sort((a, b) => a.at - b.at);
   const waists = checkIns.filter((c) => c.waist !== undefined);
 
+  // a run or class on the watch counts as being active, but only if the client shares it
+  const shared = sharedHealth(state, now);
+  const watchTimes = (shared?.workouts ?? []).map((w) => w.end);
+  const lastTimes = [...finishedWorkouts.map((w) => w.finishedAt!), ...watchTimes];
+  const healthSummary = shared
+    ? (() => {
+        const avg = weekAverages(state, now);
+        const todayRow = shared.days.find((d) => d.date === today);
+        return {
+          stepsToday: todayRow?.steps ?? null,
+          avgSteps7d: avg.steps,
+          avgSleep7d: avg.sleepMinutes,
+          restingHr: avg.restingHr,
+          activeCaloriesToday: todayRow?.activeCalories ?? null,
+          watchWorkouts7d: shared.workouts.filter((w) => w.start >= today - 6 * DAY).length,
+          bodyFat: shared.bodyFat?.percent ?? null,
+        };
+      })()
+    : null;
+
   return {
     v: 1,
     at: now,
@@ -146,7 +182,7 @@ export function summarize(state: AppState, now: number): ClientSummary {
     workoutsThisWeek,
     plannedThisWeek,
     nextWorkout: nextSession(state, now)?.plan.name ?? null,
-    lastWorkoutAt: finishedWorkouts.length ? Math.max(...finishedWorkouts.map((w) => w.finishedAt!)) : null,
+    lastWorkoutAt: lastTimes.length ? Math.max(...lastTimes) : null,
     weightNow: latest?.weight ?? null,
     weightStart: program?.body.startWeight ?? weighIns[0]?.weight ?? null,
     weightGoal: program?.body.goalWeight ?? null,
@@ -161,6 +197,7 @@ export function summarize(state: AppState, now: number): ClientSummary {
     lastCheckInAt: checkIns[checkIns.length - 1]?.at ?? null,
     waistNow: waists[waists.length - 1]?.waist ?? null,
     waistStart: waists[0]?.waist ?? null,
+    ...(healthSummary ? { health: healthSummary } : {}),
   };
 }
 

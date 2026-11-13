@@ -6,6 +6,7 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View 
 import { clientNotes, getClient, hasSummary, photoUrls, removeClient, sendNote, type ClientDetail, type SentNote } from '@/cloud/coachApi';
 import { useCloud } from '@/cloud/CloudProvider';
 import { errorText } from '@/cloud/supabase';
+import { fmtSleep, fmtSteps } from '@/data/health';
 import { flags, snapshotToState, suggestNote, timeAgo, type SharedSnapshot } from '@/data/sharing';
 import { fmtDate, fmtVolume, setCount, volume } from '@/data/stats';
 import { fmtLength, fmtWeight, lengthUnit } from '@/data/units';
@@ -167,6 +168,35 @@ export default function ClientScreen() {
                   <Text style={s.line}>{w.name}</Text>
                   <Meta>
                     {fmtDate(w.finishedAt!)} · {setCount(w)} sets · {fmtVolume(volume(w))} {units}
+                  </Meta>
+                </Row>
+              ))}
+            </View>
+          ) : null}
+        </Card>
+      ) : null}
+
+      {summary?.health ? (
+        <Card>
+          <CardTitle>Activity & health</CardTitle>
+          <Meta style={{ marginTop: 2 }}>From their watch, phone and smart scale</Meta>
+          <Row style={{ marginTop: 10 }}>
+            <Stat label="Steps today" value={summary.health.stepsToday !== null ? fmtSteps(summary.health.stepsToday) : '—'} />
+            <Stat label="Avg steps" value={summary.health.avgSteps7d !== null ? fmtSteps(summary.health.avgSteps7d) : '—'} />
+            <Stat label="Avg sleep" value={summary.health.avgSleep7d !== null ? fmtSleep(summary.health.avgSleep7d) : '—'} />
+          </Row>
+          <Row style={{ marginTop: 10 }}>
+            <Stat label="Resting HR" value={summary.health.restingHr !== null ? `${summary.health.restingHr}` : '—'} unit={summary.health.restingHr !== null ? 'bpm' : undefined} />
+            <Stat label="Watch workouts" value={`${summary.health.watchWorkouts7d}`} unit="this wk" />
+            <Stat label="Body fat" value={summary.health.bodyFat !== null ? `${summary.health.bodyFat}` : '—'} unit={summary.health.bodyFat !== null ? '%' : undefined} />
+          </Row>
+          {st.health && st.health.workouts.length > 0 ? (
+            <View style={{ marginTop: 10, gap: 6 }}>
+              {st.health.workouts.slice(0, 4).map((w) => (
+                <Row key={w.id}>
+                  <Text style={s.line}>{w.kind}</Text>
+                  <Meta>
+                    {fmtDate(w.start)} · {Math.max(1, Math.round((w.end - w.start) / 60000))} min{w.calories ? ` · ${w.calories} cal` : ''}
                   </Meta>
                 </Row>
               ))}

@@ -23,7 +23,31 @@ export type Meal = {
   at: number;
 };
 
-export type WeighIn = { at: number; weight: number };
+/** `hid` marks a weigh-in imported from Apple Health / Health Connect (its record id). */
+export type WeighIn = { at: number; weight: number; hid?: string };
+
+/** One day of data from Apple Health / Health Connect; `date` is local midnight. */
+export type HealthDay = {
+  date: number;
+  steps?: number;
+  activeCalories?: number;
+  sleepMinutes?: number;
+  restingHr?: number;
+};
+
+/** A workout recorded by a watch or another app (not one logged in Fat2Flat). */
+export type HealthWorkout = { id: string; start: number; end: number; kind: string; calories?: number };
+
+export type HealthState = {
+  /** The user connected Apple Health / Health Connect. */
+  enabled: boolean;
+  /** Include health data in what's shared with the coach. */
+  shareWithCoach: boolean;
+  lastSyncAt?: number;
+  days: HealthDay[];
+  workouts: HealthWorkout[];
+  bodyFat?: { at: number; percent: number };
+};
 
 export type Profile = {
   name: string;
@@ -85,6 +109,8 @@ export type AppState = {
   profile: Profile;
   program: Program | null;
   checkIns: CheckIn[];
+  /** Absent until the user connects a health app. */
+  health?: HealthState;
 };
 
 export const initialState: AppState = {

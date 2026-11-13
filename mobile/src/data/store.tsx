@@ -12,7 +12,8 @@ import {
 
 import { deleteAllPhotos, deletePhotos } from '@/photos';
 
-import { AppState, CheckIn, LoggedExercise, Meal, Profile, Program, SetEntry, WeighIn, Workout, initialState } from './types';
+import { emptyHealth, HealthPull, mergeHealth } from './health';
+import { AppState, CheckIn, HealthState, LoggedExercise, Meal, Profile, Program, SetEntry, WeighIn, Workout, initialState } from './types';
 import { sampleState } from './sample';
 import { convertUnits } from './units';
 
@@ -49,6 +50,10 @@ type Store = {
   removeCheckIn: (id: string) => void;
   /** Replaces everything with demo history, for App Store screenshots. */
   loadSample: () => void;
+  /** Folds a read from Apple Health / Health Connect into the data (connecting if needed). */
+  applyHealth: (pull: HealthPull) => void;
+  /** Changes health settings; null disconnects and forgets the imported data (typed-in weigh-ins stay). */
+  updateHealth: (patch: Partial<HealthState> | null) => void;
 };
 
 const Ctx = createContext<Store | null>(null);
@@ -252,6 +257,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     loadSample() {
       deleteAllPhotos();
       setState(sampleState(Date.now()));
+    },
+
+    applyHealth(pull) {
+      setState((s) => mergeHealth(s, pull, Date.now()));
+    },
+
+    updateHealth(patch) {
+      setState((s) => {
+        if (patch === null) {
+          const { health: _gone, ...rest } = s;
+          return { ...rest, weighIns: s.weighIns.filter((w) => !w.hid) };
+        }
+        return { ...s, health: { ...(s.health ?? emptyHealth()), ...patch } };
+      });
     },
   }), [state, ready, patchActive]);
 

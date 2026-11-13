@@ -13,6 +13,8 @@ import { Body, Program } from '../src/data/types';
 import { EXERCISES } from '../src/data/exercises';
 import { DIETS, MEALS, dayTarget, planDay, Diet } from '../src/data/mealplan';
 import { attentionScore, flags, planReminders, snapshot, snapshotToState, suggestNote, summarize } from '../src/data/sharing';
+import { emptyHealth, fmtSleep, mergeHealth, prettyKind, sharedHealth, sleepByDay, weekAverages } from '../src/data/health';
+import { activeDays } from '../src/data/stats';
 import { COMMON_FOODS, macrosFor, parseProduct, searchCommon } from '../src/data/food';
 
 const DAY = 86400000;
@@ -258,6 +260,43 @@ const restDay = { ...initialState, program: { ...sam.program!, startedAt: startO
 eq('reminders: workout nudge names the next session', planReminders(restDay, now).find((r) => r.id === 'workout')?.title.endsWith('is up next'), true);
 eq('reminders: weigh-in nudge only when overdue', planReminders({ ...sam, weighIns: [{ at: now - 4 * DAY, weight: 190 }] }, now).some((r) => r.id === 'weigh'), true);
 eq('reminders: no weigh-in nudge after a recent weigh-in', planReminders({ ...sam, weighIns: [{ at: now - DAY, weight: 190 }] }, now).some((r) => r.id === 'weigh'), false);
+
+// --- health apps ---
+const today0 = startOfDayAt(now);
+const lbState: AppState = { ...initialState, weighIns: [{ at: now - 3600000, weight: 190 }] };
+const pull = {
+  days: [{ date: today0, steps: 8000, activeCalories: 420, sleepMinutes: 430, restingHr: 61 }, { date: today0 - 50 * DAY, steps: 1 }],
+  workouts: [{ id: 'run1', start: now - 2 * DAY, end: now - 2 * DAY + 1800000, kind: 'Running', calories: 300 }],
+  weights: [
+    { id: 'scale-a', at: now - 3600000 + 600000, kg: 86.2 },  // ~190.0 lb, same time as the typed-in one
+    { id: 'scale-b', at: now - 2 * DAY, kg: 87 },
+  ],
+  bodyFat: { at: now - DAY, percent: 24.5 },
+};
+const merged = mergeHealth(lbState, pull, now);
+eq('health: today is stored', merged.health?.days.find((d) => d.date === today0)?.steps, 8000);
+eq('health: days older than the window are dropped', merged.health?.days.length, 1);
+eq('health: scale weights convert to lb', merged.weighIns.find((w) => w.hid === 'scale-b')?.weight, 191.8);
+eq('health: a scale weight matching a typed-in one is skipped', merged.weighIns.some((w) => w.hid === 'scale-a'), false);
+eq('health: merging twice adds nothing new', mergeHealth(merged, pull, now).weighIns.length, merged.weighIns.length);
+eq('health: kg users get kg', mergeHealth({ ...initialState, profile: { ...initialState.profile, units: 'kg' } }, pull, now).weighIns.find((w) => w.hid === 'scale-b')?.weight, 87);
+eq('health: new connections do not share with a coach until asked', emptyHealth().shareWithCoach, false);
+eq('health: watch workouts count as active days', activeDays(merged).has(startOfDayAt(now - 2 * DAY)), true);
+eq('health: week averages', weekAverages(merged, now).steps, 8000);
+eq('health: sleep format', fmtSleep(430), '7h 10m');
+eq('health: workout names read nicely', [prettyKind('traditionalStrengthTraining'), prettyKind('running'), prettyKind('STRENGTH_TRAINING'), prettyKind('highIntensityIntervalTraining')], ['Strength training', 'Running', 'Strength training', 'HIIT']);
+const night = today0 + 7 * 3600000;
+eq('health: sleep takes the best source, not the sum', sleepByDay([
+  { start: night - 7 * 3600000, end: night, source: 'watch' },
+  { start: night - 6 * 3600000, end: night, source: 'phone' },
+]).get(today0), 420);
+eq('health: not shared with the coach unless the client says so', sharedHealth(merged, now), null);
+const sharing = { ...merged, health: { ...merged.health!, shareWithCoach: true } };
+eq('health: coach summary has steps when shared', summarize(sharing, now).health?.stepsToday, 8000);
+eq('health: coach summary has no health when not shared', summarize(merged, now).health, undefined);
+eq('health: a shared watch run counts as the last workout', summarize({ ...sharing, workouts: [] }, now).lastWorkoutAt, now - 2 * DAY + 1800000);
+eq('health: snapshot round-trips health for the coach', JSON.stringify(summarize(snapshotToState(snapshot(sharing, now, false)), now).health), JSON.stringify(summarize(sharing, now).health));
+eq('health: snapshot leaves health out when not shared', snapshot(merged, now, false).health, undefined);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

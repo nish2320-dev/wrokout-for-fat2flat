@@ -25,7 +25,18 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.health.READ_STEPS",
+        "android.permission.health.READ_ACTIVE_CALORIES_BURNED",
+        "android.permission.health.READ_WEIGHT",
+        "android.permission.health.READ_BODY_FAT",
+        "android.permission.health.READ_RESTING_HEART_RATE",
+        "android.permission.health.READ_SLEEP",
+        "android.permission.health.READ_EXERCISE",
+        "android.permission.health.WRITE_EXERCISE",
+        "android.permission.health.WRITE_NUTRITION"
+      ]
     },
     "web": {
       "output": "static",
@@ -58,7 +69,24 @@
         }
       ],
       "expo-apple-authentication",
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "Fat2Flat Fitness reads your steps, active calories, workouts, weight, body fat, sleep and resting heart rate to show your activity, keep your weigh-ins up to date and, if you choose, share your progress with your coach.",
+          "NSHealthUpdateUsageDescription": "Fat2Flat Fitness saves the workouts and meals you log to Apple Health.",
+          "background": false
+        }
+      ],
+      "react-native-health-connect",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

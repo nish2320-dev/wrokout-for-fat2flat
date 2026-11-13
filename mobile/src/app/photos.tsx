@@ -60,7 +60,7 @@ export default function PhotosScreen() {
         <Eyebrow>After</Eyebrow>
         <DatePicker items={choices} selected={after.id} onPick={setAfterId} />
       </Card>
-      <Meta style={{ textAlign: 'center' }}>Drag the handle to reveal before and after. Photos never leave this iPhone.</Meta>
+      <Meta style={{ textAlign: 'center' }}>Drag the handle to reveal before and after. Photos stay on this phone unless you share them with your coach.</Meta>
     </Screen>
   );
 }

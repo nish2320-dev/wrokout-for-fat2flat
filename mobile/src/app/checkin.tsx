@@ -144,7 +144,7 @@ export default function CheckInScreen() {
 
       <Card>
         <CardTitle>Progress photos</CardTitle>
-        <Meta>Private: they stay on this iPhone and are never uploaded.</Meta>
+        <Meta>Private: they stay on this phone unless you choose to share them with your coach.</Meta>
         <View style={s.photoRow}>
           {(['front', 'side'] as const).map((pose) => (
             <Pressable
