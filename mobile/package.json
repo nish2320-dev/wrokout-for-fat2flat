@@ -1,6 +1,6 @@
 {
   "name": "fat2flat-fitness",
-  "main": "expo-router/entry",
+  "main": "index.js",
   "version": "1.0.0",
   "dependencies": {
     "@expo/ui": "~58.0.23",

@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -16,6 +15,8 @@ type Phase = { step: 'pick' } | { step: 'reading'; uri: string } | { step: 'resu
 
 /** Shrinks a photo to 1024 px on the long side: plenty for the AI, quick to upload. */
 async function prepare(uri: string): Promise<string> {
+  // loaded on first use, so the app never touches it at launch
+  const { ImageManipulator, SaveFormat } = await import('expo-image-manipulator');
   const ctx = ImageManipulator.manipulate(uri).resize({ width: 1024 });
   const ref = await ctx.renderAsync();
   const out = await ref.saveAsync({ format: SaveFormat.JPEG, compress: 0.7, base64: true });

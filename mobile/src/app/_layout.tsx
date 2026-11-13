@@ -1,4 +1,7 @@
 import { Stack } from 'expo-router';
+
+// a screen that fails to draw shows an error with "Try again" instead of closing the app
+export { ErrorBoundary } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
