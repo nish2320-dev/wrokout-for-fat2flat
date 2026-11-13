@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useStore } from '@/data/store';
@@ -31,20 +30,28 @@ const SLIDES: { icon: keyof typeof Ionicons.glyphMap; title: string; body: strin
   },
 ];
 
-/** A short first-run tour; shown once, from Home. */
-export default function Welcome() {
-  const router = useRouter();
+/**
+ * A short first-run tour, shown once over Home. It's a plain modal rather than
+ * a screen so it never navigates before the app's navigation is ready.
+ */
+export function WelcomeTour() {
+  const { state, ready } = useStore();
+  if (!ready || state.profile.seenWelcome) return null;
+  return (
+    <Modal visible animationType="slide" presentationStyle="fullScreen" onRequestClose={() => {}}>
+      <Slides />
+    </Modal>
+  );
+}
+
+function Slides() {
   const insets = useSafeAreaInsets();
   const { updateProfile } = useStore();
   const [i, setI] = useState(0);
   const slide = SLIDES[i];
   const last = i === SLIDES.length - 1;
 
-  const done = () => {
-    updateProfile({ seenWelcome: true });
-    if (router.canGoBack()) router.back();
-    else router.replace('/');
-  };
+  const done = () => updateProfile({ seenWelcome: true });
 
   return (
     <View style={[s.wrap, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 20 }]}>

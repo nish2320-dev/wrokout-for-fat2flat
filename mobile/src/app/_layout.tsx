@@ -54,7 +54,6 @@ export default function RootLayout() {
               <Stack.Screen name="coach/[id]" options={{ title: 'Client', headerBackTitle: 'Clients' }} />
               <Stack.Screen name="auth" options={{ headerShown: false, animation: 'none' }} />
             <Stack.Screen name="chat" options={{ title: 'Your coach', headerBackTitle: 'Back' }} />
-            <Stack.Screen name="welcome" options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }} />
             </Stack>
           </HealthProvider>
         </CloudProvider>
