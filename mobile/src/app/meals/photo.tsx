@@ -13,17 +13,6 @@ import { Btn, Card, CardTitle, Label, Meta, Metric, Row, Screen } from '@/ui/kit
 
 type Phase = { step: 'pick' } | { step: 'reading'; uri: string } | { step: 'result'; uri: string; confidence: string; note: string };
 
-/** Shrinks a photo to 1024 px on the long side: plenty for the AI, quick to upload. */
-async function prepare(uri: string): Promise<string> {
-  // loaded on first use, so the app never touches it at launch
-  const { ImageManipulator, SaveFormat } = await import('expo-image-manipulator');
-  const ctx = ImageManipulator.manipulate(uri).resize({ width: 1024 });
-  const ref = await ctx.renderAsync();
-  const out = await ref.saveAsync({ format: SaveFormat.JPEG, compress: 0.7, base64: true });
-  if (!out.base64) throw new Error('Couldn’t prepare that photo.');
-  return out.base64;
-}
-
 /** Photograph a meal, get an editable calorie and protein estimate, log it. */
 export default function MealPhoto() {
   const router = useRouter();
@@ -44,10 +33,15 @@ export default function MealPhoto() {
     );
   }
 
-  const analyse = async (uri: string) => {
+  // the picker hands back a compressed JPEG as base64; Claude scales large photos down itself
+  const analyse = async (uri: string, base64: string | null | undefined) => {
+    if (!base64 || base64.length > 4_900_000) {
+      Alert.alert('Couldn’t use that photo', base64 ? 'That photo is too large. Try a different one.' : 'Please try another one.');
+      return;
+    }
     setPhase({ step: 'reading', uri });
     try {
-      const guess = await cloud.analyzeMeal(await prepare(uri), state.profile.diet);
+      const guess = await cloud.analyzeMeal(base64, state.profile.diet);
       setItems(guess.items);
       setName(guess.items.map((i) => i.name).slice(0, 3).join(', ').slice(0, 60));
       setPhase({ step: 'result', uri, confidence: guess.confidence, note: guess.note });
@@ -66,13 +60,13 @@ export default function MealPhoto() {
       ]);
       return;
     }
-    const res = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
-    if (!res.canceled && res.assets[0]) analyse(res.assets[0].uri);
+    const res = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.3, base64: true });
+    if (!res.canceled && res.assets[0]) analyse(res.assets[0].uri, res.assets[0].base64);
   };
 
   const choosePhoto = async () => {
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
-    if (!res.canceled && res.assets[0]) analyse(res.assets[0].uri);
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.3, base64: true });
+    if (!res.canceled && res.assets[0]) analyse(res.assets[0].uri, res.assets[0].base64);
   };
 
   const update = (i: number, patch: Partial<MealGuessItem>) => setItems((cur) => cur.map((it, k) => (k === i ? { ...it, ...patch } : it)));
