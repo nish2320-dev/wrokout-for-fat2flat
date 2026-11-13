@@ -4,8 +4,11 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { shouldAskForReview } from '@/data/extras';
+import { askForReview } from '@/review';
+
 import { byId, exerciseName } from '@/data/exercises';
-import { previousBest } from '@/data/stats';
+import { finished, previousBest } from '@/data/stats';
 import { useActiveWorkout, useStore } from '@/data/store';
 import { fmtWeight } from '@/data/units';
 import { cancelRestEnd, scheduleRestEnd } from '@/notify';
@@ -17,7 +20,7 @@ const REST_SECONDS = 90;
 export default function ActiveWorkoutScreen() {
   const router = useRouter();
   const workout = useActiveWorkout();
-  const { state, addSet, updateSet, toggleSetDone, finishWorkout, discardWorkout, removeExercise } = useStore();
+  const { state, addSet, updateSet, toggleSetDone, finishWorkout, discardWorkout, removeExercise, updateProfile } = useStore();
 
   const [now, setNow] = useState(Date.now());
   // The rest timer is an end time, not a counter, so it stays right while the
@@ -112,6 +115,12 @@ export default function ActiveWorkoutScreen() {
         onPress: () => {
           finishWorkout();
           router.replace('/');
+          // a good moment to ask for a rating: right after a finished workout
+          const now = Date.now();
+          if (shouldAskForReview(finished(state).length + 1, state.profile.reviewAskedAt, now)) {
+            updateProfile({ reviewAskedAt: now });
+            setTimeout(askForReview, 1500);
+          }
         },
       },
     ]);

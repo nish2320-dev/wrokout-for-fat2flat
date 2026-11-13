@@ -180,6 +180,7 @@ NEW: Work with your coach.
 | User Content → Photos or Videos | Yes | No | App Functionality |
 | User Content → Other User Content (meals, coach notes) | Yes | No | App Functionality |
 | Identifiers → User ID | Yes | No | App Functionality |
+| Diagnostics → Crash Data | **No** | No | App Functionality |
 
 **App Review notes**: append:
 

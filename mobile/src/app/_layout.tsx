@@ -1,7 +1,4 @@
-import { Stack } from 'expo-router';
-
-// a screen that fails to draw shows an error with "Try again" instead of closing the app
-export { ErrorBoundary } from 'expo-router';
+import { ErrorBoundary as RouterErrorBoundary, Stack, type ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -10,8 +7,17 @@ import { CloudProvider } from '@/cloud/CloudProvider';
 import { planReminders } from '@/data/sharing';
 import { StoreProvider, useStore } from '@/data/store';
 import { HealthProvider } from '@/health/HealthProvider';
+import { reportError } from '@/errorReport';
 import { syncReminders } from '@/notify';
 import { C } from '@/theme';
+
+/** A screen that fails to draw shows the error with "Try again" (and reports it) instead of closing the app. */
+export function ErrorBoundary(props: ErrorBoundaryProps) {
+  useEffect(() => {
+    reportError(props.error, false, 'screen');
+  }, [props.error]);
+  return <RouterErrorBoundary {...props} />;
+}
 
 /** Keeps the Transformation reminders in step with the data: doing the thing cancels its reminder. */
 function Reminders() {
@@ -57,6 +63,7 @@ export default function RootLayout() {
               <Stack.Screen name="coach/[id]" options={{ title: 'Client', headerBackTitle: 'Clients' }} />
               <Stack.Screen name="auth" options={{ headerShown: false, animation: 'none' }} />
             <Stack.Screen name="chat" options={{ title: 'Your coach', headerBackTitle: 'Back' }} />
+            <Stack.Screen name="invite/[code]" options={{ headerShown: false, animation: 'none' }} />
             </Stack>
           </HealthProvider>
         </CloudProvider>

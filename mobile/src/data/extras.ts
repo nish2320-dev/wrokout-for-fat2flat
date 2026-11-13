@@ -42,3 +42,11 @@ export function applyTargets(s: AppState, t: CoachTargets, now: number): AppStat
 
 /** The coach changed the plan and the user hasn't tapped "Got it" yet. */
 export const unseenTargets = (s: AppState) => (s.profile.coachTargetsAt ?? 0) > (s.profile.coachTargetsSeenAt ?? 0);
+
+/**
+ * Ask for a store rating after the 5th finished workout, then at most every
+ * four months (Apple also limits how often its prompt actually appears).
+ */
+export function shouldAskForReview(finishedWorkouts: number, lastAskedAt: number | undefined, now: number) {
+  return finishedWorkouts >= 5 && (lastAskedAt === undefined || now - lastAskedAt > 120 * DAY);
+}

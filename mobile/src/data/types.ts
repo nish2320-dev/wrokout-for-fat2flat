@@ -67,6 +67,8 @@ export type Profile = {
   coachTargetsSeenAt?: number;
   /** The coach's note with their latest targets. */
   coachTargetsNote?: string;
+  /** When the App Store / Play rating prompt was last requested. */
+  reviewAskedAt?: number;
 };
 
 /** Targets a coach set from their phone. */

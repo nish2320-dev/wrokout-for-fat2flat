@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Join your coach on Fat2Flat Fitness</title>
+<meta name="description" content="Your coach invited you to Fat2Flat Fitness: workouts, meal plans and progress tracking.">
+<style>
+  :root { --ink:#0E1013; --muted:#6B717A; --red:#E1251B; --wash:#F4F6F8; --line:#E9EBEF; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--wash); color:var(--ink); font:16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width:440px; margin:0 auto; padding:40px 20px 56px; text-align:center; }
+  .logo { width:84px; height:84px; border-radius:20px; box-shadow:0 6px 20px rgba(0,0,0,.12); }
+  h1 { font-size:26px; line-height:1.2; letter-spacing:-.5px; margin:22px 0 8px; }
+  p { color:var(--muted); margin:0 0 20px; }
+  .code { background:#fff; border:1px solid var(--line); border-radius:16px; padding:18px; margin:8px 0 24px; }
+  .code small { display:block; font-size:12px; font-weight:700; letter-spacing:1.5px; color:var(--muted); }
+  .code b { display:block; font-size:38px; letter-spacing:8px; margin-top:4px; }
+  .btn { display:block; padding:15px; border-radius:14px; font-weight:800; text-decoration:none; margin-bottom:12px; }
+  .primary { background:var(--red); color:#fff; }
+  .ghost { background:#fff; color:var(--ink); border:1px solid var(--line); }
+  ol { text-align:left; color:var(--muted); padding-left:22px; margin:26px 0 0; }
+  ol li { margin-bottom:6px; }
+  .note { font-size:13px; margin-top:28px; }
+</style>
+</head>
+<body>
+<main>
+  <img class="logo" src="logo.png" alt="Fat2Flat Fitness">
+  <h1>Your coach invited you to Fat2Flat Fitness</h1>
+  <p>Track workouts and meals, follow your plan, and share your progress with your coach.</p>
+
+  <div class="code" id="codebox" hidden>
+    <small>YOUR COACH CODE</small>
+    <b id="code"></b>
+  </div>
+
+  <a class="btn primary" id="open" href="#" hidden>Open in Fat2Flat</a>
+  <a class="btn ghost" href="https://apps.apple.com/app/fat2flat-fitness/id6804222219">Download for iPhone</a>
+
+  <ol>
+    <li>Download Fat2Flat Fitness (free).</li>
+    <li>Come back to this page and tap <b>Open in Fat2Flat</b>, or go to <b>Profile → Join my coach</b>.</li>
+    <li>Sign in and enter the code above.</li>
+  </ol>
+  <p class="note">Only your coach sees what you share, and you can stop sharing at any time.</p>
+</main>
+<script>
+  // the code comes from the link (?code=K7Q2MX); only letters and digits are accepted
+  var raw = new URLSearchParams(location.search).get('code') || '';
+  var code = raw.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+  if (code.length === 6) {
+    document.getElementById('code').textContent = code;
+    document.getElementById('codebox').hidden = false;
+    var open = document.getElementById('open');
+    open.href = 'fat2flat://invite/' + code;
+    open.hidden = false;
+  }
+</script>
+</body>
+</html>

@@ -15,7 +15,7 @@ import { DIETS, MEALS, dayTarget, planDay, Diet } from '../src/data/mealplan';
 import { attentionScore, flags, planReminders, snapshot, snapshotToState, suggestNote, summarize } from '../src/data/sharing';
 import { emptyHealth, fmtSleep, mergeHealth, prettyKind, sharedHealth, sleepByDay, weekAverages } from '../src/data/health';
 import { activeDays } from '../src/data/stats';
-import { addGlasses, applyTargets, unseenTargets, waterToday } from '../src/data/extras';
+import { addGlasses, applyTargets, shouldAskForReview, unseenTargets, waterToday } from '../src/data/extras';
 import { COMMON_FOODS, macrosFor, parseProduct, searchCommon } from '../src/data/food';
 
 const DAY = 86400000;
@@ -312,6 +312,11 @@ eq('targets: logged as a coach adjustment', applied.program?.adjustments.slice(-
 eq('targets: shown until acknowledged', unseenTargets(applied), true);
 eq('targets: applying the same targets again changes nothing', applyTargets(applied, tgt, now) === applied, true);
 eq('targets: no plan, still sets goals', applyTargets(initialState, { ...tgt, daysPerWeek: null }, now).profile.calorieGoal, 1900);
+
+eq('review: not before 5 workouts', shouldAskForReview(4, undefined, now), false);
+eq('review: asked at the 5th workout', shouldAskForReview(5, undefined, now), true);
+eq('review: not again within 4 months', shouldAskForReview(20, now - 30 * DAY, now), false);
+eq('review: again after 4 months', shouldAskForReview(20, now - 130 * DAY, now), true);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

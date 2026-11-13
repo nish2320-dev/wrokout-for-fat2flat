@@ -27,3 +27,12 @@ and write what (needs PostgreSQL 16 installed locally).
    dollars of credit), then Edge Functions → Secrets → add
    `ANTHROPIC_API_KEY`. The key lives only in Supabase, never in the app.
    Each photo costs roughly 1–2 cents; the function allows 25 per person per day.
+
+## Error reports and invite page
+
+- `app_errors` (in `schema.sql`) receives anonymous JavaScript error reports
+  from the app. Read them in **Table Editor → app_errors**; nobody can read
+  them through the app.
+- The coach invite page is `docs/join/index.html`, served by GitHub Pages at
+  `https://nish2320-dev.github.io/wrokout-for-fat2flat/join/?code=XXXXXX`
+  (repo Settings → Pages → Deploy from a branch → folder `/docs`).

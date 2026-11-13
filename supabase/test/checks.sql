@@ -17,8 +17,11 @@ grant execute on all functions in schema pg_temp to authenticated;
 create table pg_temp.vars (k text primary key, v text);
 grant all on pg_temp.vars to authenticated;
 
--- anon can do nothing
+-- anon can do nothing (except report an error)
 set role anon;
+insert into app_errors (platform, message, fatal) values ('ios', 'test error', true);
+select pg_temp.must_fail('select * from app_errors', 'anon reads error reports');
+select pg_temp.must_fail('insert into app_errors (message) values (repeat(''x'', 2000))', 'oversized error report');
 select pg_temp.must_fail('select become_coach(''X'')', 'anon becomes coach');
 select pg_temp.must_fail('select * from clients', 'anon reads clients');
 reset role;

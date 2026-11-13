@@ -12,7 +12,7 @@ import { C } from '@/theme';
 import { Btn, Card, CardTitle, Empty, Label, Meta, Row, Screen, Tag } from '@/ui/kit';
 import { SignInButton } from '@/ui/SignIn';
 
-const APP_LINK = 'https://apps.apple.com/app/fat2flat-fitness/id6804222219';
+const INVITE_PAGE = 'https://nish2320-dev.github.io/wrokout-for-fat2flat/join/';
 
 const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(Math.round(n * 10) / 10)}`;
 
@@ -95,7 +95,7 @@ export default function CoachHome() {
   const code = cloud.coach.code;
   const invite = () =>
     Share.share({
-      message: `Join me on Fat2Flat Fitness! 1) Download the app: ${APP_LINK} 2) Go to Profile → Join my coach 3) Enter my code: ${code}`,
+      message: `Join me on Fat2Flat Fitness! Tap this link to get the app and connect with me: ${INVITE_PAGE}?code=${code}\n\n(My coach code is ${code}.)`,
     });
 
   const now = Date.now();

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
@@ -27,7 +27,9 @@ export default function JoinCoach() {
   const health = useHealth();
   const [shareHealth, setShareHealth] = useState(true);
   const [name, setName] = useState(state.profile.name);
-  const [code, setCode] = useState('');
+  const params = useLocalSearchParams<{ code?: string }>();
+  // an invite link fills the code in
+  const [code, setCode] = useState(String(params.code ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6));
   const [photos, setPhotos] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -48,7 +50,7 @@ export default function JoinCoach() {
         <Card>
           <CardTitle>You’re connected to {cloud.membership.coachName}</CardTitle>
           <Meta>Your progress is shared automatically. You can change photo sharing or stop sharing in Profile.</Meta>
-          <Btn label="Done" icon="checkmark" onPress={() => router.back()} style={{ marginTop: 12 }} />
+          <Btn label="Done" icon="checkmark" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} style={{ marginTop: 12 }} />
         </Card>
       </Screen>
     );
@@ -62,7 +64,7 @@ export default function JoinCoach() {
       // ask now, while it's obvious why: notes from the coach and plan reminders
       await askNotifications();
       Alert.alert(`You’re connected to ${coachName}`, 'Your progress will now be shared with them automatically.', [
-        { text: 'Great', onPress: () => router.back() },
+        { text: 'Great', onPress: () => (router.canGoBack() ? router.back() : router.replace('/')) },
       ]);
     } catch (e) {
       Alert.alert('Could not join', errorText(e));

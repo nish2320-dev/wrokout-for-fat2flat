@@ -107,4 +107,5 @@ Regenerate the screenshots with
   - Health and fitness: **Health info** (weight, body fat, measurements, sleep, resting heart rate), **Fitness info** (workouts, steps, calories burned)
   - Photos and videos: **Photos** (progress photos, only if the user turns sharing on; meal photos are sent for a calorie estimate and **processed ephemerally**, not stored)
   - App activity: **Other user-generated content** (meals, coach chat messages)
+  - App info and performance: **Crash logs** (anonymous error reports, not linked to the user)
 - Not collected: location, contacts, financial info, browsing, device IDs for ads.

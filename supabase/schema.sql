@@ -258,6 +258,28 @@ grant execute on function public.become_coach(text) to authenticated;
 grant execute on function public.join_coach(text, text, boolean) to authenticated;
 grant execute on function public.delete_my_account() to authenticated;
 
+-- ── Error reports ───────────────────────────────────────────────────────
+-- The app sends a JavaScript error's message (no names, emails or user ids)
+-- so problems can be fixed. Anyone may add a report; nobody can read them
+-- through the app - view them in Supabase → Table Editor → app_errors.
+
+create table if not exists public.app_errors (
+  id          bigint generated always as identity primary key,
+  created_at  timestamptz not null default now(),
+  platform    text check (char_length(platform) <= 20),
+  app_version text check (char_length(app_version) <= 40),
+  os_version  text check (char_length(os_version) <= 40),
+  fatal       boolean not null default false,
+  message     text not null check (char_length(message) <= 1000),
+  stack       text check (char_length(stack) <= 4000),
+  screen      text check (char_length(screen) <= 200)
+);
+alter table public.app_errors enable row level security;
+revoke all on public.app_errors from anon, authenticated;
+grant insert (platform, app_version, os_version, fatal, message, stack, screen) on public.app_errors to anon, authenticated;
+drop policy if exists "anyone reports errors" on public.app_errors;
+create policy "anyone reports errors" on public.app_errors for insert to anon, authenticated with check (true);
+
 -- ── Progress photos (private storage) ───────────────────────────────────
 -- Files live at progress-photos/<client user id>/<file name>.
 

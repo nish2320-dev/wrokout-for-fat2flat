@@ -91,6 +91,13 @@ anonymous ID (not linked to your name or email unless you've signed in) to
 limit how many photos can be analysed per day. Nothing is sent unless you take
 or choose a photo on the Meal photo screen.
 
+## Error reports
+
+If the app runs into a software error, it sends a short report to our database
+so we can fix it: the error message and technical details, the app version, and
+your phone's operating system (for example "iOS 26.7"). Reports contain no
+name, email, account ID, workouts, meals or photos, and aren't linked to you.
+
 ## Food lookups
 
 When you **scan a barcode** or **search for a food online**, the app sends the
