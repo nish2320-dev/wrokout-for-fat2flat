@@ -118,6 +118,20 @@ select pg_temp.must_fail('update clients set coach_targets = ''{"calorieGoal": 4
 select pg_temp.must_fail('select set_client_targets(auth.uid(), ''{"calorieGoal": 2000, "proteinGoal": 140}'')', 'client sets own targets via rpc');
 select pg_temp.must_fail('select * from ai_usage', 'client reads ai usage');
 
+-- guests (anonymous sessions, for meal photos) can't coach, join or upload
+\set guest '''55555555-5555-5555-5555-555555555555'''
+reset role;
+insert into auth.users values (:guest);
+set role authenticated;
+select set_config('request.jwt.claim.sub', :guest, false);
+select set_config('request.jwt.claims', '{"is_anonymous": true}', false);
+select pg_temp.must_fail('select become_coach(''Guest'')', 'guest becomes coach');
+select pg_temp.must_fail('select join_coach((select v from pg_temp.vars where k = ''code''), ''Guest'', false)', 'guest joins coach');
+select pg_temp.must_fail('insert into storage.objects (bucket_id, name) values (''progress-photos'', ' || quote_literal(:guest || '/x.jpg') || ')', 'guest uploads photo');
+select pg_temp.eq((select count(*) from clients), 0, 'guest sees no clients');
+select pg_temp.eq((select count(*) from messages), 0, 'guest sees no messages');
+select set_config('request.jwt.claims', '', false);
+
 -- alice deletes her account: row and messages are gone
 select set_config('request.jwt.claim.sub', :alice, false);
 select delete_my_account();

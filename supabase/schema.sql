@@ -134,6 +134,13 @@ create policy "coach deletes own messages" on public.messages for delete to auth
 
 -- ── Functions the app calls ─────────────────────────────────────────────
 
+-- Guest (anonymous) sessions exist only so meal photos work without an
+-- account. They may not coach, join a coach, message or upload photos.
+create or replace function public.is_guest()
+returns boolean
+language sql stable
+as $$ select coalesce((auth.jwt()->>'is_anonymous')::boolean, false) $$;
+
 -- Makes the signed-in user a coach (or renames them) and returns their code.
 create or replace function public.become_coach(p_name text)
 returns text
@@ -143,7 +150,7 @@ declare
   v_code text;
   v_alphabet constant text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; -- no 0/O, 1/I
 begin
-  if auth.uid() is null then raise exception 'Not signed in'; end if;
+  if auth.uid() is null or is_guest() then raise exception 'Please sign in first.'; end if;
   if char_length(trim(coalesce(p_name, ''))) = 0 then raise exception 'Enter your name'; end if;
   select code into v_code from coaches where user_id = auth.uid();
   if found then
@@ -174,7 +181,7 @@ as $$
 declare
   v_coach coaches%rowtype;
 begin
-  if auth.uid() is null then raise exception 'Not signed in'; end if;
+  if auth.uid() is null or is_guest() then raise exception 'Please sign in first.'; end if;
   if char_length(trim(coalesce(p_name, ''))) = 0 then raise exception 'Enter your name'; end if;
   select * into v_coach from coaches where code = upper(replace(trim(coalesce(p_code, '')), ' ', ''));
   if not found then raise exception 'No coach has that code. Check it and try again.'; end if;
@@ -201,7 +208,7 @@ declare
   v_pro int := (p_targets->>'proteinGoal')::int;
   v_days int := nullif(p_targets->>'daysPerWeek', '')::int;
 begin
-  if auth.uid() is null then raise exception 'Not signed in'; end if;
+  if auth.uid() is null or is_guest() then raise exception 'Please sign in first.'; end if;
   if not exists (select 1 from clients where user_id = p_client and coach_id = auth.uid()) then
     raise exception 'That person is not your client.';
   end if;
@@ -261,7 +268,7 @@ on conflict (id) do nothing;
 drop policy if exists "client manages own photos" on storage.objects;
 create policy "client manages own photos" on storage.objects for all to authenticated
   using (bucket_id = 'progress-photos' and (storage.foldername(name))[1] = auth.uid()::text)
-  with check (bucket_id = 'progress-photos' and (storage.foldername(name))[1] = auth.uid()::text);
+  with check (bucket_id = 'progress-photos' and (storage.foldername(name))[1] = auth.uid()::text and not public.is_guest());
 
 drop policy if exists "coach views shared photos" on storage.objects;
 create policy "coach views shared photos" on storage.objects for select to authenticated
