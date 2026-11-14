@@ -1,14 +1,16 @@
 import { Image } from 'expo-image';
-import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { clientNotes, getClient, hasSummary, markRepliesRead, photoUrls, removeClient, sendNote, setTargets, type ClientDetail, type SentNote } from '@/cloud/coachApi';
+import { clientNotes, deleteWorkout, getClient, sentWorkouts, hasSummary, markRepliesRead, photoUrls, removeClient, sendNote, setTargets, type ClientDetail, type SentNote } from '@/cloud/coachApi';
 import { useCloud } from '@/cloud/CloudProvider';
 import { errorText } from '@/cloud/supabase';
+import { describe, resultFor, resultLines, type CoachWorkout } from '@/data/coachWorkouts';
 import { fmtSleep, fmtSteps } from '@/data/health';
 import { flags, snapshotToState, suggestNote, timeAgo, type SharedSnapshot } from '@/data/sharing';
 import { fmtDate, fmtVolume, setCount, volume } from '@/data/stats';
+import type { Workout } from '@/data/types';
 import { fmtLength, fmtWeight, lengthUnit } from '@/data/units';
 import { C, S } from '@/theme';
 import { ChatThread } from '@/ui/Chat';
@@ -147,6 +149,8 @@ export default function ClientScreen() {
       </Card>
 
       <TargetsCard client={client} onSaved={load} />
+
+      <WorkoutsCard client={client} workouts={st.workouts} units={units} />
 
       {st.assistant?.length ? (
         <Card>
@@ -321,6 +325,79 @@ export default function ClientScreen() {
 }
 
 /** The coach sets the client's daily calories, protein and workouts per week. */
+function WorkoutsCard({ client, workouts, units }: { client: ClientDetail; workouts: Workout[]; units: string }) {
+  const router = useRouter();
+  const [sent, setSent] = useState<CoachWorkout[] | null>(null);
+  const first = client.name.split(' ')[0];
+
+  const load = useCallback(() => {
+    sentWorkouts(client.user_id)
+      .then(setSent)
+      .catch(() => setSent((cur) => cur ?? []));
+  }, [client.user_id]);
+
+  useFocusEffect(load);
+
+  const again = (w: CoachWorkout) =>
+    router.push({ pathname: '/coach/workout', params: { to: client.user_id, copy: JSON.stringify({ name: w.name, note: w.note, items: w.items }) } });
+
+  const remove = (w: CoachWorkout) =>
+    Alert.alert(`Remove “${w.name}”?`, `${first} won’t see it any more.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () =>
+          deleteWorkout(w.id)
+            .then(load)
+            .catch((e) => Alert.alert('Could not remove', errorText(e))),
+      },
+    ]);
+
+  return (
+    <Card style={{ gap: 10 }}>
+      <CardTitle>Workouts you sent</CardTitle>
+      {sent === null ? (
+        <Meta>Loading…</Meta>
+      ) : sent.length === 0 ? (
+        <Meta>Build a workout for {first} and it shows up in their Workouts tab.</Meta>
+      ) : (
+        sent.slice(0, 8).map((w) => {
+          const result = resultFor(w.id, workouts);
+          const doneAt = result?.finishedAt ?? (w.done_at ? new Date(w.done_at).getTime() : null);
+          return (
+            <View key={w.id} style={s.sentRow}>
+              <Row>
+                <Text style={[s.line, { flex: 1 }]}>{w.name}</Text>
+                <Tag label={doneAt ? `Done ${fmtDate(doneAt)}` : 'Not done yet'} tone={doneAt ? 'green' : 'grey'} />
+              </Row>
+              <Meta>
+                Sent {fmtDate(new Date(w.created_at).getTime())} · {describe(w.items)}
+              </Meta>
+              {result
+                ? resultLines(result, units).map((l) => (
+                    <Meta key={l}>{l}</Meta>
+                  ))
+                : null}
+              <Row style={{ justifyContent: 'flex-start', gap: 16, marginTop: 2 }}>
+                <Pressable onPress={() => again(w)} hitSlop={6}>
+                  <Text style={s.action}>Send again</Text>
+                </Pressable>
+                {!doneAt ? (
+                  <Pressable onPress={() => remove(w)} hitSlop={6}>
+                    <Text style={[s.action, { color: C.muted }]}>Remove</Text>
+                  </Pressable>
+                ) : null}
+              </Row>
+            </View>
+          );
+        })
+      )}
+      <Btn label="New workout" icon="add" onPress={() => router.push({ pathname: '/coach/workout', params: { to: client.user_id } })} />
+    </Card>
+  );
+}
+
 function TargetsCard({ client, onSaved }: { client: ClientDetail; onSaved: () => void }) {
   const summary = hasSummary(client.summary) ? client.summary : null;
   const current = client.coach_targets;
@@ -427,6 +504,8 @@ const s = StyleSheet.create({
     fontWeight: '600',
     color: C.ink,
   },
+  sentRow: { gap: 3, paddingBottom: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.line },
+  action: { fontSize: 13, fontWeight: '700', color: C.red },
   line: { fontSize: 13, fontWeight: '700', color: C.ink, flexShrink: 1, marginRight: 8 },
   photo: { flex: 1, aspectRatio: 3 / 4, borderRadius: 8, backgroundColor: C.line2 },
   noPhoto: { borderWidth: 1, borderColor: C.line, borderStyle: 'dashed' },

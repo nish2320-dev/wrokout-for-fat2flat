@@ -6,6 +6,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState, Platform } from 'react-native';
 
+import type { CoachWorkout } from '@/data/coachWorkouts';
 import { sharedPhotoNames, snapshot, summarize } from '@/data/sharing';
 import type { CoachTargets } from '@/data/types';
 import { useStore } from '@/data/store';
@@ -40,6 +41,10 @@ type Cloud = {
   coach: CoachInfo | null;
   /** The conversation with the coach, newest first. */
   notes: Note[];
+  /** Workouts the coach sent, newest first. */
+  coachWorkouts: CoachWorkout[];
+  /** Marks a coach's workout done and tells the coach. */
+  completeCoachWorkout: (id: string) => Promise<void>;
   lastSyncedAt: number | null;
   /** Sign in with Apple (iPhone). Resolves false if the user cancelled. */
   signIn: () => Promise<boolean>;
@@ -123,6 +128,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
   const [membership, setMembership] = useState<Membership | null>(null);
   const [coach, setCoach] = useState<CoachInfo | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
+  const [coachWorkouts, setCoachWorkouts] = useState<CoachWorkout[]>([]);
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
   const sentToken = useRef<string | null>(null);
 
@@ -144,12 +150,14 @@ export function CloudProvider({ children }: { children: ReactNode }) {
       setMembership(null);
       setCoach(null);
       setNotes([]);
+      setCoachWorkouts([]);
       return;
     }
-    const [mine, coachRow, inbox] = await Promise.all([
+    const [mine, coachRow, inbox, sent] = await Promise.all([
       supabase.from('clients').select('coach_id, name, share_photos, coach_targets').eq('user_id', userId).maybeSingle(),
       supabase.from('coaches').select('name, code').eq('user_id', userId).maybeSingle(),
       supabase.from('messages').select('id, body, created_at, read_at, from_client').eq('client_id', userId).order('created_at', { ascending: false }).limit(60),
+      supabase.from('coach_workouts').select('id, name, note, items, created_at, done_at').eq('client_id', userId).order('created_at', { ascending: false }).limit(30),
     ]);
     // a failed request (offline) keeps what we had rather than looking like "not joined"
     if (!mine.error) {
@@ -163,6 +171,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
     }
     if (!coachRow.error) setCoach(coachRow.data ?? null);
     if (!inbox.error) setNotes((inbox.data ?? []) as Note[]);
+    if (!sent.error) setCoachWorkouts((sent.data ?? []) as CoachWorkout[]);
   }, [userId, applyCoachTargets]);
 
   useEffect(() => {
@@ -241,6 +250,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
       membership,
       coach,
       notes,
+      coachWorkouts,
       lastSyncedAt,
 
       async signIn() {
@@ -290,6 +300,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
         setMembership(null);
         setCoach(null);
         setNotes([]);
+        setCoachWorkouts([]);
       },
 
       refresh,
@@ -321,6 +332,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
         if (error) throw error;
         setMembership(null);
         setNotes([]);
+        setCoachWorkouts([]);
       },
 
       async becomeCoach(name) {
@@ -343,6 +355,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
         setMembership(null);
         setCoach(null);
         setNotes([]);
+        setCoachWorkouts([]);
       },
 
       async markAllRead() {
@@ -380,6 +393,20 @@ export function CloudProvider({ children }: { children: ReactNode }) {
         return String((data as { reply?: string }).reply ?? '');
       },
 
+      async completeCoachWorkout(id) {
+        const sb = need();
+        const uid = needUser();
+        const at = new Date().toISOString();
+        const w = coachWorkouts.find((c) => c.id === id);
+        setCoachWorkouts((ws) => ws.map((c) => (c.id === id ? { ...c, done_at: at } : c)));
+        const { error } = await sb.from('coach_workouts').update({ done_at: at }).eq('id', id).eq('client_id', uid);
+        if (error) throw error;
+        if (!membership || !w) return;
+        const { data: c } = await sb.rpc('my_coach');
+        const token = (c as { push_token: string | null }[] | null)?.[0]?.push_token;
+        if (token) await sendPush(token, membership.name, `Finished your workout: ${w.name} ✅`);
+      },
+
       async markRead(id) {
         const sb = need();
         const at = new Date().toISOString();
@@ -387,7 +414,8 @@ export function CloudProvider({ children }: { children: ReactNode }) {
         await sb.from('messages').update({ read_at: at }).eq('id', id);
       },
     };
-  }, [ready, userId, membership, coach, notes, lastSyncedAt, refresh]);
+  }, [ready, userId, membership, coach, notes, coachWorkouts, lastSyncedAt, refresh]);
+
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -259,6 +259,101 @@ grant execute on function public.become_coach(text) to authenticated;
 grant execute on function public.join_coach(text, text, boolean) to authenticated;
 grant execute on function public.delete_my_account() to authenticated;
 
+-- ── Workouts from the coach (2.1) ────────────────────────────────────────
+-- The coach builds a workout and sends it to one or more clients. The client
+-- sees it under Workouts → From your coach and marks it done when finished;
+-- the weights they used reach the coach through their shared snapshot.
+
+create table if not exists public.coach_workouts (
+  id         uuid primary key default gen_random_uuid(),
+  coach_id   uuid not null references public.coaches (user_id) on delete cascade,
+  client_id  uuid not null references public.clients (user_id) on delete cascade,
+  name       text not null check (char_length(name) between 1 and 60),
+  note       text not null default '' check (char_length(note) <= 500),
+  items      jsonb not null check (jsonb_typeof(items) = 'array' and jsonb_array_length(items) between 1 and 20),
+  created_at timestamptz not null default now(),
+  done_at    timestamptz
+);
+create index if not exists coach_workouts_client_idx on public.coach_workouts (client_id, created_at desc);
+alter table public.coach_workouts enable row level security;
+
+revoke all on public.coach_workouts from anon;
+revoke insert, update, delete on public.coach_workouts from authenticated;
+grant select on public.coach_workouts to authenticated;
+grant update (done_at) on public.coach_workouts to authenticated;
+grant delete on public.coach_workouts to authenticated;
+
+-- each side sees only workouts between a client and their current coach
+drop policy if exists "client reads workouts from their coach" on public.coach_workouts;
+create policy "client reads workouts from their coach" on public.coach_workouts for select to authenticated
+  using (client_id = auth.uid() and coach_id = (select c.coach_id from public.clients c where c.user_id = auth.uid()));
+
+drop policy if exists "coach reads workouts they sent" on public.coach_workouts;
+create policy "coach reads workouts they sent" on public.coach_workouts for select to authenticated
+  using (coach_id = auth.uid() and exists (select 1 from public.clients c where c.user_id = client_id and c.coach_id = auth.uid()));
+
+drop policy if exists "client marks workout done" on public.coach_workouts;
+create policy "client marks workout done" on public.coach_workouts for update to authenticated
+  using (client_id = auth.uid()) with check (client_id = auth.uid());
+
+drop policy if exists "coach deletes workouts they sent" on public.coach_workouts;
+create policy "coach deletes workouts they sent" on public.coach_workouts for delete to authenticated
+  using (coach_id = auth.uid());
+
+-- Sends one workout to each of the given clients; returns how many got it.
+create or replace function public.send_coach_workout(p_clients uuid[], p_name text, p_note text, p_items jsonb)
+returns integer
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_item jsonb;
+  v_items jsonb := '[]'::jsonb;
+  v_count int;
+begin
+  if auth.uid() is null or is_guest() then raise exception 'Please sign in first.'; end if;
+  if not exists (select 1 from coaches where user_id = auth.uid()) then raise exception 'Only coaches can send workouts.'; end if;
+  if char_length(trim(coalesce(p_name, ''))) not between 1 and 60 then raise exception 'Give the workout a name (up to 60 letters).'; end if;
+  if char_length(coalesce(p_note, '')) > 500 then raise exception 'Keep the note under 500 letters.'; end if;
+  if jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) not between 1 and 20 then
+    raise exception 'Add between 1 and 20 exercises.';
+  end if;
+  for v_item in select * from jsonb_array_elements(p_items) loop
+    if jsonb_typeof(v_item) <> 'object'
+      or coalesce(v_item->>'exerciseId', '') !~ '^[a-z0-9-]{1,60}$'
+      or (v_item->>'sets') !~ '^[0-9]+$' or (v_item->>'sets')::int not between 1 and 10
+      or (v_item->>'reps') !~ '^[0-9]+$' or (v_item->>'reps')::int not between 1 and 100
+      or coalesce(v_item->>'restSec', '0') !~ '^[0-9]+$' or coalesce(v_item->>'restSec', '0')::int > 600
+      or char_length(coalesce(v_item->>'note', '')) > 200
+    then
+      raise exception 'One of the exercises has a problem. Check the sets, reps and notes.';
+    end if;
+    -- keep only the fields the app knows
+    v_items := v_items || jsonb_strip_nulls(jsonb_build_object(
+      'exerciseId', v_item->>'exerciseId',
+      'sets', (v_item->>'sets')::int,
+      'reps', (v_item->>'reps')::int,
+      'restSec', (v_item->>'restSec')::int,
+      'note', nullif(v_item->>'note', '')
+    ));
+  end loop;
+  if exists (
+    select 1 from unnest(coalesce(p_clients, '{}')) as x(id)
+    where not exists (select 1 from clients c where c.user_id = x.id and c.coach_id = auth.uid())
+  ) then
+    raise exception 'One of those people is not your client.';
+  end if;
+  insert into coach_workouts (coach_id, client_id, name, note, items)
+  select auth.uid(), x.id, trim(p_name), coalesce(p_note, ''), v_items
+  from (select distinct unnest(p_clients) as id) x;
+  get diagnostics v_count = row_count;
+  if v_count = 0 then raise exception 'Choose at least one client.'; end if;
+  return v_count;
+end;
+$$;
+
+revoke execute on function public.send_coach_workout(uuid[], text, text, jsonb) from public, anon;
+grant execute on function public.send_coach_workout(uuid[], text, text, jsonb) to authenticated;
+
 -- ── Error reports ───────────────────────────────────────────────────────
 -- The app sends a JavaScript error's message (no names, emails or user ids)
 -- so problems can be fixed. Anyone may add a report; nobody can read them

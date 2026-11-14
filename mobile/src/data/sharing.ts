@@ -45,6 +45,7 @@ export function snapshot(state: AppState, now: number, sharePhotos: boolean): Sh
         startedAt: w.startedAt,
         finishedAt: w.finishedAt,
         ...(w.sessionKey ? { sessionKey: w.sessionKey } : {}),
+        ...(w.coachWorkoutId ? { coachWorkoutId: w.coachWorkoutId } : {}),
         exercises: w.exercises.map((e) => ({ exerciseId: e.exerciseId, sets: e.sets.filter((x) => x.done) })),
       })),
     meals: state.meals.filter((m) => m.at >= since(30)),

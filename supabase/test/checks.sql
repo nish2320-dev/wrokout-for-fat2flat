@@ -121,6 +121,30 @@ select pg_temp.must_fail('update clients set coach_targets = ''{"calorieGoal": 4
 select pg_temp.must_fail('select set_client_targets(auth.uid(), ''{"calorieGoal": 2000, "proteinGoal": 140}'')', 'client sets own targets via rpc');
 select pg_temp.must_fail('select * from ai_usage', 'client reads ai usage');
 
+-- workouts from the coach
+select set_config('request.jwt.claim.sub', :coach, false);
+select pg_temp.eq(send_coach_workout(array[:alice]::uuid[], 'Upper A', 'Go steady',
+  '[{"exerciseId": "bench-press", "sets": 3, "reps": 8, "restSec": 90, "note": "Pause at the bottom", "extra": "dropped"}]'), 1, 'coach sends a workout');
+select pg_temp.eq((select count(*) from coach_workouts where items->0 ? 'extra'), 0, 'unknown fields are dropped');
+select pg_temp.must_fail('select send_coach_workout(array[' || quote_literal(:bob) || ']::uuid[], ''X'', '''', ''[{"exerciseId": "squat", "sets": 3, "reps": 8}]'')', 'send to someone who is not a client');
+select pg_temp.must_fail('select send_coach_workout(array[' || quote_literal(:alice) || ']::uuid[], ''X'', '''', ''[{"exerciseId": "squat", "sets": 50, "reps": 8}]'')', 'silly set count');
+select pg_temp.must_fail('select send_coach_workout(array[' || quote_literal(:alice) || ']::uuid[], ''X'', '''', ''[]'')', 'empty workout');
+select pg_temp.must_fail('select send_coach_workout(''{}''::uuid[], ''X'', '''', ''[{"exerciseId": "squat", "sets": 3, "reps": 8}]'')', 'no recipients');
+select pg_temp.must_fail('insert into coach_workouts (coach_id, client_id, name, items) values (auth.uid(), ' || quote_literal(:alice) || ', ''X'', ''[{}]'')', 'coach inserts directly');
+select set_config('request.jwt.claim.sub', :coach2, false);
+select pg_temp.eq((select count(*) from coach_workouts), 0, 'other coach sees no workouts');
+select pg_temp.must_fail('select send_coach_workout(array[' || quote_literal(:alice) || ']::uuid[], ''X'', '''', ''[{"exerciseId": "squat", "sets": 3, "reps": 8}]'')', 'other coach sends to alice');
+select set_config('request.jwt.claim.sub', :alice, false);
+select pg_temp.eq((select count(*) from coach_workouts), 1, 'client sees the workout');
+select pg_temp.must_fail('select send_coach_workout(array[auth.uid()]::uuid[], ''X'', '''', ''[{"exerciseId": "squat", "sets": 3, "reps": 8}]'')', 'client sends a workout');
+select pg_temp.must_fail('update coach_workouts set name = ''Changed''', 'client renames workout');
+update coach_workouts set done_at = now();
+select pg_temp.eq((select count(*) from coach_workouts where done_at is not null), 1, 'client marks workout done');
+select set_config('request.jwt.claim.sub', :coach, false);
+select pg_temp.eq((select count(*) from coach_workouts where done_at is not null), 1, 'coach sees it done');
+update coach_workouts set done_at = null;
+select pg_temp.eq((select count(*) from coach_workouts where done_at is not null), 1, 'coach cannot undo done');
+
 -- guests (anonymous sessions, for meal photos) can't coach, join or upload
 \set guest '''55555555-5555-5555-5555-555555555555'''
 reset role;
@@ -142,3 +166,4 @@ reset role;
 select pg_temp.eq((select count(*) from auth.users where id = :alice), 0, 'alice account deleted');
 select pg_temp.eq((select count(*) from clients where user_id = :alice), 0, 'alice client row deleted');
 select pg_temp.eq((select count(*) from messages), 0, 'alice messages deleted');
+select pg_temp.eq((select count(*) from coach_workouts), 0, 'alice workouts deleted');

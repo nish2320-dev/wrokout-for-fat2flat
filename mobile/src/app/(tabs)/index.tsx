@@ -14,6 +14,7 @@ import { WaterCard } from '@/ui/WaterCard';
 import { WelcomeTour } from '@/ui/WelcomeTour';
 import { BadgeCelebration } from '@/ui/Badges';
 import { CoachNoteCard, CoachTargetsCard } from '@/ui/CoachNoteCard';
+import { CoachWorkoutsCard } from '@/ui/CoachWorkouts';
 import { Card, CardTitle, Empty, Eyebrow, Label, Meta, Metric, Name, Ring, Row, Screen, Tag } from '@/ui/kit';
 
 export default function HomeScreen() {
@@ -54,6 +55,7 @@ export default function HomeScreen() {
 
       <CoachNoteCard />
       <CoachTargetsCard />
+      <CoachWorkoutsCard compact />
 
       {active ? (
         <Pressable onPress={() => router.push('/workout/active')}>

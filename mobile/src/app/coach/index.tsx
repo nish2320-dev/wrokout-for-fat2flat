@@ -174,6 +174,10 @@ export default function CoachHome() {
           ))}
         </Card>
       )}
+
+      {clients && clients.length > 0 ? (
+        <Btn label="Send a workout" icon="barbell-outline" ghost onPress={() => router.push('/coach/workout')} />
+      ) : null}
     </Screen>
   );
 }

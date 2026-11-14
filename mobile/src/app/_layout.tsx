@@ -60,6 +60,7 @@ export default function RootLayout() {
               <Stack.Screen name="photos" options={{ title: 'Before & after' }} />
               <Stack.Screen name="coach/join" options={{ title: 'Join my coach' }} />
               <Stack.Screen name="coach/index" options={{ title: 'My clients', headerBackTitle: 'Back' }} />
+              <Stack.Screen name="coach/workout" options={{ title: 'New workout', headerBackTitle: 'Back' }} />
               <Stack.Screen name="coach/[id]" options={{ title: 'Client', headerBackTitle: 'Clients' }} />
               <Stack.Screen name="auth" options={{ headerShown: false, animation: 'none' }} />
             <Stack.Screen name="chat" options={{ title: 'Your coach', headerBackTitle: 'Back' }} />

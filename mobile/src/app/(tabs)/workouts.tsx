@@ -8,6 +8,7 @@ import { EQUIPMENT, Equipment, equipmentLabel, muscleLabel } from '@/data/exerci
 import { FOCUS, Focus, GOALS, Goal, LENGTHS, generate, planToExercises } from '@/data/generator';
 import { useActiveWorkout, useStore } from '@/data/store';
 import { C, S } from '@/theme';
+import { CoachWorkoutsCard } from '@/ui/CoachWorkouts';
 import { Btn, Card, CardTitle, Empty, Eyebrow, Label, Meta, Name, Pill, Row, Screen, Tag, Title } from '@/ui/kit';
 
 export default function WorkoutsScreen() {
@@ -74,6 +75,8 @@ export default function WorkoutsScreen() {
           </Card>
         </Pressable>
       ) : null}
+
+      <CoachWorkoutsCard />
 
       <Group title="Muscle group">
         {FOCUS.map((f) => (

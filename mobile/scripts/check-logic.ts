@@ -19,6 +19,7 @@ import { addGlasses, applyTargets, shouldAskForReview, unseenTargets, waterToday
 import { assistantContext, recentTurns } from '../src/data/assistant';
 import { badges, bestStreak, newBadges } from '../src/data/badges';
 import { COMMON_FOODS, macrosFor, parseProduct, searchCommon } from '../src/data/food';
+import { cleanItems, describe, pendingFromCoach, resultFor, resultLines, toExercises, type CoachWorkout } from '../src/data/coachWorkouts';
 
 const DAY = 86400000;
 const startOfDayAt = (t: number) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
@@ -341,6 +342,27 @@ eq('badges: sample has a 4-day best streak', bestStreak(sam), 4);
 eq('badges: kg users get kg milestones', badges({ ...initialState, profile: { ...initialState.profile, units: 'kg' } }, now).some((b) => b.id === 'lost-2kg'), true);
 eq('badges: seen badges are not new again', newBadges({ ...sam, profile: { ...sam.profile, seenBadges: got(sam) } }, now).length, 0);
 eq('badges: ids are unique', new Set(badges(sam, now).map((b) => b.id)).size, badges(sam, now).length);
+
+// --- workouts from the coach ---
+const items = [
+  { exerciseId: 'bench-press', sets: 3, reps: 8, restSec: 90, note: '  Pause at the bottom ' },
+  { exerciseId: 'not-a-real-exercise', sets: 3, reps: 8 },
+  { exerciseId: 'goblet-squat', sets: 40, reps: 0 },
+];
+const clean = cleanItems(items);
+eq('coach workout: unknown exercises are dropped', clean.map((i) => i.exerciseId), ['bench-press', 'goblet-squat']);
+eq('coach workout: numbers kept in range', [clean[1].sets, clean[1].reps, clean[1].restSec], [10, 1, 90]);
+eq('coach workout: notes trimmed', clean[0].note, 'Pause at the bottom');
+const logged = toExercises(clean);
+eq('coach workout: sets ready to log', [logged[0].sets.length, logged[0].sets[0].reps, logged[0].restSec, logged[0].note], [3, 8, 90, 'Pause at the bottom']);
+eq('coach workout: description', describe([{ exerciseId: 'bench-press', sets: 3, reps: 8, restSec: 90 }, { exerciseId: 'goblet-squat', sets: 3, reps: 10, restSec: 60 }]), '2 exercises · 6 sets · ~10 min');
+const cw = (id: string, at: string, done: string | null = null): CoachWorkout => ({ id, name: id, note: '', items: clean, created_at: at, done_at: done });
+const doneW = { id: 'x', name: 'Upper', startedAt: now - 3600000, finishedAt: now, coachWorkoutId: 'b', exercises: [{ exerciseId: 'bench-press', sets: [{ reps: 8, weight: 135, done: true }, { reps: 6, weight: 145, done: true }] }] };
+const list = [cw('b', '2026-11-02'), cw('a', '2026-11-01'), cw('c', '2026-11-03', '2026-11-04')];
+eq('coach workout: to-do list skips done ones, oldest first', pendingFromCoach(list, [doneW]).map((c) => c.id), ['a']);
+eq('coach workout: finished workout found for the coach', resultFor('b', [doneW])?.id, 'x');
+eq('coach workout: result shows the top set', resultLines(doneW, 'lb'), ['Barbell Bench Press: 2 × 6 @ 145 lb']);
+eq('coach workout: the coach sees which workout it was', snapshot({ ...initialState, workouts: [doneW] }, now, false).workouts[0].coachWorkoutId, 'b');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

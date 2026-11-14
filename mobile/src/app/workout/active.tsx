@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { useCloud } from '@/cloud/CloudProvider';
 import { shouldAskForReview } from '@/data/extras';
 import { askForReview } from '@/review';
 
@@ -20,6 +21,7 @@ const REST_SECONDS = 90;
 export default function ActiveWorkoutScreen() {
   const router = useRouter();
   const workout = useActiveWorkout();
+  const cloud = useCloud();
   const { state, addSet, updateSet, toggleSetDone, finishWorkout, discardWorkout, removeExercise, updateProfile } = useStore();
 
   const [now, setNow] = useState(Date.now());
@@ -63,11 +65,12 @@ export default function ActiveWorkoutScreen() {
 
   const rest = restEndsAt === null ? null : Math.max(0, Math.ceil((restEndsAt - now) / 1000));
 
-  const startRest = () => {
+  const startRest = (seconds = REST_SECONDS) => {
+    if (seconds <= 0) return;
     const t = Date.now();
     setNow(t);
-    setRestTotal(REST_SECONDS);
-    setRestEndsAt(t + REST_SECONDS * 1000);
+    setRestTotal(seconds);
+    setRestEndsAt(t + seconds * 1000);
   };
 
   const extendRest = () => {
@@ -100,7 +103,7 @@ export default function ActiveWorkoutScreen() {
   const onToggle = (ei: number, si: number, wasDone: boolean) => {
     toggleSetDone(ei, si);
     if (wasDone) setRestEndsAt(null);
-    else startRest();
+    else startRest(workout.exercises[ei]?.restSec ?? REST_SECONDS);
   };
 
   const confirmFinish = () => {
@@ -113,7 +116,9 @@ export default function ActiveWorkoutScreen() {
       {
         text: 'Finish',
         onPress: () => {
+          const fromCoach = workout.coachWorkoutId;
           finishWorkout();
+          if (fromCoach && cloud.membership) cloud.completeCoachWorkout(fromCoach).catch(() => {});
           router.replace('/');
           // a good moment to ask for a rating: right after a finished workout
           const now = Date.now();
@@ -201,6 +206,7 @@ export default function ActiveWorkoutScreen() {
                         ? `${meta.compound ? 'Compound' : 'Isolation'} · first time`
                         : ''}
                   </Meta>
+                  {ex.note ? <Text style={s.coachNote}>Coach: {ex.note}</Text> : null}
                 </View>
                 {isPR ? <Tag label="New PR" /> : null}
                 <Pressable
@@ -312,6 +318,7 @@ function NumField({
 }
 
 const s = StyleSheet.create({
+  coachNote: { fontSize: 13, fontWeight: '600', color: C.red, marginTop: 4, lineHeight: 18 },
   h1: { fontSize: 22, fontWeight: '800', letterSpacing: -0.75, color: C.ink },
   clock: { height: 30, paddingHorizontal: 13, borderRadius: 15, backgroundColor: C.ink, justifyContent: 'center' },
   clockText: { color: '#fff', fontSize: 13, fontWeight: '800', fontVariant: ['tabular-nums'] },

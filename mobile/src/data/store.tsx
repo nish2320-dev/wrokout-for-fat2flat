@@ -28,7 +28,7 @@ type Store = {
   /** False until the persisted state has been read back from disk. */
   ready: boolean;
   /** `sessionKey` ties the workout to a Transformation session. */
-  startWorkout: (name: string, exercises: LoggedExercise[], sessionKey?: string) => string;
+  startWorkout: (name: string, exercises: LoggedExercise[], sessionKey?: string, coachWorkoutId?: string) => string;
   finishWorkout: () => void;
   discardWorkout: () => void;
   addExercise: (exerciseId: string) => void;
@@ -110,12 +110,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     state,
     ready,
 
-    startWorkout(name, exercises, sessionKey) {
+    startWorkout(name, exercises, sessionKey, coachWorkoutId) {
       const id = uid();
       setState((s) => ({
         ...s,
         activeWorkoutId: id,
-        workouts: [{ id, name, startedAt: Date.now(), exercises, ...(sessionKey ? { sessionKey } : {}) }, ...s.workouts],
+        workouts: [{ id, name, startedAt: Date.now(), exercises, ...(sessionKey ? { sessionKey } : {}), ...(coachWorkoutId ? { coachWorkoutId } : {}) }, ...s.workouts],
       }));
       return id;
     },

@@ -3,7 +3,8 @@ import type { Diet } from './mealplan';
 
 export type SetEntry = { reps: number; weight: number; done: boolean };
 
-export type LoggedExercise = { exerciseId: string; sets: SetEntry[] };
+/** `restSec` and `note` come from a coach-built workout. */
+export type LoggedExercise = { exerciseId: string; sets: SetEntry[]; restSec?: number; note?: string };
 
 export type Workout = {
   id: string;
@@ -13,6 +14,8 @@ export type Workout = {
   exercises: LoggedExercise[];
   /** Set when the workout was started from the Transformation program ("w3-d1"). */
   sessionKey?: string;
+  /** Set when the workout was sent by the client's coach (a coach_workouts id). */
+  coachWorkoutId?: string;
 };
 
 export type Meal = {

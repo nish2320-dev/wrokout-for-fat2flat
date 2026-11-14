@@ -1,3 +1,4 @@
+import type { CoachWorkout, CoachWorkoutItem } from '@/data/coachWorkouts';
 import type { ClientSummary, SharedSnapshot } from '@/data/sharing';
 import type { CoachTargets } from '@/data/types';
 import { sendPush } from '@/notify';
@@ -101,5 +102,41 @@ export async function markRepliesRead(clientId: string) {
 /** Sets the client's daily calories, protein and (optionally) workouts per week; their app applies it on next open. */
 export async function setTargets(clientId: string, t: { calorieGoal: number; proteinGoal: number; daysPerWeek: 3 | 4 | 5 | null; note: string }) {
   const { error } = await sb().rpc('set_client_targets', { p_client: clientId, p_targets: t });
+  if (error) throw error;
+}
+
+/** Workouts the coach sent this client, newest first. */
+export async function sentWorkouts(clientId: string): Promise<CoachWorkout[]> {
+  const { data, error } = await sb()
+    .from('coach_workouts')
+    .select('id, name, note, items, created_at, done_at')
+    .eq('client_id', clientId)
+    .order('created_at', { ascending: false })
+    .limit(30);
+  if (error) throw error;
+  return (data ?? []) as CoachWorkout[];
+}
+
+/** Sends a workout to each client and lets their phones know. Returns how many got it. */
+export async function sendWorkout(
+  coachName: string,
+  clients: Pick<ClientRow, 'user_id' | 'push_token'>[],
+  w: { name: string; note: string; items: CoachWorkoutItem[] },
+) {
+  const { data, error } = await sb().rpc('send_coach_workout', {
+    p_clients: clients.map((c) => c.user_id),
+    p_name: w.name.trim(),
+    p_note: w.note.trim(),
+    p_items: w.items,
+  });
+  if (error) throw error;
+  await Promise.all(
+    clients.filter((c) => c.push_token).map((c) => sendPush(c.push_token!, coachName, `New workout for you: ${w.name.trim()} 💪`).catch(() => {})),
+  );
+  return data as number;
+}
+
+export async function deleteWorkout(id: string) {
+  const { error } = await sb().from('coach_workouts').delete().eq('id', id);
   if (error) throw error;
 }
