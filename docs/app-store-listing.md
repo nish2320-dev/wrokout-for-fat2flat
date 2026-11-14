@@ -215,3 +215,17 @@ User Content → Other User Content, and Health & Fitness is already listed.
 ```
 Version 2.1 adds "Ask Fat2Flat", an AI assistant (Home → Ask Fat2Flat). Before the first question the app asks the user for permission: their question and a short summary of their plan and progress are sent to our server and to Anthropic (Claude) to write the answer. Nothing is stored on our server, and it isn't used for training. Works without an account (an anonymous session is used for a daily limit of 40 questions). Answers are labelled as AI-generated general guidance, not medical advice.
 ```
+
+## Version 2.2
+
+**What's New in This Version**
+
+```
+NEW: Workouts from your coach.
+
+• Coaches: build a workout from the exercise library with sets, reps, rest and a tip for each exercise, and send it to one client or several at once.
+• Clients: find it under Workouts as "From your coach", start it with one tap, and see your coach's tips and rest times as you go.
+• Your coach gets a notification when you finish, with the weights you used.
+```
+
+**App Privacy**: no change (workouts are already listed under Fitness).

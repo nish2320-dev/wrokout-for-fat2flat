@@ -43,3 +43,9 @@ and write what (needs PostgreSQL 16 installed locally).
 2. Edge Functions → Deploy a new function → Via editor → name `assistant` →
    paste `functions/assistant/index.ts` → Deploy → Settings → turn **off**
    "Verify JWT with legacy secret" → Save. Uses the existing `ANTHROPIC_API_KEY`.
+
+## Version 2.2: workouts from the coach
+
+1. SQL Editor → New query → paste the whole `schema.sql` → Run. This adds the
+   `coach_workouts` table and the `send_coach_workout` function. Nothing else
+   to deploy.
