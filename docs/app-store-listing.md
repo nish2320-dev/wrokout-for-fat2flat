@@ -193,3 +193,25 @@ Apple Health (HealthKit): optional, Profile → Connect Apple Health. The app re
 Coach notes are delivered via push notifications; data is stored in Supabase and visible only to the client's coach.
 Meal photos (Meals → Photo) are resized on the device and sent to our server, which asks Anthropic's Claude for a calorie estimate. Photos are not stored. Works without an account (an anonymous session is used for a daily fair-use limit).
 ```
+
+## Version 2.1
+
+**What's New in This Version**
+
+```
+NEW: Ask Fat2Flat, your AI fitness assistant.
+
+• Ask anything about your workouts, food or progress and get quick, friendly answers based on your own plan, targets and recent workouts and meals.
+• Earn badges for streaks, workouts, check-ins and milestones, with a celebration when you unlock one.
+• Share your progress: create a card with your weight lost, workouts and streak to send to friends or post.
+• Have a coach? Your coach can see your AI chats only if you turn on "Share AI assistant chats".
+```
+
+**App Privacy**: no change. Assistant questions are covered by
+User Content → Other User Content, and Health & Fitness is already listed.
+
+**App Review notes**: append:
+
+```
+Version 2.1 adds "Ask Fat2Flat", an AI assistant (Home → Ask Fat2Flat). Before the first question the app asks the user for permission: their question and a short summary of their plan and progress are sent to our server and to Anthropic (Claude) to write the answer. Nothing is stored on our server, and it isn't used for training. Works without an account (an anonymous session is used for a daily limit of 40 questions). Answers are labelled as AI-generated general guidance, not medical advice.
+```

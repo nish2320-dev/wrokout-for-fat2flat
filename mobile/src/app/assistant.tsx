@@ -22,7 +22,7 @@ const STARTERS = [
 export default function Assistant() {
   const router = useRouter();
   const cloud = useCloud();
-  const { state, addAssistantMessage, clearAssistant } = useStore();
+  const { state, addAssistantMessage, clearAssistant, updateProfile } = useStore();
   const [draft, setDraft] = useState('');
   const [thinking, setThinking] = useState(false);
   const scroll = useRef<ScrollViewInstance>(null);
@@ -39,9 +39,31 @@ export default function Assistant() {
     );
   }
 
-  const ask = async (text: string) => {
+  const ask = (text: string) => {
     const q = text.trim();
     if (!q || thinking) return;
+    if (state.profile.aiConsentAt) {
+      void send(q);
+      return;
+    }
+    // App Store 5.1.2(i): ask before personal data first goes to a third-party AI
+    Alert.alert(
+      'Before you ask',
+      'To answer, your question and a short summary of your plan and progress (targets, recent workouts, meals and weight trend) are sent securely to our server and to Anthropic, the company behind the Claude AI. They aren’t stored or used to train AI.',
+      [
+        { text: 'Not now', style: 'cancel' },
+        {
+          text: 'Continue',
+          onPress: () => {
+            updateProfile({ aiConsentAt: Date.now() });
+            void send(q);
+          },
+        },
+      ],
+    );
+  };
+
+  const send = async (q: string) => {
     setDraft('');
     addAssistantMessage({ role: 'user', content: q });
     setThinking(true);

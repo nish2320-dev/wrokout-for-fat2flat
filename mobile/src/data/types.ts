@@ -73,6 +73,8 @@ export type Profile = {
   shareAssistant?: boolean;
   /** Badges the user has already been shown. */
   seenBadges?: string[];
+  /** When the user agreed to send their questions and progress summary to the AI. */
+  aiConsentAt?: number;
 };
 
 /** Targets a coach set from their phone. */
