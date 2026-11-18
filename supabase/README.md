@@ -64,7 +64,7 @@ and write what (needs PostgreSQL 16 installed locally).
    paste `functions/coach-agent/index.ts` → Deploy → Settings → turn **off**
    "Verify JWT with legacy secret" → Save.
 3. Edge Functions → Secrets → add `AGENT_KEY` = a long random password you make up.
-4. SQL Editor → paste `agent-cron.sql`, replace `YOUR-AGENT-KEY` (twice) with
+4. SQL Editor → paste `agent-cron.sql`, replace `YOUR-AGENT-KEY` (once) with
    the same text → Run. The agent then runs every hour and messages each
    client who allowed it at about 7 pm their time (Sunday: weekly summary).
 5. Test without sending: in the function's page click **Test**, add header
