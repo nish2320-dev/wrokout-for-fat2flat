@@ -240,3 +240,15 @@ NEW: Workouts from your coach.
 • Meal photos, food search, barcode scans and the meal plan now include carbs and fat.
 • Transformation: tap any workout this week to see its exercises, and do them in any order.
 ```
+
+(2.2.1 continued) Add to What's New:
+
+```
+• Coaches: an AI assistant can send your clients a short check-in each evening and a summary every Sunday, and fine-tune their targets. Clients choose whether to allow it, and you see every message.
+```
+
+**App Review notes** (append):
+
+```
+Version 2.2.1 adds optional AI check-ins for coaching clients. A client who joined a coach is asked once on Home ("Daily check-ins from [coach]'s AI assistant?" → Allow / Not now) and can change it in Profile → Your coach → AI check-ins. Only after they allow it does our server send their shared progress to Anthropic (Claude) to write a short evening check-in and a Sunday summary, which appear in their chat with the coach and may adjust their calorie and macro targets within fixed safe limits. The coach can switch the feature off for all clients (Profile → My clients) or pause it per client.
+```

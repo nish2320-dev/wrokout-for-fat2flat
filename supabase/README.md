@@ -56,3 +56,16 @@ and write what (needs PostgreSQL 16 installed locally).
 2. Edge Functions → `analyze-meal` → Code → replace everything with the new
    `functions/analyze-meal/index.ts` → Deploy (meal photos now estimate carbs and fat).
    Older app versions keep working with it.
+
+## Version 2.2.1: AI coaching agent
+
+1. Re-run `schema.sql` (adds the agent settings).
+2. Edge Functions → Deploy a new function → Via editor → name `coach-agent` →
+   paste `functions/coach-agent/index.ts` → Deploy → Settings → turn **off**
+   "Verify JWT with legacy secret" → Save.
+3. Edge Functions → Secrets → add `AGENT_KEY` = a long random password you make up.
+4. SQL Editor → paste `agent-cron.sql`, replace `YOUR-AGENT-KEY` (twice) with
+   the same text → Run. The agent then runs every hour and messages each
+   client who allowed it at about 7 pm their time (Sunday: weekly summary).
+5. Test without sending: in the function's page click **Test**, add header
+   `x-agent-key` with your key, body `{"force": "daily", "dryRun": true}`.

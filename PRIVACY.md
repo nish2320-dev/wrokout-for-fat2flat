@@ -112,6 +112,22 @@ they can read your recent questions and answers only if you turn on "Share AI
 assistant chats". A daily question limit applies, using the same anonymous ID
 as meal photos.
 
+## AI check-ins from your coach (optional)
+
+If you've joined a coach and tap **Allow** when asked (or turn on **AI check-ins**
+in Profile → Your coach), your coach's AI assistant sends you a short check-in
+most evenings and a weekly summary on Sundays. To write them, our server sends
+the progress you already share with your coach (for example your targets,
+recent workouts, meals with calories and macros, weigh-ins, and steps if you
+share health data) and your recent chat messages to Anthropic, the company that
+makes the Claude AI. Anthropic's commercial terms don't allow using this to
+train its models. The check-ins are saved in your chat with your coach, who can
+read them. On Sundays the assistant may adjust your daily calorie, protein,
+carb and fat targets within safe limits; your app shows the change and why. To
+time the messages for your evening, your phone's time zone is stored with your
+shared progress. Turn AI check-ins off at any time in Profile → Your coach;
+your coach can also switch them off.
+
 ## Error reports
 
 If the app runs into a software error, it sends a short report to our database
