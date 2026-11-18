@@ -26,7 +26,7 @@ const DAY = 86400000;
 
 export default function TransformScreen() {
   const router = useRouter();
-  const { state, startWorkout, applyCoach, endProgram } = useStore();
+  const { state, startWorkout, discardWorkout, applyCoach, endProgram } = useStore();
   const active = useActiveWorkout();
   const program = state.program;
   const now = Date.now();
@@ -63,13 +63,32 @@ export default function TransformScreen() {
   const waists = state.checkIns.filter((c) => c.waist !== undefined).map((c) => c.waist!);
   const waistChange = waists.length >= 2 ? waists[0] - waists[waists.length - 1] : null;
 
-  const start = (sess: ProgramSession) => {
-    if (active) {
-      router.push('/workout/active');
-      return;
-    }
+  const begin = (sess: ProgramSession) => {
     startWorkout(`Week ${sess.week} · ${sess.plan.name}`, planToExercises(sess.plan), sess.key);
     router.push('/workout/active');
+  };
+
+  // Sessions can be done in any order (a skipped day shouldn't lock the rest of the week).
+  const start = (sess: ProgramSession) => {
+    if (!active) return begin(sess);
+    if (active.sessionKey === sess.key) return router.push('/workout/active');
+    const logged = active.exercises.some((e) => e.sets.some((x) => x.done));
+    Alert.alert(
+      `${active.name} is in progress`,
+      logged ? `Switch to ${sess.plan.name}? The sets you logged in ${active.name} will be lost.` : `Switch to ${sess.plan.name} instead?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: `Keep ${active.name.replace(/^Week \d+ · /, '')}`, onPress: () => router.push('/workout/active') },
+        {
+          text: `Switch to ${sess.plan.name}`,
+          style: logged ? 'destructive' : 'default',
+          onPress: () => {
+            discardWorkout();
+            begin(sess);
+          },
+        },
+      ],
+    );
   };
 
   const confirmEnd = () =>
@@ -130,7 +149,7 @@ export default function TransformScreen() {
             <View style={{ flex: 1 }}>
               <CardTitle>This week’s workouts</CardTitle>
               <Meta>
-                {sessions.filter((x) => done.has(x.key)).length} of {sessions.length} done
+                {sessions.filter((x) => done.has(x.key)).length} of {sessions.length} done · any order
               </Meta>
             </View>
             {next ? <Tag label="Up next" /> : <Tag tone="green" label="Week done" />}
@@ -155,12 +174,10 @@ export default function TransformScreen() {
                     {sess.plan.items.map((i) => i.exercise.name).join(' · ')}
                   </Meta>
                 </View>
-                {isDone ? null : isNext ? (
-                  <View style={s.go}>
-                    <Text style={s.goText}>{active ? 'Resume' : 'Start'}</Text>
+                {isDone ? null : (
+                  <View style={[s.go, !isNext && s.goAlt]}>
+                    <Text style={[s.goText, !isNext && s.goTextAlt]}>{active?.sessionKey === sess.key ? 'Resume' : 'Start'}</Text>
                   </View>
-                ) : (
-                  <Ionicons name="chevron-forward" size={15} color={C.faint} />
                 )}
               </Pressable>
             );
@@ -274,6 +291,8 @@ const s = StyleSheet.create({
   checkDone: { backgroundColor: C.green, borderColor: C.green },
   go: { height: 28, paddingHorizontal: 12, borderRadius: 14, backgroundColor: C.red, justifyContent: 'center' },
   goText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  goAlt: { backgroundColor: C.redWash },
+  goTextAlt: { color: C.red },
   coachIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: C.redWash, alignItems: 'center', justifyContent: 'center' },
   btnRow: { flexDirection: 'row', gap: S.gap, marginTop: 12 },
 });
