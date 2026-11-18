@@ -5,7 +5,7 @@ import { C } from '@/theme';
 import { Meta } from '@/ui/kit';
 
 /** A message in a coach–client conversation, drawn as a chat bubble. */
-export type ChatMessage = { id: string; body: string; created_at: string; read_at: string | null; mine: boolean };
+export type ChatMessage = { id: string; body: string; created_at: string; read_at: string | null; mine: boolean; from_agent?: boolean };
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -23,7 +23,8 @@ export function ChatThread({ messages, emptyText }: { messages: ChatMessage[]; e
       onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: false })}
       nestedScrollEnabled>
       {ordered.map((m) => (
-        <View key={m.id} style={[s.bubble, m.mine ? s.mine : s.theirs]}>
+        <View key={m.id} style={[s.bubble, m.mine ? s.mine : s.theirs, m.from_agent && (m.mine ? s.aiMine : s.aiTheirs)]}>
+          {m.from_agent ? <Text style={[s.ai, m.mine && { color: 'rgba(255,255,255,0.85)' }]}>✦ AI CHECK-IN</Text> : null}
           <Text style={[s.body, m.mine && { color: '#fff' }]}>{m.body}</Text>
           <Text style={[s.meta, m.mine && { color: 'rgba(255,255,255,0.75)' }]}>
             {when(m.created_at)}
@@ -41,4 +42,7 @@ const s = StyleSheet.create({
   theirs: { alignSelf: 'flex-start', backgroundColor: C.line2, borderBottomLeftRadius: 5 },
   body: { fontSize: 15, lineHeight: 20, color: C.ink },
   meta: { fontSize: 10, fontWeight: '600', color: C.muted },
+  ai: { fontSize: 10, fontWeight: '800', letterSpacing: 0.8, color: C.red },
+  aiMine: { backgroundColor: C.ink },
+  aiTheirs: { backgroundColor: C.redWash },
 });

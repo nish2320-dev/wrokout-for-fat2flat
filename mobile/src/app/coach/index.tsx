@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, Share, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import { hasSummary, listClients, unreadReplies, type ClientRow } from '@/cloud/coachApi';
 import { useCloud } from '@/cloud/CloudProvider';
@@ -177,6 +177,24 @@ export default function CoachHome() {
 
       {clients && clients.length > 0 ? (
         <Btn label="Send a workout" icon="barbell-outline" ghost onPress={() => router.push('/coach/workout')} />
+      ) : null}
+
+      {cloud.coach ? (
+        <Card>
+          <Row>
+            <View style={{ flex: 1, paddingRight: 10 }}>
+              <CardTitle>AI check-ins</CardTitle>
+              <Meta style={{ marginTop: 2 }}>
+                Your AI assistant messages each client who allows it: a check-in around 7 pm their time and a summary on Sunday evenings, adjusting their targets when their week calls for it. You see every message in their chat.
+              </Meta>
+            </View>
+            <Switch
+              value={cloud.coach.agentOn}
+              onValueChange={(on) => cloud.setAgentOn(on).catch((e) => Alert.alert('Could not change AI check-ins', errorText(e)))}
+              trackColor={{ true: C.red, false: C.line }}
+            />
+          </Row>
+        </Card>
       ) : null}
     </Screen>
   );

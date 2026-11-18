@@ -1,0 +1,362 @@
+// Supabase Edge Function: the AI coaching agent.
+//
+// Runs every hour (see supabase/agent-cron.sql). For each coaching client who
+// allowed AI check-ins, whose coach has the agent on and hasn't paused it for
+// them, it sends:
+//   • a daily check-in around 7 pm in the client's time zone, and
+//   • on Sunday around 6 pm, a weekly summary instead, which may also adjust
+//     their calories, protein, carbs and fat within safe limits.
+// Messages go into the client's chat with their coach (marked from_agent, so
+// the coach sees every one) and to the client's phone as a notification.
+//
+// Deploy: Edge Functions → Deploy a new function → Via editor, name
+// "coach-agent", paste this file, Deploy, then Settings → turn OFF "Verify JWT
+// with legacy secret" (this code checks its own key). Secrets: ANTHROPIC_API_KEY
+// (already set) and AGENT_KEY (any long random text; the same text goes in
+// agent-cron.sql).
+//
+// Testing: send a POST with header x-agent-key and body
+// {"force": "daily" | "weekly", "dryRun": true} to see the messages it would
+// send right now without sending anything or changing targets.
+
+import Anthropic from 'npm:@anthropic-ai/sdk@^1.8.0';
+import { createClient } from 'npm:@supabase/supabase-js@2';
+
+const DAILY_HOUR = 19;
+const WEEKLY_HOUR = 18;
+/** Never message after this local hour, so a late run can't buzz someone at night. */
+const LAST_HOUR = 22;
+const DEFAULT_TZ = 'America/Los_Angeles';
+const MAX_CLIENTS_PER_RUN = 60;
+const DAY = 86400000;
+
+// ── pure helpers (exported for tests) ─────────────────────────────────────
+
+type Meal = { name: string; calories: number; protein: number; carbs?: number; fat?: number; at: number };
+type Workout = { name: string; finishedAt?: number; exercises: { exerciseId: string; sets: { reps: number; weight: number }[] }[]; sessionKey?: string };
+type Snapshot = {
+  v?: number;
+  profile?: { calorieGoal: number; proteinGoal: number; carbGoal?: number; fatGoal?: number; units: 'lb' | 'kg'; diet?: string };
+  program?: { startedAt: number; daysPerWeek: number; body?: { sex?: string; goalWeight?: number } } | null;
+  workouts?: Workout[];
+  meals?: Meal[];
+  weighIns?: { at: number; weight: number }[];
+  health?: { days?: { date: number; steps?: number; sleepMinutes?: number }[] };
+};
+export type Targets = { calorieGoal: number; proteinGoal: number; carbGoal: number; fatGoal: number };
+
+/** The client's local date ("2026-11-22"), hour (0–23) and weekday (0 = Sunday). */
+export function localParts(now: number, tz: string | null) {
+  const zone = tz || DEFAULT_TZ;
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = new Intl.DateTimeFormat('en-US', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23', weekday: 'short' }).formatToParts(new Date(now));
+  } catch {
+    parts = new Intl.DateTimeFormat('en-US', { timeZone: DEFAULT_TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23', weekday: 'short' }).formatToParts(new Date(now));
+  }
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
+  const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(get('weekday'));
+  return { date: `${get('year')}-${get('month')}-${get('day')}`, hour: Number(get('hour')) % 24, weekday };
+}
+
+/** What, if anything, is due for this client now. */
+export function due(
+  c: { tz: string | null; agent_daily_on: string | null; agent_weekly_on: string | null; updated_at: string },
+  now: number,
+): 'daily' | 'weekly' | null {
+  const { date, hour, weekday } = localParts(now, c.tz);
+  if (hour > LAST_HOUR) return null;
+  if (weekday === 0) return hour >= WEEKLY_HOUR && c.agent_weekly_on !== date ? 'weekly' : null;
+  // someone who hasn't opened the app in 3 days gets only the Sunday summary, not daily pings
+  const quiet = now - new Date(c.updated_at).getTime() > 3 * DAY;
+  return hour >= DAILY_HOUR && c.agent_daily_on !== date && !quiet ? 'daily' : null;
+}
+
+/** Same rule as the app: fat 30% of calories, carbs the rest (at least 50 g). */
+export function autoCarbsFat(calories: number, protein: number) {
+  const fat = Math.round((calories * 0.3) / 9);
+  return { carbs: Math.max(50, Math.round((calories - protein * 4 - fat * 9) / 4)), fat };
+}
+
+export function currentTargets(snap: Snapshot): Targets | null {
+  const p = snap.profile;
+  if (!p || !p.calorieGoal || !p.proteinGoal) return null;
+  const auto = autoCarbsFat(p.calorieGoal, p.proteinGoal);
+  return { calorieGoal: p.calorieGoal, proteinGoal: p.proteinGoal, carbGoal: p.carbGoal ?? auto.carbs, fatGoal: p.fatGoal ?? auto.fat };
+}
+
+const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(n)));
+const step = (from: number, to: number, max: number) => from + clamp(to - from, -max, max);
+
+/**
+ * Keeps an automatic change small and safe: at most ±150 calories, ±20 g
+ * protein, ±40 g carbs and ±15 g fat a week, never under 1,200 calories
+ * (women) or 1,500 (men), and inside the same ranges a coach may set.
+ * Returns null when nothing meaningful changes.
+ */
+export function safeTargets(cur: Targets, want: Targets, sex: string | undefined): Targets | null {
+  const floor = sex === 'female' ? 1200 : sex === 'male' ? 1500 : 1400;
+  const next: Targets = {
+    calorieGoal: clamp(step(cur.calorieGoal, want.calorieGoal, 150), floor, 6000),
+    proteinGoal: clamp(step(cur.proteinGoal, want.proteinGoal, 20), 30, 400),
+    carbGoal: clamp(step(cur.carbGoal, want.carbGoal, 40), 20, 800),
+    fatGoal: clamp(step(cur.fatGoal, want.fatGoal, 15), 20, 300),
+  };
+  const moved =
+    Math.abs(next.calorieGoal - cur.calorieGoal) >= 25 ||
+    Math.abs(next.proteinGoal - cur.proteinGoal) >= 5 ||
+    Math.abs(next.carbGoal - cur.carbGoal) >= 10 ||
+    Math.abs(next.fatGoal - cur.fatGoal) >= 5;
+  return moved ? next : null;
+}
+
+const localDate = (t: number, tz: string | null) => localParts(t, tz).date;
+
+/** A plain-text picture of the client's day and week, for the model. */
+export function clientContext(name: string, snap: Snapshot, tz: string | null, now: number, kind: 'daily' | 'weekly') {
+  const units = snap.profile?.units ?? 'lb';
+  const today = localDate(now, tz);
+  const t = currentTargets(snap);
+  const lines: string[] = [];
+  const first = name.trim().split(/\s+/)[0] || 'there';
+  lines.push(`Client: ${first}. Units: ${units}.${snap.profile?.diet ? ` Diet: ${snap.profile.diet}.` : ''}`);
+  if (t) lines.push(`Daily targets: ${t.calorieGoal} cal, ${t.proteinGoal} g protein, ${t.carbGoal} g carbs, ${t.fatGoal} g fat.`);
+
+  const meals = snap.meals ?? [];
+  const sumFor = (date: string) => {
+    const ms = meals.filter((m) => localDate(m.at, tz) === date);
+    return {
+      n: ms.length,
+      names: ms.map((m) => m.name).slice(0, 8),
+      cal: ms.reduce((a, m) => a + m.calories, 0),
+      p: ms.reduce((a, m) => a + m.protein, 0),
+      c: ms.reduce((a, m) => a + (m.carbs ?? 0), 0),
+      f: ms.reduce((a, m) => a + (m.fat ?? 0), 0),
+    };
+  };
+  const d = sumFor(today);
+  lines.push(
+    d.n
+      ? `Eaten today: ${d.cal} cal, ${d.p} g protein, ${d.c} g carbs, ${d.f} g fat (${d.names.join('; ')}).`
+      : 'Eaten today: nothing logged yet.',
+  );
+
+  const days = Array.from({ length: 7 }, (_, i) => localDate(now - i * DAY, tz));
+  if (kind === 'weekly') {
+    for (const date of days.slice().reverse()) {
+      const s = sumFor(date);
+      lines.push(`  ${date}: ${s.n ? `${s.cal} cal, ${s.p} P, ${s.c} C, ${s.f} F` : 'no meals logged'}`);
+    }
+  }
+
+  const weekWorkouts = (snap.workouts ?? []).filter((w) => w.finishedAt && days.includes(localDate(w.finishedAt, tz)));
+  const todayWorkouts = weekWorkouts.filter((w) => localDate(w.finishedAt!, tz) === today);
+  lines.push(`Workouts today: ${todayWorkouts.length ? todayWorkouts.map((w) => w.name).join(', ') : 'none'}.`);
+  lines.push(`Workouts in the last 7 days: ${weekWorkouts.length}${snap.program ? ` (plan: ${snap.program.daysPerWeek} a week)` : ''}${weekWorkouts.length ? ` - ${weekWorkouts.map((w) => w.name).join(', ')}` : ''}.`);
+  if (snap.program) {
+    const week = Math.floor((now - snap.program.startedAt) / (7 * DAY)) + 1;
+    if (week >= 1 && week <= 12) lines.push(`12-week Transformation: week ${week} of 12.`);
+  }
+
+  const weights = (snap.weighIns ?? []).filter((w) => w.at >= now - 35 * DAY).sort((a, b) => a.at - b.at);
+  if (weights.length) {
+    const last = weights[weights.length - 1];
+    const weekAgo = [...weights].reverse().find((w) => w.at <= last.at - 6 * DAY);
+    lines.push(
+      `Latest weigh-in: ${last.weight} ${units} on ${localDate(last.at, tz)}${weekAgo ? ` (${Math.round((last.weight - weekAgo.weight) * 10) / 10 >= 0 ? '+' : ''}${Math.round((last.weight - weekAgo.weight) * 10) / 10} ${units} vs a week earlier)` : ''}.`,
+    );
+    if (kind === 'weekly') lines.push(`Weigh-ins, last 5 weeks: ${weights.map((w) => `${localDate(w.at, tz).slice(5)} ${w.weight}`).join(', ')}.`);
+  } else lines.push('No weigh-ins in the last 5 weeks.');
+  if (snap.program?.body?.goalWeight) lines.push(`Goal weight: ${snap.program.body.goalWeight} ${units}.`);
+
+  const health = (snap.health?.days ?? []).filter((h) => h.date >= now - 8 * DAY);
+  const steps = health.map((h) => h.steps).filter((n): n is number => typeof n === 'number');
+  if (steps.length) lines.push(`Steps (last ${steps.length} days, from their health app): ${steps.join(', ')}.`);
+  return lines.join('\n');
+}
+
+// ── the model ───────────────────────────────────────────────────────────────
+
+const SYSTEM = (coach: string) => `You are the AI assistant working for ${coach}, a personal trainer, inside the Fat2Flat Fitness app. You write short check-in messages to ${coach}'s clients, who are trying to lose fat and get fitter. ${coach} reads every message you send.
+
+How to write:
+- Warm, encouraging and direct, like a good personal trainer texting a client. Use their first name. Plain text, no headings or lists, no hashtags, at most one emoji.
+- Be specific: use the numbers you're given (workouts, protein, carbs, fat, calories, weight trend, steps). Never invent numbers or events.
+- Give one clear, practical next step. Many clients eat Indian food; Indian suggestions are as welcome as Western ones. Respect their diet ("hinduveg" means no meat, fish or eggs; "veg" means no meat or fish).
+- Don't repeat what recent messages already said; vary the wording.
+- If they logged nothing, gently encourage logging rather than guessing.
+- You give general fitness and nutrition guidance, not medical advice. If anything suggests pain, injury, illness or an unhealthy relationship with food, keep it kind and suggest they talk to ${coach} or a doctor.
+- Never suggest eating under 1,200 calories (women) or 1,500 (men), fasting, or supplements beyond protein powder or creatine.`;
+
+const DAILY_SCHEMA = {
+  type: 'object',
+  properties: { message: { type: 'string', description: 'The daily check-in: 2 to 4 sentences, under 450 characters.' } },
+  required: ['message'],
+  additionalProperties: false,
+};
+
+const WEEKLY_SCHEMA = {
+  type: 'object',
+  properties: {
+    message: { type: 'string', description: 'The weekly summary: 4 to 7 sentences, under 900 characters. If targets change, say what changed and why in one sentence.' },
+    change: { type: 'boolean', description: 'True only if the week clearly shows the targets should change.' },
+    calorieGoal: { type: 'integer' },
+    proteinGoal: { type: 'integer' },
+    carbGoal: { type: 'integer' },
+    fatGoal: { type: 'integer' },
+    reason: { type: 'string', description: 'One short sentence explaining the change, shown to the client and coach. Empty if no change.' },
+  },
+  required: ['message', 'change', 'calorieGoal', 'proteinGoal', 'carbGoal', 'fatGoal', 'reason'],
+  additionalProperties: false,
+};
+
+const WEEKLY_RULES = `For the weekly summary, also review the targets. Change them only with a clear reason, for example: weight flat for 2+ weeks while they logged most days (lower calories by 100–150), losing faster than about 1% of body weight a week (raise calories by 100–150), protein regularly far below target (keep the target, coach them on it), or carbs or fat regularly over while calories are on target (rebalance carbs and fat). If unsure, don't change anything (change: false, and repeat the current numbers). Changes are capped automatically at ±150 calories, ±20 g protein, ±40 g carbs and ±15 g fat.`;
+
+type Out = { message: string; change?: boolean; calorieGoal?: number; proteinGoal?: number; carbGoal?: number; fatGoal?: number; reason?: string };
+
+async function write(client: Anthropic, coach: string, context: string, recent: string[], kind: 'daily' | 'weekly'): Promise<Out | null> {
+  const response = await client.beta.messages.create({
+    model: 'claude-opus-5-5',
+    max_tokens: 4000,
+    betas: ['server-side-fallback-2026-07-01'],
+    fallbacks: 'default',
+    output_config: { effort: 'low', format: { type: 'json_schema', schema: kind === 'daily' ? DAILY_SCHEMA : WEEKLY_SCHEMA } },
+    system: SYSTEM(coach),
+    messages: [
+      {
+        role: 'user',
+        content: `${kind === 'daily' ? "Write tonight's daily check-in." : "Write this Sunday's weekly summary of the past 7 days."}${kind === 'weekly' ? `\n\n${WEEKLY_RULES}` : ''}
+
+About the client (from their app):
+${context}
+
+Recent messages in their chat, newest last (don't repeat these):
+${recent.length ? recent.join('\n') : '(none)'}`,
+      },
+    ],
+  });
+  if (response.stop_reason === 'refusal') return null;
+  const text = response.content.find((b) => b.type === 'text');
+  if (!text || text.type !== 'text') return null;
+  const out = JSON.parse(text.text) as Out;
+  return out.message?.trim() ? { ...out, message: out.message.trim().slice(0, 1000) } : null;
+}
+
+async function push(token: string | null, title: string, body: string) {
+  if (!token) return;
+  await fetch('https://exp.host/--/api/v2/push/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ to: token, title, body: body.length > 180 ? `${body.slice(0, 177)}…` : body, sound: 'default', channelId: 'default' }),
+  }).catch(() => {});
+}
+
+// ── the run ─────────────────────────────────────────────────────────────────
+
+type Row = {
+  user_id: string;
+  coach_id: string;
+  name: string;
+  push_token: string | null;
+  snapshot: Snapshot;
+  coach_targets: Record<string, unknown> | null;
+  tz: string | null;
+  agent_daily_on: string | null;
+  agent_weekly_on: string | null;
+  updated_at: string;
+  coaches: { name: string; agent_on: boolean } | null;
+};
+
+if (typeof Deno !== 'undefined' && Deno.serve) Deno.serve(async (req) => {
+  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+  const key = Deno.env.get('AGENT_KEY');
+  if (!key || req.headers.get('x-agent-key') !== key) return new Response('Unauthorized', { status: 401 });
+
+  let opts: { force?: 'daily' | 'weekly'; dryRun?: boolean; clientId?: string } = {};
+  try {
+    opts = await req.json();
+  } catch {
+    // an empty body is the normal scheduled run
+  }
+
+  const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+  let q = admin
+    .from('clients')
+    .select('user_id, coach_id, name, push_token, snapshot, coach_targets, tz, agent_daily_on, agent_weekly_on, updated_at, coaches!inner(name, agent_on)')
+    .eq('ai_checkins', true)
+    .eq('agent_paused', false)
+    .eq('coaches.agent_on', true)
+    .limit(500);
+  if (opts.clientId) q = q.eq('user_id', opts.clientId);
+  const { data, error } = await q;
+  if (error) {
+    console.error(error);
+    return Response.json({ error: 'Could not read clients' }, { status: 500 });
+  }
+
+  const now = Date.now();
+  const todo = (data as unknown as Row[])
+    .map((c) => ({ c, kind: opts.force ?? due(c, now) }))
+    .filter((x): x is { c: Row; kind: 'daily' | 'weekly' } => x.kind !== null)
+    .slice(0, MAX_CLIENTS_PER_RUN);
+
+  const anthropic = new Anthropic();
+  const results: { client: string; kind: string; message?: string; targets?: Targets | null; error?: string }[] = [];
+
+  for (const { c, kind } of todo) {
+    const coach = c.coaches?.name ?? 'your coach';
+    try {
+      const { data: msgs } = await admin
+        .from('messages')
+        .select('body, from_client, from_agent, created_at')
+        .eq('client_id', c.user_id)
+        .order('created_at', { ascending: false })
+        .limit(6);
+      const recent = (msgs ?? []).reverse().map((m) => `${m.from_client ? c.name : m.from_agent ? 'AI check-in' : coach}: ${String(m.body).slice(0, 300)}`);
+      const out = await write(anthropic, coach, clientContext(c.name, c.snapshot ?? {}, c.tz, now, kind), recent, kind);
+      if (!out) {
+        results.push({ client: c.name, kind, error: 'no message' });
+        continue;
+      }
+
+      // weekly: apply a safe change to the targets automatically
+      let targets: Targets | null = null;
+      const cur = currentTargets(c.snapshot ?? {});
+      const lastSetAt = typeof c.coach_targets?.at === 'number' ? (c.coach_targets.at as number) : 0;
+      if (kind === 'weekly' && out.change && cur && now - lastSetAt > 6 * DAY) {
+        targets = safeTargets(cur, { calorieGoal: out.calorieGoal!, proteinGoal: out.proteinGoal!, carbGoal: out.carbGoal!, fatGoal: out.fatGoal! }, c.snapshot?.program?.body?.sex);
+      }
+
+      if (!opts.dryRun) {
+        const { date } = localParts(now, c.tz);
+        const { error: insertError } = await admin.from('messages').insert({ coach_id: c.coach_id, client_id: c.user_id, body: out.message, from_agent: true });
+        if (insertError) throw insertError;
+        await admin
+          .from('clients')
+          .update(kind === 'weekly' ? { agent_weekly_on: date, agent_daily_on: date } : { agent_daily_on: date })
+          .eq('user_id', c.user_id);
+        if (targets) {
+          await admin
+            .from('clients')
+            .update({
+              coach_targets: {
+                ...targets,
+                daysPerWeek: (c.coach_targets?.daysPerWeek as number | null | undefined) ?? null,
+                note: `Weekly AI review: ${(out.reason || 'adjusted from your week').slice(0, 250)}`,
+                at: now,
+                by: 'ai',
+              },
+            })
+            .eq('user_id', c.user_id);
+        }
+        await push(c.push_token, `${coach} · AI check-in`, out.message);
+      }
+      results.push({ client: c.name, kind, message: out.message, targets });
+    } catch (e) {
+      console.error('agent failed for a client', e instanceof Anthropic.APIError ? `${e.status} ${e.message}` : e);
+      results.push({ client: c.name, kind, error: 'failed' });
+    }
+  }
+
+  return Response.json({ checked: (data ?? []).length, sent: results.filter((r) => r.message).length, dryRun: !!opts.dryRun, results });
+});

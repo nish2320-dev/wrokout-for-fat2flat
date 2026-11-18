@@ -17,9 +17,14 @@ export type ClientRow = {
   joined_at: string;
 };
 
-export type ClientDetail = ClientRow & { snapshot: SharedSnapshot | Record<string, never>; coach_targets: CoachTargets | null };
+export type ClientDetail = ClientRow & {
+  snapshot: SharedSnapshot | Record<string, never>;
+  coach_targets: (CoachTargets & { by?: 'ai' }) | null;
+  ai_checkins: boolean;
+  agent_paused: boolean;
+};
 
-export type SentNote = { id: string; body: string; created_at: string; read_at: string | null; from_client: boolean };
+export type SentNote = { id: string; body: string; created_at: string; read_at: string | null; from_client: boolean; from_agent?: boolean };
 
 const sb = () => {
   if (!supabase) throw new Error('Coach features are not set up in this version.');
@@ -41,7 +46,7 @@ export async function listClients(coachId: string): Promise<ClientRow[]> {
 export async function getClient(clientId: string): Promise<ClientDetail | null> {
   const { data, error } = await sb()
     .from('clients')
-    .select('user_id, name, share_photos, push_token, summary, snapshot, coach_targets, updated_at, joined_at')
+    .select('user_id, name, share_photos, push_token, summary, snapshot, coach_targets, ai_checkins, agent_paused, updated_at, joined_at')
     .eq('user_id', clientId)
     .maybeSingle();
   if (error) throw error;
@@ -51,7 +56,7 @@ export async function getClient(clientId: string): Promise<ClientDetail | null> 
 export async function clientNotes(clientId: string): Promise<SentNote[]> {
   const { data, error } = await sb()
     .from('messages')
-    .select('id, body, created_at, read_at, from_client')
+    .select('id, body, created_at, read_at, from_client, from_agent')
     .eq('client_id', clientId)
     .order('created_at', { ascending: false })
     .limit(60);
@@ -141,5 +146,11 @@ export async function sendWorkout(
 
 export async function deleteWorkout(id: string) {
   const { error } = await sb().from('coach_workouts').delete().eq('id', id);
+  if (error) throw error;
+}
+
+/** Pauses or resumes the AI check-ins for one client. */
+export async function setClientAgent(clientId: string, paused: boolean) {
+  const { error } = await sb().rpc('set_client_agent', { p_client: clientId, p_paused: paused });
   if (error) throw error;
 }

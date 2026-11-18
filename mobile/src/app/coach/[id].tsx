@@ -1,9 +1,9 @@
 import { Image } from 'expo-image';
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
-import { clientNotes, deleteWorkout, getClient, sentWorkouts, hasSummary, markRepliesRead, photoUrls, removeClient, sendNote, setTargets, type ClientDetail, type SentNote } from '@/cloud/coachApi';
+import { clientNotes, deleteWorkout, getClient, sentWorkouts, setClientAgent, hasSummary, markRepliesRead, photoUrls, removeClient, sendNote, setTargets, type ClientDetail, type SentNote } from '@/cloud/coachApi';
 import { useCloud } from '@/cloud/CloudProvider';
 import { errorText } from '@/cloud/supabase';
 import { describe, resultFor, resultLines, type CoachWorkout } from '@/data/coachWorkouts';
@@ -150,6 +150,8 @@ export default function ClientScreen() {
           <Btn label={sending ? 'Sending…' : 'Send'} icon="send" onPress={send} disabled={!draft.trim() || sending} style={{ flex: 1 }} />
         </Row>
       </Card>
+
+      <AgentCard client={client} coachAgentOn={!!cloud.coach?.agentOn} onChanged={load} />
 
       <TargetsCard client={client} onSaved={load} />
 
@@ -405,6 +407,38 @@ function WorkoutsCard({ client, workouts, units }: { client: ClientDetail; worko
   );
 }
 
+function AgentCard({ client, coachAgentOn, onChanged }: { client: ClientDetail; coachAgentOn: boolean; onChanged: () => void }) {
+  const first = client.name.split(' ')[0];
+  const [paused, setPaused] = useState(client.agent_paused);
+  const status = !client.ai_checkins
+    ? `${first} hasn’t allowed AI check-ins in their app yet. They’ll be asked on their Home screen.`
+    : !coachAgentOn
+      ? 'AI check-ins are switched off for all your clients (My clients).'
+      : paused
+        ? `Paused for ${first}.`
+        : `On: ${first} gets a check-in around 7 pm and a summary on Sunday evenings, which may adjust their targets. Every message shows in your chat above.`;
+  const toggle = (on: boolean) => {
+    setPaused(!on);
+    setClientAgent(client.user_id, !on)
+      .then(onChanged)
+      .catch((e) => {
+        setPaused(on);
+        Alert.alert('Could not change AI check-ins', errorText(e));
+      });
+  };
+  return (
+    <Card>
+      <Row>
+        <View style={{ flex: 1, paddingRight: 10 }}>
+          <CardTitle>AI check-ins</CardTitle>
+          <Meta style={{ marginTop: 2 }}>{status}</Meta>
+        </View>
+        <Switch value={client.ai_checkins && coachAgentOn && !paused} disabled={!client.ai_checkins || !coachAgentOn} onValueChange={toggle} trackColor={{ true: C.red, false: C.line }} />
+      </Row>
+    </Card>
+  );
+}
+
 function TargetsCard({ client, onSaved }: { client: ClientDetail; onSaved: () => void }) {
   const summary = hasSummary(client.summary) ? client.summary : null;
   const current = client.coach_targets;
@@ -444,7 +478,9 @@ function TargetsCard({ client, onSaved }: { client: ClientDetail; onSaved: () =>
       <CardTitle>Targets</CardTitle>
       <Meta>
         {current
-          ? `You last set these ${timeAgo(current.at, Date.now())}.`
+          ? current.by === 'ai'
+            ? `The AI weekly review last adjusted these ${timeAgo(current.at, Date.now())}.${current.note ? ` ${current.note}` : ''}`
+            : `You last set these ${timeAgo(current.at, Date.now())}.`
           : 'Their app set these from their stats. Change them and their plan updates.'}
       </Meta>
       <Row style={{ gap: S.gap, marginTop: 10 }}>

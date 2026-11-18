@@ -84,6 +84,8 @@ export type Profile = {
   seenBadges?: string[];
   /** When the user agreed to send their questions and progress summary to the AI. */
   aiConsentAt?: number;
+  /** When the client answered "Not now" to AI check-ins from their coach. */
+  aiCheckinsAskedAt?: number;
 };
 
 /** Targets a coach set from their phone. */

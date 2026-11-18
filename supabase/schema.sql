@@ -42,6 +42,7 @@ create index if not exists messages_client_idx on public.messages (client_id, cr
 
 -- v2 additions: two-way chat, coach-set targets, coach notifications, AI usage
 alter table public.messages add column if not exists from_client boolean not null default false;
+alter table public.messages add column if not exists from_agent boolean not null default false; -- written by the AI coaching agent
 alter table public.coaches add column if not exists push_token text;
 alter table public.clients add column if not exists coach_targets jsonb;
 
@@ -112,6 +113,7 @@ create policy "coach messages own clients" on public.messages for insert to auth
   with check (
     coach_id = auth.uid()
     and not from_client
+    and not from_agent -- only the server's AI agent posts those
     and exists (select 1 from public.clients c where c.user_id = client_id and c.coach_id = auth.uid())
   );
 
@@ -120,6 +122,7 @@ create policy "client messages their coach" on public.messages for insert to aut
   with check (
     client_id = auth.uid()
     and from_client
+    and not from_agent
     and coach_id = (select c.coach_id from public.clients c where c.user_id = auth.uid())
   );
 
@@ -360,6 +363,40 @@ $$;
 
 revoke execute on function public.send_coach_workout(uuid[], text, text, jsonb) from public, anon;
 grant execute on function public.send_coach_workout(uuid[], text, text, jsonb) to authenticated;
+
+-- ── AI coaching agent (2.2.1) ───────────────────────────────────────────
+-- A scheduled server function (functions/coach-agent) sends each coaching
+-- client a short daily check-in and a Sunday summary, and on Sundays may
+-- adjust their targets within safe limits. It only works for clients who
+-- allowed it (ai_checkins) and while their coach has it on and hasn't paused
+-- it for them. Its messages are ordinary messages marked from_agent, so the
+-- coach sees every one in the client's chat.
+
+alter table public.coaches add column if not exists agent_on boolean not null default true;
+alter table public.clients add column if not exists ai_checkins boolean not null default false;
+alter table public.clients add column if not exists agent_paused boolean not null default false;
+alter table public.clients add column if not exists tz text check (tz is null or char_length(tz) <= 64);
+alter table public.clients add column if not exists agent_daily_on date;
+alter table public.clients add column if not exists agent_weekly_on date;
+
+-- the client decides whether the AI may look at their progress, and tells it their time zone
+grant update (ai_checkins, tz) on public.clients to authenticated;
+-- the coach switches the agent on or off for everyone
+grant update (agent_on) on public.coaches to authenticated;
+
+-- The coach pauses or resumes the agent for one client.
+create or replace function public.set_client_agent(p_client uuid, p_paused boolean)
+returns void
+language plpgsql security definer set search_path = public
+as $$
+begin
+  if auth.uid() is null or is_guest() then raise exception 'Please sign in first.'; end if;
+  update clients set agent_paused = coalesce(p_paused, false) where user_id = p_client and coach_id = auth.uid();
+  if not found then raise exception 'That person is not your client.'; end if;
+end;
+$$;
+revoke execute on function public.set_client_agent(uuid, boolean) from public, anon;
+grant execute on function public.set_client_agent(uuid, boolean) to authenticated;
 
 -- ── Error reports ───────────────────────────────────────────────────────
 -- The app sends a JavaScript error's message (no names, emails or user ids)

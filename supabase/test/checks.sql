@@ -148,6 +148,25 @@ select pg_temp.eq((select count(*) from coach_workouts where done_at is not null
 update coach_workouts set done_at = null;
 select pg_temp.eq((select count(*) from coach_workouts where done_at is not null), 1, 'coach cannot undo done');
 
+-- AI coaching agent settings
+select set_config('request.jwt.claim.sub', :alice, false);
+update clients set ai_checkins = true, tz = 'America/Los_Angeles' where user_id = auth.uid();
+select pg_temp.eq((select count(*) from clients where ai_checkins and tz = 'America/Los_Angeles'), 1, 'client allows AI check-ins');
+select pg_temp.must_fail('update clients set agent_paused = true where user_id = auth.uid()', 'client edits the pause flag');
+select pg_temp.must_fail('update clients set agent_daily_on = current_date where user_id = auth.uid()', 'client edits agent bookkeeping');
+select pg_temp.must_fail('insert into messages (coach_id, client_id, body, from_client, from_agent) values (' || quote_literal(:coach) || ', auth.uid(), ''fake AI'', true, true)', 'client posts as the AI');
+select pg_temp.must_fail('select set_client_agent(auth.uid(), true)', 'client pauses own agent');
+select set_config('request.jwt.claim.sub', :coach, false);
+select set_client_agent(:alice, true);
+select pg_temp.eq((select count(*) from clients where agent_paused), 1, 'coach pauses the agent for a client');
+select pg_temp.must_fail('insert into messages (coach_id, client_id, body, from_agent) values (auth.uid(), ' || quote_literal(:alice) || ', ''fake AI'', true)', 'coach posts as the AI');
+update clients set ai_checkins = false where user_id = :alice;
+select pg_temp.eq((select count(*) from clients where ai_checkins), 1, 'coach cannot change the client''s AI choice');
+update coaches set agent_on = false where user_id = auth.uid();
+select pg_temp.eq((select count(*) from coaches where not agent_on), 1, 'coach turns the agent off');
+select set_config('request.jwt.claim.sub', :coach2, false);
+select pg_temp.must_fail('select set_client_agent(' || quote_literal(:alice) || ', false)', 'other coach changes the agent');
+
 -- guests (anonymous sessions, for meal photos) can't coach, join or upload
 \set guest '''55555555-5555-5555-5555-555555555555'''
 reset role;

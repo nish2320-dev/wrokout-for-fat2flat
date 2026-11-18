@@ -76,6 +76,17 @@ export function CoachSettings() {
                 trackColor={{ true: C.red, false: C.line }}
               />
             </Row>
+            <Row style={{ marginTop: 12 }}>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <Text style={s.item}>AI check-ins</Text>
+                <Meta>Daily and Sunday check-ins from {m.coachName}’s AI assistant, which may fine-tune your targets. Your shared progress is sent to Anthropic (Claude) to write them.</Meta>
+              </View>
+              <Switch
+                value={m.aiCheckins}
+                onValueChange={(on) => run('Could not change AI check-ins', () => cloud.setAiCheckins(on))}
+                trackColor={{ true: C.red, false: C.line }}
+              />
+            </Row>
             <Btn label={`Message ${m.coachName}`} icon="chatbubble-outline" onPress={() => router.push('/chat')} style={{ marginTop: 12 }} />
             <Btn label="Stop sharing" icon="close" ghost onPress={confirmLeave} style={{ marginTop: 9 }} />
           </>

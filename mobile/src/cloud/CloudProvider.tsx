@@ -22,10 +22,10 @@ import { cloudEnabled, PHOTO_BUCKET, supabase } from './supabase';
  * seconds after each change, plus progress photos if they chose to share them.
  */
 
-export type Membership = { coachId: string; coachName: string; name: string; sharePhotos: boolean };
-export type CoachInfo = { name: string; code: string };
+export type Membership = { coachId: string; coachName: string; name: string; sharePhotos: boolean; aiCheckins: boolean };
+export type CoachInfo = { name: string; code: string; agentOn: boolean };
 /** A chat message between the client and their coach. */
-export type Note = { id: string; body: string; created_at: string; read_at: string | null; from_client: boolean };
+export type Note = { id: string; body: string; created_at: string; read_at: string | null; from_client: boolean; from_agent?: boolean };
 
 /** One food the meal-photo AI recognised. */
 /** carbs and fat are missing if the server still runs the older meal-photo function. */
@@ -44,6 +44,10 @@ type Cloud = {
   notes: Note[];
   /** Workouts the coach sent, newest first. */
   coachWorkouts: CoachWorkout[];
+  /** Lets the coach's AI assistant review this client's shared progress and message them. */
+  setAiCheckins: (on: boolean) => Promise<void>;
+  /** Coach: AI check-ins for all their clients on or off. */
+  setAgentOn: (on: boolean) => Promise<void>;
   /** Marks a coach's workout done and tells the coach. */
   completeCoachWorkout: (id: string) => Promise<void>;
   lastSyncedAt: number | null;
@@ -72,6 +76,15 @@ type Cloud = {
 const Ctx = createContext<Cloud | null>(null);
 
 const uploadedKey = (uid: string) => `fat2flat.uploaded.${uid}`;
+
+/** The phone's time zone ("America/Los_Angeles"), so the coach's AI check-ins arrive in the evening. */
+const timeZone = () => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+  } catch {
+    return null;
+  }
+};
 
 async function removeAllPhotos(uid: string) {
   if (!supabase) return;
@@ -155,22 +168,22 @@ export function CloudProvider({ children }: { children: ReactNode }) {
       return;
     }
     const [mine, coachRow, inbox, sent] = await Promise.all([
-      supabase.from('clients').select('coach_id, name, share_photos, coach_targets').eq('user_id', userId).maybeSingle(),
-      supabase.from('coaches').select('name, code').eq('user_id', userId).maybeSingle(),
-      supabase.from('messages').select('id, body, created_at, read_at, from_client').eq('client_id', userId).order('created_at', { ascending: false }).limit(60),
+      supabase.from('clients').select('coach_id, name, share_photos, coach_targets, ai_checkins').eq('user_id', userId).maybeSingle(),
+      supabase.from('coaches').select('name, code, agent_on').eq('user_id', userId).maybeSingle(),
+      supabase.from('messages').select('id, body, created_at, read_at, from_client, from_agent').eq('client_id', userId).order('created_at', { ascending: false }).limit(60),
       supabase.from('coach_workouts').select('id, name, note, items, created_at, done_at').eq('client_id', userId).order('created_at', { ascending: false }).limit(30),
     ]);
     // a failed request (offline) keeps what we had rather than looking like "not joined"
     if (!mine.error) {
       if (mine.data) {
         const { data: c } = await supabase.from('coaches').select('name').eq('user_id', mine.data.coach_id).maybeSingle();
-        setMembership({ coachId: mine.data.coach_id, coachName: c?.name ?? 'your coach', name: mine.data.name, sharePhotos: mine.data.share_photos });
+        setMembership({ coachId: mine.data.coach_id, coachName: c?.name ?? 'your coach', name: mine.data.name, sharePhotos: mine.data.share_photos, aiCheckins: !!mine.data.ai_checkins });
         if (mine.data.coach_targets) applyCoachTargets(mine.data.coach_targets as CoachTargets);
       } else {
         setMembership(null);
       }
     }
-    if (!coachRow.error) setCoach(coachRow.data ?? null);
+    if (!coachRow.error) setCoach(coachRow.data ? { name: coachRow.data.name, code: coachRow.data.code, agentOn: coachRow.data.agent_on !== false } : null);
     if (!inbox.error) setNotes((inbox.data ?? []) as Note[]);
     if (!sent.error) setCoachWorkouts((sent.data ?? []) as CoachWorkout[]);
   }, [userId, applyCoachTargets]);
@@ -193,7 +206,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
         const snap = snapshot(state, now, membership.sharePhotos);
         const { data, error } = await sb
           .from('clients')
-          .update({ summary: summarize(state, now), snapshot: snap, updated_at: new Date(now).toISOString() })
+          .update({ summary: summarize(state, now), snapshot: snap, updated_at: new Date(now).toISOString(), tz: timeZone() })
           .eq('user_id', userId)
           .select('user_id');
         if (error) return;
@@ -375,7 +388,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
         const { data, error } = await sb
           .from('messages')
           .insert({ coach_id: membership.coachId, client_id: uid, body: text, from_client: true })
-          .select('id, body, created_at, read_at, from_client')
+          .select('id, body, created_at, read_at, from_client, from_agent')
           .single();
         if (error) throw error;
         setNotes((ns) => [data as Note, ...ns]);
@@ -392,6 +405,22 @@ export function CloudProvider({ children }: { children: ReactNode }) {
       async askAssistant(turns, context) {
         const data = await callFunction(need(), 'assistant', { messages: turns, context }, 'Couldn’t reach the assistant. Check your connection and try again.');
         return String((data as { reply?: string }).reply ?? '');
+      },
+
+      async setAiCheckins(on) {
+        const sb = need();
+        const uid = needUser();
+        const { error } = await sb.from('clients').update({ ai_checkins: on, tz: timeZone() }).eq('user_id', uid);
+        if (error) throw error;
+        setMembership((m) => (m ? { ...m, aiCheckins: on } : m));
+      },
+
+      async setAgentOn(on) {
+        const sb = need();
+        const uid = needUser();
+        const { error } = await sb.from('coaches').update({ agent_on: on }).eq('user_id', uid);
+        if (error) throw error;
+        setCoach((c) => (c ? { ...c, agentOn: on } : c));
       },
 
       async completeCoachWorkout(id) {

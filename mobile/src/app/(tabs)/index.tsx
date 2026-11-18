@@ -13,7 +13,7 @@ import { AskCard } from '@/ui/AskCard';
 import { WaterCard } from '@/ui/WaterCard';
 import { WelcomeTour } from '@/ui/WelcomeTour';
 import { BadgeCelebration } from '@/ui/Badges';
-import { CoachNoteCard, CoachTargetsCard } from '@/ui/CoachNoteCard';
+import { AiCheckinsCard, CoachNoteCard, CoachTargetsCard } from '@/ui/CoachNoteCard';
 import { CoachWorkoutsCard } from '@/ui/CoachWorkouts';
 import { MacrosCard } from '@/ui/MacrosCard';
 import { Card, CardTitle, Empty, Eyebrow, Label, Meta, Name, Row, Screen, Tag } from '@/ui/kit';
@@ -55,6 +55,7 @@ export default function HomeScreen() {
 
       <CoachNoteCard />
       <CoachTargetsCard />
+      <AiCheckinsCard />
       <CoachWorkoutsCard compact />
 
       {active ? (
