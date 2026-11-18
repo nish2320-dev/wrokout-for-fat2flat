@@ -19,6 +19,7 @@ import { addGlasses, applyTargets, shouldAskForReview, unseenTargets, waterToday
 import { assistantContext, recentTurns } from '../src/data/assistant';
 import { badges, bestStreak, newBadges } from '../src/data/badges';
 import { COMMON_FOODS, macrosFor, parseProduct, searchCommon } from '../src/data/food';
+import { autoCarbsFat, crossingWarning, dayTotals, goalsFor, overBy, statusOf } from '../src/data/macros';
 import { cleanItems, describe, pendingFromCoach, resultFor, resultLines, toExercises, type CoachWorkout } from '../src/data/coachWorkouts';
 
 const DAY = 86400000;
@@ -363,6 +364,33 @@ eq('coach workout: to-do list skips done ones, oldest first', pendingFromCoach(l
 eq('coach workout: finished workout found for the coach', resultFor('b', [doneW])?.id, 'x');
 eq('coach workout: result shows the top set', resultLines(doneW, 'lb'), ['Barbell Bench Press: 2 × 6 @ 145 lb']);
 eq('coach workout: the coach sees which workout it was', snapshot({ ...initialState, workouts: [doneW] }, now, false).workouts[0].coachWorkoutId, 'b');
+
+// --- carbs & fat ---
+const energyOk = (kcal: number, p: number, c: number, f: number) => Math.abs(4 * p + 4 * c + 9 * f - kcal) <= Math.max(8, kcal * 0.12);
+const alcohol = ['common:beer', 'common:light-beer', 'common:wine', 'common:liquor'];
+eq('macros: every built-in food has carbs and fat', COMMON_FOODS.filter((f) => f.carbs100 === undefined || f.fat100 === undefined).map((f) => f.id), []);
+eq('macros: built-in foods add up (4/4/9 cal per gram)', COMMON_FOODS.filter((f) => !alcohol.includes(f.id) && !energyOk(f.kcal100, f.protein100, f.carbs100!, f.fat100!)).map((f) => f.id), []);
+eq('macros: every meal-plan meal has carbs and fat that add up', MEALS.filter((m) => !(m.carbs || m.fat) || !energyOk(m.kcal, m.protein, m.carbs, m.fat)).map((m) => m.id), []);
+eq('macros: portion maths includes carbs and fat', macrosFor(COMMON_FOODS.find((f) => f.id === 'common:white-rice')!, 200), { calories: 260, protein: 5, carbs: 56, fat: 1 });
+eq('macros: barcode products keep carbs and fat', [parseProduct({ product_name: 'Bar', nutriments: { 'energy-kcal_100g': 400, proteins_100g: 20, carbohydrates_100g: 45.25, fat_100g: 15 } })?.carbs100, parseProduct({ product_name: 'Bar', nutriments: { 'energy-kcal_100g': 400 } })?.carbs100], [45.3, undefined]);
+eq('macros: auto goals for 2,000 cal / 160 g protein', autoCarbsFat(2000, 160), { carbs: 189, fat: 67 });
+eq('macros: carbs never below 50 g', autoCarbsFat(1200, 250).carbs, 50);
+eq('macros: own goals win over automatic ones', goalsFor({ calorieGoal: 2000, proteinGoal: 160, carbGoal: 150, fatGoal: 80 }), { calories: 2000, protein: 160, carbs: 150, fat: 80 });
+const mealsToday = [
+  { id: 'a', name: 'A', calories: 1500, protein: 90, carbs: 150, fat: 60, at: now - 3600000 },
+  { id: 'b', name: 'B', calories: 400, protein: 30, at: now - 1800000 },
+  { id: 'c', name: 'Yesterday', calories: 900, protein: 50, carbs: 100, fat: 40, at: now - 2 * DAY },
+];
+const tot = dayTotals(mealsToday, now);
+eq('macros: today counts only today; old meals add 0 carbs/fat', tot, { calories: 1900, protein: 120, carbs: 150, fat: 60 });
+const g = goalsFor({ calorieGoal: 2000, proteinGoal: 100 });
+eq('macros: fat over the goal is flagged', [overBy('fat', tot, g), statusOf('fat', tot, g)], [0, 'under']);
+const big = { calories: 2100, protein: 180, carbs: 230, fat: 75 };
+eq('macros: over calories, carbs and fat; protein is never "over"', [overBy('calories', big, g), overBy('fat', big, g), overBy('protein', big, g), statusOf('protein', big, g)], [100, 8, 0, 'hit']);
+eq('macros: warning names what this meal pushed over', crossingWarning(tot, big, g), 'That puts you over today’s calories by 100 cal and fat by 8 g.');
+eq('macros: no warning when nothing new goes over', crossingWarning(tot, { ...tot, protein: 200 }, g), null);
+eq('macros: coach targets set carbs and fat, or back to automatic', [applyTargets(sam, { ...tgt, carbGoal: 180, fatGoal: 60, at: now + 1 }, now).profile.fatGoal, applyTargets({ ...sam, profile: { ...sam.profile, fatGoal: 70 } }, { ...tgt, at: now + 2 }, now).profile.fatGoal], [60, undefined]);
+eq('macros: meal plan days total their carbs and fat', (() => { const d = planDay({ dateKey: '2026-11-18', diet: 'veg', calories: 2000, workoutDay: false }); return d.carbs === d.meals.reduce((n, m) => n + m.carbs, 0) && d.fat > 0; })(), true);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

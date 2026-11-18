@@ -208,6 +208,9 @@ declare
   v_cal int := (p_targets->>'calorieGoal')::int;
   v_pro int := (p_targets->>'proteinGoal')::int;
   v_days int := nullif(p_targets->>'daysPerWeek', '')::int;
+  -- carbs and fat are optional: empty means the client's app works them out
+  v_carbs int := nullif(p_targets->>'carbGoal', '')::int;
+  v_fat int := nullif(p_targets->>'fatGoal', '')::int;
 begin
   if auth.uid() is null or is_guest() then raise exception 'Please sign in first.'; end if;
   if not exists (select 1 from clients where user_id = p_client and coach_id = auth.uid()) then
@@ -216,10 +219,14 @@ begin
   if v_cal is null or v_cal < 1000 or v_cal > 6000 then raise exception 'Calories must be between 1,000 and 6,000.'; end if;
   if v_pro is null or v_pro < 30 or v_pro > 400 then raise exception 'Protein must be between 30 and 400 g.'; end if;
   if v_days is not null and v_days not in (3, 4, 5) then raise exception 'Workouts per week must be 3, 4 or 5.'; end if;
+  if v_carbs is not null and (v_carbs < 20 or v_carbs > 800) then raise exception 'Carbs must be between 20 and 800 g.'; end if;
+  if v_fat is not null and (v_fat < 20 or v_fat > 300) then raise exception 'Fat must be between 20 and 300 g.'; end if;
   update clients set coach_targets = jsonb_build_object(
     'calorieGoal', v_cal,
     'proteinGoal', v_pro,
     'daysPerWeek', v_days,
+    'carbGoal', v_carbs,
+    'fatGoal', v_fat,
     'note', left(coalesce(p_targets->>'note', ''), 300),
     'at', (extract(epoch from now()) * 1000)::bigint
   ) where user_id = p_client;

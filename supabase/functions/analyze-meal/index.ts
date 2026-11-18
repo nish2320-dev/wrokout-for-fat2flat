@@ -1,4 +1,4 @@
-// Supabase Edge Function: estimates the calories and protein in a meal photo
+// Supabase Edge Function: estimates the calories, protein, carbs and fat in a meal photo
 // with Claude. The app sends a small JPEG (base64); nothing is stored - the
 // photo goes to Anthropic for this one request and the estimate comes back.
 //
@@ -37,8 +37,10 @@ const SCHEMA = {
           portion: { type: 'string', description: 'Estimated amount in everyday terms, e.g. "1½ cups" or "2 rotis".' },
           calories: { type: 'integer', description: 'Estimated kcal for the portion shown.' },
           protein: { type: 'integer', description: 'Estimated grams of protein for the portion shown.' },
+          carbs: { type: 'integer', description: 'Estimated grams of carbohydrate for the portion shown.' },
+          fat: { type: 'integer', description: 'Estimated grams of fat for the portion shown, including cooking oil, ghee and butter.' },
         },
-        required: ['name', 'portion', 'calories', 'protein'],
+        required: ['name', 'portion', 'calories', 'protein', 'carbs', 'fat'],
         additionalProperties: false,
       },
     },
@@ -55,9 +57,9 @@ const DIETS: Record<string, string> = {
   hinduveg: 'The person is lacto-vegetarian: no meat, fish or eggs. Assume vegetarian versions of dishes (for example paneer rather than chicken).',
 };
 
-const SYSTEM = `You estimate the calories and protein in photos of meals for a fitness app used by people trying to lose fat. Many users eat Indian food as well as Western food, so recognise dishes such as dal, sabzi, roti, paratha, biryani, idli, dosa, poha and paneer dishes as readily as Western ones.
+const SYSTEM = `You estimate the calories, protein, carbs and fat in photos of meals for a fitness app used by people trying to lose fat. Many users eat Indian food as well as Western food, so recognise dishes such as dal, sabzi, roti, paratha, biryani, idli, dosa, poha and paneer dishes as readily as Western ones.
 
-Identify each food and drink you can see and estimate its portion from visual cues (plate size, utensils, hands). Give realistic estimates for typical home or restaurant preparation, including visible oil, ghee, butter, sauces and dressings. If the photo is not food, return an empty items list with confidence "low" and a note saying so. Keep the note to one plain sentence.`;
+Identify each food and drink you can see and estimate its portion from visual cues (plate size, utensils, hands). Give realistic estimates for typical home or restaurant preparation, including visible oil, ghee, butter, sauces and dressings. Keep each item's numbers consistent: calories should roughly equal 4 × protein + 4 × carbs + 9 × fat. If the photo is not food, return an empty items list with confidence "low" and a note saying so. Keep the note to one plain sentence.`;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });

@@ -7,6 +7,7 @@ import { clientNotes, deleteWorkout, getClient, sentWorkouts, hasSummary, markRe
 import { useCloud } from '@/cloud/CloudProvider';
 import { errorText } from '@/cloud/supabase';
 import { describe, resultFor, resultLines, type CoachWorkout } from '@/data/coachWorkouts';
+import { autoCarbsFat, dayTotals, goalsFor } from '@/data/macros';
 import { fmtSleep, fmtSteps } from '@/data/health';
 import { flags, snapshotToState, suggestNote, timeAgo, type SharedSnapshot } from '@/data/sharing';
 import { fmtDate, fmtVolume, setCount, volume } from '@/data/stats';
@@ -80,6 +81,8 @@ export default function ClientScreen() {
   const lastPhoto = withPhotos.length > 1 ? withPhotos[withPhotos.length - 1] : undefined;
   const todayStart = new Date(now).setHours(0, 0, 0, 0);
   const todaysMeals = st.meals.filter((m) => m.at >= todayStart).sort((a, b) => a.at - b.at);
+  const todayMacros = dayTotals(st.meals, now);
+  const macroGoals = goalsFor(st.profile);
 
   const send = async () => {
     if (!cloud.userId || !cloud.coach) return;
@@ -251,6 +254,10 @@ export default function ClientScreen() {
             <Stat label="Today" value={summary.caloriesToday.toLocaleString()} unit={`/ ${summary.calorieGoal.toLocaleString()}`} />
             <Stat label="Protein today" value={`${summary.proteinToday}`} unit={`/ ${summary.proteinGoal} g`} />
           </Row>
+          <Row style={{ marginTop: 8 }}>
+            <Stat label="Carbs today" value={`${todayMacros.carbs}`} unit={`/ ${macroGoals.carbs} g`} warn={todayMacros.carbs > macroGoals.carbs} />
+            <Stat label="Fat today" value={`${todayMacros.fat}`} unit={`/ ${macroGoals.fat} g`} warn={todayMacros.fat > macroGoals.fat} />
+          </Row>
           <Meta style={{ marginTop: 6 }}>
             {summary.daysLogged7d === 0
               ? 'No meals logged in the last 7 days.'
@@ -264,7 +271,7 @@ export default function ClientScreen() {
                     {m.name}
                   </Text>
                   <Meta>
-                    {m.calories} cal · {m.protein} g
+                    {m.calories} cal · {m.protein}P{m.carbs !== undefined ? ` ${m.carbs}C ${m.fat ?? 0}F` : ''}
                   </Meta>
                 </Row>
               ))}
@@ -403,6 +410,9 @@ function TargetsCard({ client, onSaved }: { client: ClientDetail; onSaved: () =>
   const current = client.coach_targets;
   const [cal, setCal] = useState(String(current?.calorieGoal ?? summary?.calorieGoal ?? ''));
   const [pro, setPro] = useState(String(current?.proteinGoal ?? summary?.proteinGoal ?? ''));
+  const [carbs, setCarbs] = useState(current?.carbGoal ? String(current.carbGoal) : '');
+  const [fat, setFat] = useState(current?.fatGoal ? String(current.fatGoal) : '');
+  const auto = cal && pro ? autoCarbsFat(parseInt(cal, 10), parseInt(pro, 10)) : null;
   const [days, setDays] = useState<3 | 4 | 5 | null>(current?.daysPerWeek ?? ((summary?.plannedThisWeek as 3 | 4 | 5 | null) ?? null));
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
@@ -411,7 +421,14 @@ function TargetsCard({ client, onSaved }: { client: ClientDetail; onSaved: () =>
   const save = async () => {
     setSaving(true);
     try {
-      await setTargets(client.user_id, { calorieGoal: parseInt(cal, 10), proteinGoal: parseInt(pro, 10), daysPerWeek: onPlan ? days : null, note: note.trim() });
+      await setTargets(client.user_id, {
+        calorieGoal: parseInt(cal, 10),
+        proteinGoal: parseInt(pro, 10),
+        carbGoal: carbs ? parseInt(carbs, 10) : null,
+        fatGoal: fat ? parseInt(fat, 10) : null,
+        daysPerWeek: onPlan ? days : null,
+        note: note.trim(),
+      });
       setNote('');
       Alert.alert('Targets saved', `${client.name.split(' ')[0]}’s app will update the next time they open it.`);
       onSaved();
@@ -440,6 +457,17 @@ function TargetsCard({ client, onSaved }: { client: ClientDetail; onSaved: () =>
           <TextInput value={pro} onChangeText={(v) => setPro(v.replace(/[^0-9]/g, ''))} keyboardType="number-pad" style={s.field} />
         </View>
       </Row>
+      <Row style={{ gap: S.gap, marginTop: 10 }}>
+        <View style={{ flex: 1, gap: 4 }}>
+          <Label>Carbs (g) / day</Label>
+          <TextInput value={carbs} onChangeText={(v) => setCarbs(v.replace(/[^0-9]/g, ''))} placeholder={auto ? `Auto: ${auto.carbs}` : 'Auto'} placeholderTextColor={C.faint} keyboardType="number-pad" style={s.field} />
+        </View>
+        <View style={{ flex: 1, gap: 4 }}>
+          <Label>Fat (g) / day</Label>
+          <TextInput value={fat} onChangeText={(v) => setFat(v.replace(/[^0-9]/g, ''))} placeholder={auto ? `Auto: ${auto.fat}` : 'Auto'} placeholderTextColor={C.faint} keyboardType="number-pad" style={s.field} />
+        </View>
+      </Row>
+      <Meta style={{ marginTop: 4 }}>Leave carbs and fat empty to work them out from calories (fat about 30%).</Meta>
       {onPlan ? (
         <View style={{ marginTop: 10, gap: 6 }}>
           <Label>Workouts per week</Label>
@@ -456,10 +484,10 @@ function TargetsCard({ client, onSaved }: { client: ClientDetail; onSaved: () =>
   );
 }
 
-function Stat({ label, value, unit }: { label: string; value: string; unit?: string }) {
+function Stat({ label, value, unit, warn }: { label: string; value: string; unit?: string; warn?: boolean }) {
   return (
     <View style={{ flex: 1 }}>
-      <Label>{label}</Label>
+      <Label style={warn ? { color: C.red } : undefined}>{warn ? `${label} · over` : label}</Label>
       <Metric small value={value} unit={unit} />
     </View>
   );

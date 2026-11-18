@@ -4,6 +4,7 @@ import { Alert, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DIETS } from '@/data/mealplan';
+import { autoCarbsFat } from '@/data/macros';
 import { useStore } from '@/data/store';
 import { finished, fmtVolume, personalRecords, volume } from '@/data/stats';
 import { C, S } from '@/theme';
@@ -23,6 +24,9 @@ export default function ProfileScreen() {
   const [calorieGoal, setCalorieGoal] = useState(String(profile.calorieGoal));
   const [proteinGoal, setProteinGoal] = useState(String(profile.proteinGoal));
   const [waterGoal, setWaterGoal] = useState(String(profile.waterGoal ?? 8));
+  const [carbGoal, setCarbGoal] = useState(profile.carbGoal ? String(profile.carbGoal) : '');
+  const [fatGoal, setFatGoal] = useState(profile.fatGoal ? String(profile.fatGoal) : '');
+  const auto = autoCarbsFat(profile.calorieGoal, profile.proteinGoal);
 
   // The fields hold their own text while typing; follow the saved profile
   // when it changes underneath them (erase, sample data), or they would keep
@@ -31,6 +35,14 @@ export default function ProfileScreen() {
   useEffect(() => setCalorieGoal(String(profile.calorieGoal)), [profile.calorieGoal]);
   useEffect(() => setProteinGoal(String(profile.proteinGoal)), [profile.proteinGoal]);
   useEffect(() => setWaterGoal(String(profile.waterGoal ?? 8)), [profile.waterGoal]);
+  useEffect(() => setCarbGoal(profile.carbGoal ? String(profile.carbGoal) : ''), [profile.carbGoal]);
+  useEffect(() => setFatGoal(profile.fatGoal ? String(profile.fatGoal) : ''), [profile.fatGoal]);
+
+  // empty means automatic (worked out from calories and protein)
+  const commitMacro = (key: 'carbGoal' | 'fatGoal', raw: string) => {
+    const n = parseInt(raw, 10);
+    updateProfile({ [key]: Number.isNaN(n) || n <= 0 ? undefined : Math.min(n, 1000) });
+  };
 
   const done = finished(state);
   const totalVolume = done.reduce((n, w) => n + volume(w), 0);
@@ -132,6 +144,33 @@ export default function ProfileScreen() {
             />
           </View>
         </View>
+        <View style={s.pair}>
+          <View style={{ flex: 1, gap: 6 }}>
+            <Eyebrow>Carbs (g)</Eyebrow>
+            <TextInput
+              value={carbGoal}
+              onChangeText={(t) => setCarbGoal(t.replace(/[^0-9]/g, ''))}
+              onBlur={() => commitMacro('carbGoal', carbGoal)}
+              placeholder={`Auto: ${auto.carbs}`}
+              placeholderTextColor={C.muted}
+              keyboardType="number-pad"
+              style={s.input}
+            />
+          </View>
+          <View style={{ flex: 1, gap: 6 }}>
+            <Eyebrow>Fat (g)</Eyebrow>
+            <TextInput
+              value={fatGoal}
+              onChangeText={(t) => setFatGoal(t.replace(/[^0-9]/g, ''))}
+              onBlur={() => commitMacro('fatGoal', fatGoal)}
+              placeholder={`Auto: ${auto.fat}`}
+              placeholderTextColor={C.muted}
+              keyboardType="number-pad"
+              style={s.input}
+            />
+          </View>
+        </View>
+        <Meta style={{ marginTop: 8 }}>Leave carbs and fat empty to work them out from your calories: fat about 30%, carbs the rest.</Meta>
       </Card>
 
       <Card>

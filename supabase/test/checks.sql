@@ -112,6 +112,9 @@ select pg_temp.eq((select count(*) from messages where from_client and read_at i
 -- coach-set targets
 select set_client_targets(:alice, '{"calorieGoal": 1900, "proteinGoal": 140, "daysPerWeek": 4, "note": "Cut a little"}');
 select pg_temp.must_fail('select set_client_targets(' || quote_literal(:alice) || ', ''{"calorieGoal": 500, "proteinGoal": 140}'')', 'unsafe calories');
+select pg_temp.must_fail('select set_client_targets(' || quote_literal(:alice) || ', ''{"calorieGoal": 2000, "proteinGoal": 140, "fatGoal": 5}'')', 'unsafe fat');
+select set_client_targets(:alice, '{"calorieGoal": 1900, "proteinGoal": 140, "carbGoal": 180, "fatGoal": 60, "daysPerWeek": 4, "note": "Cut a little"}');
+select pg_temp.eq((select count(*) from clients where (coach_targets->>'fatGoal')::int = 60 and (coach_targets->>'carbGoal')::int = 180), 1, 'coach sets carbs and fat');
 select pg_temp.must_fail('update clients set coach_targets = ''{}'' where user_id = ' || quote_literal(:alice), 'coach writes targets directly');
 select set_config('request.jwt.claim.sub', :coach2, false);
 select pg_temp.must_fail('select set_client_targets(' || quote_literal(:alice) || ', ''{"calorieGoal": 2000, "proteinGoal": 140}'')', 'other coach sets targets');

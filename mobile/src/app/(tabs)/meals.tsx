@@ -5,21 +5,25 @@ import { Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-na
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useStore } from '@/data/store';
-import { startOfDay, todayMacros } from '@/data/stats';
+import { startOfDay } from '@/data/stats';
 import { C, S } from '@/theme';
-import { Btn, Card, CardTitle, Empty, Label, Meta, Metric, Name, Row, Screen, Title } from '@/ui/kit';
+import { Btn, Card, CardTitle, Empty, Label, Meta, Name, Row, Screen, Title } from '@/ui/kit';
+import { MacrosCard } from '@/ui/MacrosCard';
 import { MealPlanCard } from '@/ui/MealPlanCard';
+import { useLogMeal } from '@/ui/useLogMeal';
 
 export default function MealsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { state, addMeal, removeMeal } = useStore();
+  const { state, removeMeal } = useStore();
+  const logMeal = useLogMeal();
 
   const [name, setName] = useState('');
   const [calories, setCalories] = useState('');
   const [protein, setProtein] = useState('');
+  const [carbs, setCarbs] = useState('');
+  const [fat, setFat] = useState('');
 
-  const macros = todayMacros(state);
   const today = startOfDay(Date.now());
   const todaysMeals = state.meals.filter((m) => startOfDay(m.at) === today);
   const earlier = state.meals.filter((m) => startOfDay(m.at) !== today).slice(0, 10);
@@ -37,14 +41,18 @@ export default function MealsScreen() {
 
   const submit = () => {
     if (!valid) return;
-    addMeal({
+    logMeal({
       name: name.trim(),
       calories: Math.round(parseFloat(calories) || 0),
       protein: Math.round(parseFloat(protein) || 0),
+      // count carbs and fat once either is entered (the other as 0)
+      ...(carbs !== '' || fat !== '' ? { carbs: Math.round(parseFloat(carbs) || 0), fat: Math.round(parseFloat(fat) || 0) } : {}),
     });
     setName('');
     setCalories('');
     setProtein('');
+    setCarbs('');
+    setFat('');
     Keyboard.dismiss();
   };
 
@@ -53,33 +61,7 @@ export default function MealsScreen() {
       <View style={{ height: insets.top }} />
       <Title>Meals</Title>
 
-      <Card>
-        <Row>
-          <View style={{ flex: 1 }}>
-            <Label>Calories today</Label>
-            <View style={{ marginTop: 3 }}>
-              <Metric value={`${macros.calories}`} unit={`/ ${state.profile.calorieGoal}`} />
-            </View>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Label>Protein</Label>
-            <View style={{ marginTop: 3 }}>
-              <Metric value={`${macros.protein}`} unit={`/ ${state.profile.proteinGoal}g`} />
-            </View>
-          </View>
-        </Row>
-        <View style={s.track}>
-          <View
-            style={[
-              s.fill,
-              { width: `${Math.min(100, (macros.calories / state.profile.calorieGoal) * 100)}%` },
-            ]}
-          />
-        </View>
-        <Meta>
-          {Math.max(0, state.profile.calorieGoal - macros.calories)} calories left today
-        </Meta>
-      </Card>
+      <MacrosCard />
 
       <MealPlanCard />
 
@@ -111,12 +93,31 @@ export default function MealsScreen() {
           <TextInput
             value={protein}
             onChangeText={(t) => setProtein(t.replace(/[^0-9]/g, ''))}
-            placeholder="Protein (g, optional)"
+            placeholder="Protein (g)"
             placeholderTextColor={C.muted}
             keyboardType="number-pad"
             style={[s.input, { flex: 1 }]}
           />
         </View>
+        <View style={s.pair}>
+          <TextInput
+            value={carbs}
+            onChangeText={(t) => setCarbs(t.replace(/[^0-9]/g, ''))}
+            placeholder="Carbs (g)"
+            placeholderTextColor={C.muted}
+            keyboardType="number-pad"
+            style={[s.input, { flex: 1 }]}
+          />
+          <TextInput
+            value={fat}
+            onChangeText={(t) => setFat(t.replace(/[^0-9]/g, ''))}
+            placeholder="Fat (g)"
+            placeholderTextColor={C.muted}
+            keyboardType="number-pad"
+            style={[s.input, { flex: 1 }]}
+          />
+        </View>
+        <Meta style={{ marginTop: 6 }}>Protein, carbs and fat are optional.</Meta>
         <Btn label="Add meal" icon="add" onPress={submit} disabled={!valid} style={{ marginTop: 10 }} />
         {missing ? <Meta style={{ textAlign: 'center', marginTop: 8 }}>{missing}</Meta> : null}
       </Card>
@@ -131,7 +132,7 @@ export default function MealsScreen() {
           <Empty
             icon="restaurant-outline"
             title="Nothing logged today"
-            body="Add a meal above and it'll count toward your calorie and protein goals."
+            body="Add a meal above and it'll count toward today's macros."
           />
         ) : (
           todaysMeals.map((m) => (
@@ -144,7 +145,9 @@ export default function MealsScreen() {
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={s.kcal}>{m.calories} cal</Text>
-                <Meta>{m.protein}g protein</Meta>
+                <Meta>
+                  {m.protein}g P{m.carbs !== undefined ? ` · ${m.carbs}g C · ${m.fat ?? 0}g F` : ''}
+                </Meta>
               </View>
               <Pressable
                 onPress={() => removeMeal(m.id)}

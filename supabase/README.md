@@ -49,3 +49,10 @@ and write what (needs PostgreSQL 16 installed locally).
 1. SQL Editor → New query → paste the whole `schema.sql` → Run. This adds the
    `coach_workouts` table and the `send_coach_workout` function. Nothing else
    to deploy.
+
+## Version 2.2.1: carbs & fat
+
+1. SQL Editor → paste the whole `schema.sql` → Run (coach targets accept carbs and fat).
+2. Edge Functions → `analyze-meal` → Code → replace everything with the new
+   `functions/analyze-meal/index.ts` → Deploy (meal photos now estimate carbs and fat).
+   Older app versions keep working with it.

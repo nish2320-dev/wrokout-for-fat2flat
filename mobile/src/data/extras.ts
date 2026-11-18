@@ -36,7 +36,16 @@ export function applyTargets(s: AppState, t: CoachTargets, now: number): AppStat
   return {
     ...s,
     program,
-    profile: { ...s.profile, calorieGoal: t.calorieGoal, proteinGoal: t.proteinGoal, coachTargetsAt: t.at, coachTargetsNote: t.note || undefined },
+    profile: {
+      ...s.profile,
+      calorieGoal: t.calorieGoal,
+      proteinGoal: t.proteinGoal,
+      // the coach's carbs and fat when set; otherwise back to automatic
+      carbGoal: t.carbGoal ?? undefined,
+      fatGoal: t.fatGoal ?? undefined,
+      coachTargetsAt: t.at,
+      coachTargetsNote: t.note || undefined,
+    },
   };
 }
 

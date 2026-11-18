@@ -23,6 +23,9 @@ export type Meal = {
   name: string;
   calories: number;
   protein: number;
+  /** Grams; absent on meals logged before carbs and fat were tracked. */
+  carbs?: number;
+  fat?: number;
   at: number;
 };
 
@@ -56,6 +59,9 @@ export type Profile = {
   name: string;
   calorieGoal: number;
   proteinGoal: number;
+  /** Daily carbs and fat in grams. Unset means worked out from calories and protein. */
+  carbGoal?: number;
+  fatGoal?: number;
   units: 'lb' | 'kg';
   /** For the meal plan; unset until the user picks one. */
   diet?: Diet;
@@ -81,7 +87,16 @@ export type Profile = {
 };
 
 /** Targets a coach set from their phone. */
-export type CoachTargets = { calorieGoal: number; proteinGoal: number; daysPerWeek: 3 | 4 | 5 | null; note: string; at: number };
+export type CoachTargets = {
+  calorieGoal: number;
+  proteinGoal: number;
+  /** Optional: when unset the client's app works them out from calories and protein. */
+  carbGoal?: number | null;
+  fatGoal?: number | null;
+  daysPerWeek: 3 | 4 | 5 | null;
+  note: string;
+  at: number;
+};
 
 /** A message in the conversation with the in-app AI assistant. */
 export type AssistantMessage = { id: string; role: 'user' | 'assistant'; content: string; at: number };

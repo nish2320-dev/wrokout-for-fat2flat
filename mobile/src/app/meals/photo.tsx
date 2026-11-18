@@ -10,6 +10,7 @@ import { errorText } from '@/cloud/supabase';
 import { useStore } from '@/data/store';
 import { C, S } from '@/theme';
 import { Btn, Card, CardTitle, Label, Meta, Metric, Row, Screen } from '@/ui/kit';
+import { useLogMeal } from '@/ui/useLogMeal';
 
 type Phase = { step: 'pick' } | { step: 'reading'; uri: string } | { step: 'result'; uri: string; confidence: string; note: string };
 
@@ -17,7 +18,8 @@ type Phase = { step: 'pick' } | { step: 'reading'; uri: string } | { step: 'resu
 export default function MealPhoto() {
   const router = useRouter();
   const cloud = useCloud();
-  const { state, addMeal } = useStore();
+  const { state } = useStore();
+  const logMeal = useLogMeal();
   const [phase, setPhase] = useState<Phase>({ step: 'pick' });
   const [items, setItems] = useState<MealGuessItem[]>([]);
   const [name, setName] = useState('');
@@ -70,12 +72,34 @@ export default function MealPhoto() {
   };
 
   const update = (i: number, patch: Partial<MealGuessItem>) => setItems((cur) => cur.map((it, k) => (k === i ? { ...it, ...patch } : it)));
-  const total = items.reduce((a, i) => ({ calories: a.calories + (i.calories || 0), protein: a.protein + (i.protein || 0) }), { calories: 0, protein: 0 });
+  const hasCarbsFat = items.length > 0 && items.every((i) => typeof i.carbs === 'number' && typeof i.fat === 'number');
+  const total = items.reduce(
+    (a, i) => ({ calories: a.calories + (i.calories || 0), protein: a.protein + (i.protein || 0), carbs: a.carbs + (i.carbs || 0), fat: a.fat + (i.fat || 0) }),
+    { calories: 0, protein: 0, carbs: 0, fat: 0 },
+  );
 
   const log = () => {
-    addMeal({ name: name.trim() || 'Meal (photo)', calories: Math.round(total.calories), protein: Math.round(total.protein) });
+    logMeal({
+      name: name.trim() || 'Meal (photo)',
+      calories: Math.round(total.calories),
+      protein: Math.round(total.protein),
+      ...(hasCarbsFat ? { carbs: Math.round(total.carbs), fat: Math.round(total.fat) } : {}),
+    });
     router.back();
   };
+
+  const field = (i: number, key: 'calories' | 'protein' | 'carbs' | 'fat', label: string) => (
+    <View style={{ flex: 1, gap: 3 }}>
+      <Label>{label}</Label>
+      <TextInput
+        value={String(items[i][key] ?? 0)}
+        onChangeText={(v) => update(i, { [key]: parseInt(v.replace(/[^0-9]/g, ''), 10) || 0 })}
+        keyboardType="number-pad"
+        style={s.field}
+        accessibilityLabel={`${label} for ${items[i].name}`}
+      />
+    </View>
+  );
 
   if (phase.step === 'pick') {
     return (
@@ -85,7 +109,7 @@ export default function MealPhoto() {
             <Ionicons name="camera" size={34} color={C.red} />
           </View>
           <CardTitle>Snap your meal</CardTitle>
-          <Meta>Take a photo from above with the whole plate in view. You’ll get an estimate of the calories and protein that you can adjust before logging.</Meta>
+          <Meta>Take a photo from above with the whole plate in view. You’ll get an estimate of the calories, protein, carbs and fat that you can adjust before logging.</Meta>
           <Btn label="Take a photo" icon="camera" onPress={takePhoto} style={{ marginTop: 14 }} />
           <Btn label="Choose from library" icon="images-outline" ghost onPress={choosePhoto} style={{ marginTop: 9 }} />
         </Card>
@@ -118,6 +142,18 @@ export default function MealPhoto() {
                 <Label>Protein</Label>
                 <Metric value={`${Math.round(total.protein)}`} unit="g" />
               </View>
+              {hasCarbsFat ? (
+                <>
+                  <View style={{ flex: 1 }}>
+                    <Label>Carbs</Label>
+                    <Metric value={`${Math.round(total.carbs)}`} unit="g" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Label>Fat</Label>
+                    <Metric value={`${Math.round(total.fat)}`} unit="g" />
+                  </View>
+                </>
+              ) : null}
             </Row>
             <Meta style={{ marginTop: 6, color: phase.confidence === 'low' ? C.red : C.muted }}>
               {phase.confidence === 'low' ? 'Rough estimate: check the amounts. ' : 'AI estimate: adjust anything that looks off. '}
@@ -141,25 +177,15 @@ export default function MealPhoto() {
                     </Pressable>
                   </Row>
                   <Row style={{ gap: S.gap, marginTop: 8 }}>
-                    <View style={{ flex: 1, gap: 3 }}>
-                      <Label>Calories</Label>
-                      <TextInput
-                        value={String(it.calories)}
-                        onChangeText={(v) => update(i, { calories: parseInt(v.replace(/[^0-9]/g, ''), 10) || 0 })}
-                        keyboardType="number-pad"
-                        style={s.field}
-                      />
-                    </View>
-                    <View style={{ flex: 1, gap: 3 }}>
-                      <Label>Protein (g)</Label>
-                      <TextInput
-                        value={String(it.protein)}
-                        onChangeText={(v) => update(i, { protein: parseInt(v.replace(/[^0-9]/g, ''), 10) || 0 })}
-                        keyboardType="number-pad"
-                        style={s.field}
-                      />
-                    </View>
+                    {field(i, 'calories', 'Calories')}
+                    {field(i, 'protein', 'Protein (g)')}
                   </Row>
+                  {hasCarbsFat ? (
+                    <Row style={{ gap: S.gap, marginTop: 8 }}>
+                      {field(i, 'carbs', 'Carbs (g)')}
+                      {field(i, 'fat', 'Fat (g)')}
+                    </Row>
+                  ) : null}
                 </View>
               ))
             )}

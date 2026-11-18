@@ -100,7 +100,10 @@ export async function markRepliesRead(clientId: string) {
 }
 
 /** Sets the client's daily calories, protein and (optionally) workouts per week; their app applies it on next open. */
-export async function setTargets(clientId: string, t: { calorieGoal: number; proteinGoal: number; daysPerWeek: 3 | 4 | 5 | null; note: string }) {
+export async function setTargets(
+  clientId: string,
+  t: { calorieGoal: number; proteinGoal: number; carbGoal: number | null; fatGoal: number | null; daysPerWeek: 3 | 4 | 5 | null; note: string },
+) {
   const { error } = await sb().rpc('set_client_targets', { p_client: clientId, p_targets: t });
   if (error) throw error;
 }

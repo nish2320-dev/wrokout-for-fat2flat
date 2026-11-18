@@ -6,6 +6,7 @@ import { DIETS, dayTarget, loggedName, planDay, portionLabel, Slot } from '@/dat
 import { nextSession } from '@/data/program';
 import { startOfDay } from '@/data/stats';
 import { useActiveWorkout, useStore } from '@/data/store';
+import { useLogMeal } from '@/ui/useLogMeal';
 import { C } from '@/theme';
 import { Card, CardTitle, Label, Meta, Name, Pill, Row } from '@/ui/kit';
 
@@ -19,7 +20,8 @@ const dateKey = (t: number) => {
  * user's diet and whether today is a workout day, with Swap and one-tap Log.
  */
 export function MealPlanCard() {
-  const { state, addMeal, updateProfile } = useStore();
+  const { state, updateProfile } = useStore();
+  const logMeal = useLogMeal();
   const active = useActiveWorkout();
   const now = Date.now();
   const today = startOfDay(now);
@@ -60,7 +62,7 @@ export function MealPlanCard() {
           <Label>{DIETS.find((d) => d.key === diet)?.label}</Label>
         </Row>
         <Meta>
-          About {plan.kcal.toLocaleString()} cal · {plan.protein} g protein · your {workoutDay ? 'workout' : 'rest'}-day target is{' '}
+          About {plan.kcal.toLocaleString()} cal · {plan.protein} g protein · {plan.carbs} g carbs · {plan.fat} g fat · your {workoutDay ? 'workout' : 'rest'}-day target is{' '}
           {target.toLocaleString()}
         </Meta>
         <View style={[s.wrap, { marginBottom: 10 }]}>
@@ -83,12 +85,12 @@ export function MealPlanCard() {
                 {m.portion === 1 ? m.meal.serving : `${portionLabel(m.portion)} of: ${m.meal.serving}`}
               </Meta>
               <Meta>
-                {m.kcal} cal · {m.protein} g protein
+                {m.kcal} cal · {m.protein} g protein · {m.carbs} g carbs · {m.fat} g fat
               </Meta>
             </View>
             <View style={{ gap: 6, alignItems: 'flex-end' }}>
               <Pressable
-                onPress={() => !logged && addMeal({ name, calories: m.kcal, protein: m.protein })}
+                onPress={() => !logged && logMeal({ name, calories: m.kcal, protein: m.protein, carbs: m.carbs, fat: m.fat })}
                 disabled={logged}
                 accessibilityRole="button"
                 accessibilityLabel={logged ? `${m.meal.name} logged` : `Log ${m.meal.name}`}

@@ -35,6 +35,8 @@ export type MealIdea = {
   serving: string;
   kcal: number;
   protein: number;
+  carbs: number;
+  fat: number;
 };
 
 type Row = [id: string, name: string, slot: Slot, diet: Diet, cuisine: MealIdea['cuisine'], serving: string, kcal: number, protein: number];
@@ -97,6 +99,58 @@ const ROWS: Row[] = [
   ['tuna-crackers', 'Tuna on whole-grain crackers', 'snack', 'nonveg', 'western', '1 small can tuna, 6 crackers', 220, 22],
 ];
 
+/** Carbs and fat per serving, grams: [carbs, fat]. Estimates for typical home recipes, consistent with the calories above. */
+const CARBS_FAT: Record<string, [number, number]> = {
+  'poha': [56, 13],
+  'paneer-bhurji': [36, 24],
+  'besan-chilla': [45, 14],
+  'moong-chilla': [45, 15],
+  'upma': [60, 14],
+  'oats-pb': [61, 15],
+  'yogurt-bowl': [49, 10],
+  'smoothie': [51, 9],
+  'masala-omelette': [32, 22],
+  'egg-bhurji': [37, 22],
+  'avocado-eggs': [39, 24],
+  'breakfast-wrap': [36, 20],
+  'rajma-chawal': [90, 9],
+  'dal-roti': [80, 15],
+  'palak-paneer': [50, 28],
+  'chana-rice': [83, 12],
+  'paneer-wrap': [51, 22],
+  'quinoa-bowl': [69, 15],
+  'egg-curry': [71, 18],
+  'egg-sandwich': [55, 18],
+  'chicken-rice': [66, 12],
+  'chicken-salad': [17, 24],
+  'tandoori-roti': [53, 16],
+  'fish-curry': [58, 16],
+  'paneer-stirfry': [44, 26],
+  'dal-tadka': [83, 12],
+  'soya-curry': [59, 12],
+  'khichdi': [73, 12],
+  'tofu-bowl': [66, 14],
+  'lentil-pasta': [77, 10],
+  'egg-fried-rice': [75, 16],
+  'shakshuka': [46, 20],
+  'salmon-plate': [53, 22],
+  'chicken-tikka': [59, 22],
+  'turkey-taco': [64, 16],
+  'chicken-stirfry': [63, 12],
+  'roasted-chana': [31, 3],
+  'sprouts-chaat': [29, 2],
+  'paneer-tikka-bites': [5, 20],
+  'makhana-chaas': [27, 5],
+  'shake': [17, 5],
+  'greek-yogurt': [19, 4],
+  'apple-pb': [27, 8],
+  'cottage-fruit': [18, 3],
+  'boiled-eggs': [1, 11],
+  'egg-toast': [17, 6],
+  'chicken-bites': [4, 6],
+  'tuna-crackers': [20, 6],
+};
+
 export const MEALS: MealIdea[] = ROWS.map(([id, name, slot, diet, cuisine, serving, kcal, protein]) => ({
   id,
   name,
@@ -106,6 +160,8 @@ export const MEALS: MealIdea[] = ROWS.map(([id, name, slot, diet, cuisine, servi
   serving,
   kcal,
   protein,
+  carbs: CARBS_FAT[id]?.[0] ?? 0,
+  fat: CARBS_FAT[id]?.[1] ?? 0,
 }));
 
 export const SLOT_LABELS: Record<Slot, string> = {
@@ -138,9 +194,11 @@ export type PlannedMeal = {
   portion: number;
   kcal: number;
   protein: number;
+  carbs: number;
+  fat: number;
 };
 
-export type DayPlan = { meals: PlannedMeal[]; kcal: number; protein: number; target: number };
+export type DayPlan = { meals: PlannedMeal[]; kcal: number; protein: number; carbs: number; fat: number; target: number };
 
 /** A meal's main ingredient, so one day doesn't serve paneer four times. */
 const MAINS = ['paneer', 'chicken', 'egg', 'turkey', 'fish', 'salmon', 'tuna', 'tofu', 'soya', 'dal', 'chana', 'rajma', 'yogurt'];
@@ -201,6 +259,8 @@ export function planDay(opts: {
       portion,
       kcal: Math.round(meal.kcal * portion),
       protein: Math.round(meal.protein * portion),
+      carbs: Math.round(meal.carbs * portion),
+      fat: Math.round(meal.fat * portion),
     });
   }
 
@@ -217,6 +277,8 @@ export function planDay(opts: {
       portion,
       kcal: Math.round(meal.kcal * portion),
       protein: Math.round(meal.protein * portion),
+      carbs: Math.round(meal.carbs * portion),
+      fat: Math.round(meal.fat * portion),
     });
   }
 
@@ -226,6 +288,8 @@ export function planDay(opts: {
     m.portion = portion;
     m.kcal = Math.round(m.meal.kcal * portion);
     m.protein = Math.round(m.meal.protein * portion);
+    m.carbs = Math.round(m.meal.carbs * portion);
+    m.fat = Math.round(m.meal.fat * portion);
   };
   for (let step = 0; step < 12; step++) {
     const off = total() - calories;
@@ -244,6 +308,8 @@ export function planDay(opts: {
     meals,
     kcal: total(),
     protein: meals.reduce((n, m) => n + m.protein, 0),
+    carbs: meals.reduce((n, m) => n + m.carbs, 0),
+    fat: meals.reduce((n, m) => n + m.fat, 0),
     target: calories,
   };
 }

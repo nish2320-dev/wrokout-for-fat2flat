@@ -3,9 +3,9 @@ import { useState } from 'react';
 import { Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Food, macrosFor } from '@/data/food';
-import { useStore } from '@/data/store';
 import { C, S } from '@/theme';
 import { Btn, Card, CardTitle, Empty, Label, Meta, Metric, Row, Screen } from '@/ui/kit';
+import { useLogMeal } from '@/ui/useLogMeal';
 
 const parseFood = (raw?: string): Food | null => {
   try {
@@ -18,7 +18,7 @@ const parseFood = (raw?: string): Food | null => {
 export default function PortionScreen() {
   const router = useRouter();
   const { food: raw } = useLocalSearchParams<{ food?: string }>();
-  const { addMeal } = useStore();
+  const logMeal = useLogMeal();
   const food = parseFood(raw);
 
   const [mode, setMode] = useState<'serving' | 'grams'>(food?.serving ? 'serving' : 'grams');
@@ -35,7 +35,8 @@ export default function PortionScreen() {
   const n = parseFloat(amount);
   const qty = Number.isFinite(n) && n > 0 ? n : 0;
   const grams = mode === 'serving' && food.serving ? qty * food.serving.grams : qty;
-  const { calories, protein } = macrosFor(food, grams);
+  const macros = macrosFor(food, grams);
+  const { calories, protein } = macros;
 
   const switchMode = (next: 'serving' | 'grams') => {
     if (next === mode) return;
@@ -51,7 +52,7 @@ export default function PortionScreen() {
           ? food.serving.label
           : `${qty} × ${food.serving.label}`
         : `${Math.round(grams)} g`;
-    addMeal({ name: `${food.name} (${portion})`, calories, protein });
+    logMeal({ name: `${food.name} (${portion})`, ...macros });
     Keyboard.dismiss();
     router.dismissTo('/meals');
   };
@@ -62,7 +63,8 @@ export default function PortionScreen() {
         <CardTitle>{food.name}</CardTitle>
         <Meta>
           {food.brand ? `${food.brand} · ` : ''}
-          {Math.round(food.kcal100)} cal · {food.protein100}g protein per 100 g
+          {Math.round(food.kcal100)} cal · {food.protein100}g protein
+          {food.carbs100 !== undefined && food.fat100 !== undefined ? ` · ${food.carbs100}g carbs · ${food.fat100}g fat` : ''} per 100 g
         </Meta>
         {food.id.startsWith('off:') ? <Meta>Food data from Open Food Facts (openfoodfacts.org)</Meta> : null}
       </Card>
@@ -112,6 +114,18 @@ export default function PortionScreen() {
             <Label>Protein</Label>
             <Metric value={`${protein}`} unit="g" />
           </View>
+          {macros.carbs !== undefined ? (
+            <>
+              <View style={{ flex: 1 }}>
+                <Label>Carbs</Label>
+                <Metric value={`${macros.carbs}`} unit="g" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Label>Fat</Label>
+                <Metric value={`${macros.fat}`} unit="g" />
+              </View>
+            </>
+          ) : null}
         </Row>
       </Card>
 

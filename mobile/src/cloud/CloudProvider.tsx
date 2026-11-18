@@ -28,7 +28,8 @@ export type CoachInfo = { name: string; code: string };
 export type Note = { id: string; body: string; created_at: string; read_at: string | null; from_client: boolean };
 
 /** One food the meal-photo AI recognised. */
-export type MealGuessItem = { name: string; portion: string; calories: number; protein: number };
+/** carbs and fat are missing if the server still runs the older meal-photo function. */
+export type MealGuessItem = { name: string; portion: string; calories: number; protein: number; carbs?: number; fat?: number };
 export type MealGuess = { items: MealGuessItem[]; confidence: 'high' | 'medium' | 'low'; note: string };
 
 type Cloud = {

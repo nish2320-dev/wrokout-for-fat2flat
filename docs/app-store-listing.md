@@ -229,3 +229,14 @@ NEW: Workouts from your coach.
 ```
 
 **App Privacy**: no change (workouts are already listed under Fitness).
+
+## Version 2.2.1
+
+**What's New in This Version**
+
+```
+• Track carbs and fat: see today's calories, protein, carbs and fat against your goals, with a heads-up when you go over.
+• Carb and fat goals are set for you from your calories, or set your own in Profile (coaches can set them too).
+• Meal photos, food search, barcode scans and the meal plan now include carbs and fat.
+• Transformation: tap any workout this week to see its exercises, and do them in any order.
+```

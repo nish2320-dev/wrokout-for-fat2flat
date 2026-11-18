@@ -77,23 +77,24 @@ export function sampleState(now: number): AppState {
     return { at: Math.min(today - daysAgo * DAY + 7 * HOUR, now - 60000), weight: Math.round((196 - i * 0.72 + wobble) * 10) / 10 };
   });
 
-  const meal = (id: string, name: string, calories: number, protein: number, at: number): Meal => ({
+  const meal = (id: string, name: string, calories: number, protein: number, at: number, carbs?: number, fat?: number): Meal => ({
     id: `sample-m${id}`,
     name,
     calories,
     protein,
+    ...(carbs !== undefined ? { carbs, fat } : {}),
     at,
   });
   // today's meals stay in the past even early in the morning, spaced out
   // rather than all stamped with the same minute
   const todayAt = (h: number, back: number) => Math.min(today + h * HOUR, now - back * 50 * 60000);
   const meals: Meal[] = [
-    meal('1', 'Greek yogurt with berries', 100, 17, todayAt(15.5, 1)),
-    meal('2', 'Chicken & rice bowl', 404, 41, todayAt(12.5, 2)),
-    meal('3', 'Protein shake', 241, 32, todayAt(10, 3)),
-    meal('4', 'Oats, banana & peanut butter', 445, 18, todayAt(7.5, 4)),
-    meal('5', 'Salmon & potatoes', 570, 30, today - DAY + 19 * HOUR),
-    meal('6', 'Turkey sandwich', 437, 25, today - DAY + 13 * HOUR),
+    meal('1', 'Greek yogurt with berries', 100, 17, todayAt(15.5, 1), 7, 1),
+    meal('2', 'Chicken & rice bowl', 404, 41, todayAt(12.5, 2), 45, 6),
+    meal('3', 'Protein shake', 241, 32, todayAt(10, 3), 14, 6),
+    meal('4', 'Oats, banana & peanut butter', 445, 18, todayAt(7.5, 4), 60, 15),
+    meal('5', 'Salmon & potatoes', 570, 30, today - DAY + 19 * HOUR, 45, 29),
+    meal('6', 'Turkey sandwich', 437, 25, today - DAY + 13 * HOUR, 48, 15),
   ];
 
   // a 4-day Transformation that began with the oldest workout, now in week 6

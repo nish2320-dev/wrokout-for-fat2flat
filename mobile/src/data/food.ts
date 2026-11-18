@@ -13,6 +13,9 @@ export type Food = {
   kcal100: number;
   /** Protein grams per 100 g. */
   protein100: number;
+  /** Carbohydrate and fat grams per 100 g, when known. */
+  carbs100?: number;
+  fat100?: number;
   /** A typical portion, when one is known. */
   serving?: { grams: number; label: string };
   /** Extra search words for built-in foods. */
@@ -211,11 +214,44 @@ const ENTRIES: Entry[] = [
   ['ice-cream', 'Ice cream, vanilla', 207, 3.5, 66, '½ cup (66 g)'],
 ];
 
+/** Carbs and fat per 100 g for the built-in foods: [carbs, fat]. USDA FoodData Central typical values. */
+const CARBS_FAT: Record<string, [number, number]> = {
+  coffee: [0, 0], espresso: [1.7, 0.2], 'coffee-cream-sugar': [4, 0.8], latte: [3.9, 1.6], 'latte-oat': [5.5, 1.5],
+  cappuccino: [2.9, 1.2], 'iced-coffee': [6.5, 0.8], mocha: [9, 3.4], frappuccino: [10, 0.6], 'half-and-half': [4.3, 11.5],
+  'coffee-creamer': [53, 13], tea: [0.2, 0], 'sweet-tea': [9, 0], 'chai-latte': [8.5, 1.2], sugar: [100, 0],
+  whey: [8, 6], 'shake-water': [0.7, 0.5], 'shake-milk': [5, 2.6], 'shake-rtd': [1.5, 0.8], 'protein-bar': [35, 9],
+  'beef-jerky': [11, 25.6], 'whole-milk': [4.8, 3.3], 'milk-2': [4.8, 2], 'skim-milk': [5, 0.1], 'chocolate-milk': [13.5, 1.9],
+  'almond-milk': [0.6, 1.2], 'oat-milk': [7, 2], 'soy-milk': [1.2, 1.8], 'orange-juice': [10.4, 0.2], 'apple-juice': [11.3, 0.1],
+  smoothie: [14, 0.3], cola: [10.6, 0], 'diet-soda': [0, 0], 'sports-drink': [6, 0], 'energy-drink': [11, 0],
+  beer: [3.6, 0], 'light-beer': [1.3, 0], wine: [2.6, 0], liquor: [0, 0],
+  egg: [0.7, 9.5], 'egg-white': [0.7, 0.2], 'scrambled-eggs': [1.6, 11], oats: [66, 6.9], cereal: [84, 0.4],
+  granola: [64, 20], pancake: [28, 9.7], waffle: [33, 14], bagel: [50, 1.6], 'cream-cheese': [4, 34], muffin: [54, 16],
+  donut: [49, 21], bacon: [1.4, 42], 'greek-yogurt': [3.6, 0.4], yogurt: [19, 1.2], honey: [82, 0], jam: [69, 0.1],
+  'chicken-breast': [0, 3.6], 'chicken-thigh': [0, 8.2], 'ground-beef': [0, 15], 'ground-turkey': [0, 11.6], steak: [0, 9],
+  'pork-chop': [0, 13], 'deli-turkey': [4, 2], salmon: [0, 12], tuna: [0, 0.8], cod: [0, 0.9], shrimp: [0.2, 0.3],
+  tofu: [2.8, 8.7], edamame: [9, 5.2], 'white-rice': [28, 0.3], 'brown-rice': [26, 1], quinoa: [21, 1.9], pasta: [31, 0.9],
+  'white-bread': [49, 3.2], 'wheat-bread': [43, 3.4], 'flour-tortilla': [51, 8], 'corn-tortilla': [45, 2.9], potato: [21, 0.1],
+  'sweet-potato': [21, 0.2], lentils: [20, 0.4], 'black-beans': [24, 0.5], chickpeas: [27, 2.6], hummus: [14, 9.6], ramen: [63, 17],
+  banana: [23, 0.3], apple: [14, 0.2], orange: [12, 0.1], pear: [15, 0.1], peach: [10, 0.3], strawberries: [7.7, 0.3],
+  blueberries: [14.5, 0.3], raspberries: [12, 0.7], grapes: [18, 0.2], pineapple: [13, 0.1], mango: [15, 0.4],
+  watermelon: [7.6, 0.2], avocado: [8.5, 14.7], broccoli: [7, 0.4], spinach: [3.6, 0.4], salad: [3.3, 0.2], carrot: [9.6, 0.2],
+  cucumber: [3.6, 0.1], tomato: [3.9, 0.2], 'bell-pepper': [6, 0.3], onion: [9.3, 0.1], mushrooms: [3.3, 0.3],
+  'green-beans': [7.9, 0.3], corn: [19, 1.5], peas: [15.6, 0.2], cauliflower: [4.1, 0.5], asparagus: [4.1, 0.2],
+  cheddar: [1.3, 33], mozzarella: [2.8, 16], parmesan: [4, 29], feta: [4, 21], 'cottage-cheese': [4.3, 2.3], butter: [0.1, 81],
+  'olive-oil': [0, 100], mayo: [0.6, 75], ranch: [6, 45], ketchup: [27, 0.1], 'peanut-butter': [20, 50], almonds: [22, 50],
+  peanuts: [21, 50], cashews: [30, 44], walnuts: [14, 65], chia: [42, 31], pizza: [33, 10], 'pizza-pepperoni': [30, 13],
+  cheeseburger: [25, 11], 'big-burger': [21, 13], fries: [41, 15], nuggets: [16, 19], burrito: [21, 5], taco: [20, 10],
+  sushi: [18.4, 3.7], 'sandwich-turkey': [24, 5], 'pb-j': [43, 14], 'mac-cheese': [20, 6.5], 'fried-rice': [24, 5],
+  'chicken-curry': [15, 5], 'chicken-salad': [5, 8], soup: [3, 0.8], chips: [53, 35], pretzels: [80, 2.6], popcorn: [78, 4.5],
+  'rice-cake': [81, 2.8], 'dark-chocolate': [46, 43], 'milk-chocolate': [59, 30], cookie: [64, 23], 'ice-cream': [24, 11],
+};
+
 export const COMMON_FOODS: Food[] = ENTRIES.map(([id, name, kcal100, protein100, grams, label, aliases]) => ({
   id: `common:${id}`,
   name,
   kcal100,
   protein100,
+  ...(CARBS_FAT[id] ? { carbs100: CARBS_FAT[id][0], fat100: CARBS_FAT[id][1] } : {}),
   serving: grams ? { grams, label: label ?? `${grams} g` } : undefined,
   aliases: aliases?.split(' '),
 }));
@@ -293,10 +329,13 @@ export function searchCommon(query: string): Food[] {
     .map((x) => x.food);
 }
 
-/** Calories and protein for an amount in grams, rounded as meals store them. */
+/** Calories, protein and (when known) carbs and fat for an amount in grams, rounded as meals store them. */
 export const macrosFor = (food: Food, grams: number) => ({
   calories: Math.round((food.kcal100 * grams) / 100),
   protein: Math.round((food.protein100 * grams) / 100),
+  ...(food.carbs100 !== undefined && food.fat100 !== undefined
+    ? { carbs: Math.round((food.carbs100 * grams) / 100), fat: Math.round((food.fat100 * grams) / 100) }
+    : {}),
 });
 
 const num = (v: unknown) => {
@@ -328,6 +367,9 @@ export function parseProduct(p: any): Food | null {
     brand: brand || undefined,
     kcal100: Math.round(kcal100 * 10) / 10,
     protein100: Math.round((num(n.proteins_100g) ?? 0) * 10) / 10,
+    ...(num(n.carbohydrates_100g) !== undefined && num(n.fat_100g) !== undefined
+      ? { carbs100: Math.round(num(n.carbohydrates_100g)! * 10) / 10, fat100: Math.round(num(n.fat_100g)! * 10) / 10 }
+      : {}),
     serving:
       grams && grams > 0
         ? { grams, label: String(p.serving_size || '').trim() || `${grams} g` }

@@ -1,5 +1,6 @@
 import { waterToday } from './extras';
 import { healthDay } from './health';
+import { dayTotals, goalsFor } from './macros';
 import { DIETS } from './mealplan';
 import { nextSession, phaseOf, WEEKS, weekOf } from './program';
 import { summarize } from './sharing';
@@ -24,7 +25,8 @@ export function assistantContext(s: AppState, now: number, coachName?: string | 
   lines.push(`Today is ${new Date(now).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}.`);
   const diet = p.diet ? DIETS.find((d) => d.key === p.diet)?.label : null;
   lines.push(`${p.name ? `Name: ${p.name}. ` : ''}Units: ${u}.${diet ? ` Diet: ${diet}${p.diet === 'veg' ? ' (eats eggs, no meat or fish)' : p.diet === 'hinduveg' ? ' (no meat, fish or eggs)' : ''}.` : ''}`);
-  lines.push(`Daily targets: ${p.calorieGoal.toLocaleString()} calories, ${p.proteinGoal} g protein, ${p.waterGoal ?? 8} glasses of water.`);
+  const goals = goalsFor(p);
+  lines.push(`Daily targets: ${p.calorieGoal.toLocaleString()} calories, ${p.proteinGoal} g protein, ${goals.carbs} g carbs, ${goals.fat} g fat, ${p.waterGoal ?? 8} glasses of water.`);
 
   if (s.program) {
     const week = weekOf(s.program, now);
@@ -49,7 +51,7 @@ export function assistantContext(s: AppState, now: number, coachName?: string | 
   const todayStart = new Date(now).setHours(0, 0, 0, 0);
   const meals = s.meals.filter((m) => m.at >= todayStart);
   lines.push(
-    `Eaten today: ${sum.caloriesToday.toLocaleString()} cal, ${sum.proteinToday} g protein${meals.length ? ` (${meals.map((m) => m.name).slice(0, 6).join('; ')})` : ' (nothing logged yet)'}.`,
+    `Eaten today: ${sum.caloriesToday.toLocaleString()} cal, ${sum.proteinToday} g protein, ${dayTotals(s.meals, now).carbs} g carbs, ${dayTotals(s.meals, now).fat} g fat${meals.length ? ` (${meals.map((m) => m.name).slice(0, 6).join('; ')})` : ' (nothing logged yet)'}.`,
   );
   if (sum.avgCalories7d !== null) lines.push(`Last 7 days: ${sum.avgCalories7d.toLocaleString()} cal and ${sum.avgProtein7d} g protein a day on average (${sum.daysLogged7d} days logged).`);
   lines.push(`Water today: ${waterToday(s, now)} glasses.`);

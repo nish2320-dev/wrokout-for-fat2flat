@@ -17,7 +17,7 @@ const DAY = 86400000;
 /** The slice of a client's data uploaded for their coach. */
 export type SharedSnapshot = {
   v: 1;
-  profile: { calorieGoal: number; proteinGoal: number; units: 'lb' | 'kg'; diet?: Diet };
+  profile: { calorieGoal: number; proteinGoal: number; carbGoal?: number; fatGoal?: number; units: 'lb' | 'kg'; diet?: Diet };
   program: Program | null;
   workouts: Workout[];
   meals: Meal[];
@@ -31,11 +31,11 @@ export type SharedSnapshot = {
 
 export function snapshot(state: AppState, now: number, sharePhotos: boolean): SharedSnapshot {
   const since = (days: number) => now - days * DAY;
-  const { calorieGoal, proteinGoal, units, diet } = state.profile;
+  const { calorieGoal, proteinGoal, carbGoal, fatGoal, units, diet } = state.profile;
   const health = sharedHealth(state, now);
   return {
     v: 1,
-    profile: { calorieGoal, proteinGoal, units, ...(diet ? { diet } : {}) },
+    profile: { calorieGoal, proteinGoal, units, ...(carbGoal ? { carbGoal } : {}), ...(fatGoal ? { fatGoal } : {}), ...(diet ? { diet } : {}) },
     program: state.program,
     workouts: state.workouts
       .filter((w) => w.finishedAt !== undefined && w.finishedAt >= since(120))

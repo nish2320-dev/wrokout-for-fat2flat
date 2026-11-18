@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { exerciseName } from '@/data/exercises';
 import { checkInDue, nextSession, phaseOf, programProgress, weekOf, WEEKS } from '@/data/program';
 import { useActiveWorkout, useStore } from '@/data/store';
-import { durationMin, finished, fmtDate, fmtVolume, setCount, streak, thisWeek, todayMacros, volume } from '@/data/stats';
+import { durationMin, finished, fmtDate, fmtVolume, setCount, streak, thisWeek, volume } from '@/data/stats';
 import { C, S } from '@/theme';
 import { TodayActivity } from '@/ui/ActivityCard';
 import { AskCard } from '@/ui/AskCard';
@@ -15,7 +15,8 @@ import { WelcomeTour } from '@/ui/WelcomeTour';
 import { BadgeCelebration } from '@/ui/Badges';
 import { CoachNoteCard, CoachTargetsCard } from '@/ui/CoachNoteCard';
 import { CoachWorkoutsCard } from '@/ui/CoachWorkouts';
-import { Card, CardTitle, Empty, Eyebrow, Label, Meta, Metric, Name, Ring, Row, Screen, Tag } from '@/ui/kit';
+import { MacrosCard } from '@/ui/MacrosCard';
+import { Card, CardTitle, Empty, Eyebrow, Label, Meta, Name, Row, Screen, Tag } from '@/ui/kit';
 
 export default function HomeScreen() {
   const { state, startWorkout } = useStore();
@@ -23,7 +24,6 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const macros = todayMacros(state);
   const week = thisWeek(state);
   const done = finished(state);
   const recent = done.slice(0, 4);
@@ -76,36 +76,7 @@ export default function HomeScreen() {
 
       <TransformCard />
 
-      <View style={s.pair}>
-        <Card style={s.half}>
-          <Row>
-            <View style={{ flex: 1 }}>
-              <Label>Calories</Label>
-              <View style={{ marginTop: 3 }}>
-                <Metric small value={`${macros.calories}`} unit={`/ ${state.profile.calorieGoal}`} />
-              </View>
-            </View>
-            <Ring
-              pct={macros.calories / state.profile.calorieGoal}
-              label={`${Math.round((macros.calories / state.profile.calorieGoal) * 100)}%`}
-            />
-          </Row>
-        </Card>
-        <Card style={s.half}>
-          <Row>
-            <View style={{ flex: 1 }}>
-              <Label>Protein</Label>
-              <View style={{ marginTop: 3 }}>
-                <Metric small value={`${macros.protein}`} unit={`/ ${state.profile.proteinGoal}g`} />
-              </View>
-            </View>
-            <Ring
-              pct={macros.protein / state.profile.proteinGoal}
-              label={`${Math.round((macros.protein / state.profile.proteinGoal) * 100)}%`}
-            />
-          </Row>
-        </Card>
-      </View>
+      <MacrosCard compact />
 
       <AskCard />
 
@@ -312,8 +283,6 @@ const s = StyleSheet.create({
   tfFill: { height: '100%', borderRadius: 3, backgroundColor: C.red },
   tfMeta: { color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: '600' },
 
-  pair: { flexDirection: 'row', gap: S.gap },
-  half: { flex: 1 },
 
   day: { alignItems: 'center', gap: 6 },
   dayDot: {
