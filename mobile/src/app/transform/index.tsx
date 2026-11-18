@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { coachAdvice } from '@/data/coach';
@@ -28,6 +29,7 @@ export default function TransformScreen() {
   const router = useRouter();
   const { state, startWorkout, discardWorkout, applyCoach, endProgram } = useStore();
   const active = useActiveWorkout();
+  const [open, setOpen] = useState<string | null>(null);
   const program = state.program;
   const now = Date.now();
 
@@ -158,28 +160,59 @@ export default function TransformScreen() {
           {sessions.map((sess) => {
             const isDone = done.has(sess.key);
             const isNext = next?.key === sess.key;
+            const isOpen = open === sess.key;
             return (
-              <Pressable
-                key={sess.key}
-                onPress={() => !isDone && start(sess)}
-                disabled={isDone}
-                accessibilityRole="button"
-                style={({ pressed }) => [s.sessRow, pressed && { backgroundColor: C.line2 }]}>
-                <View style={[s.check, isDone && s.checkDone]}>
-                  {isDone ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Name>{sess.plan.name}</Name>
-                  <Meta numberOfLines={1}>
-                    {sess.plan.items.map((i) => i.exercise.name).join(' · ')}
-                  </Meta>
-                </View>
-                {isDone ? null : (
-                  <View style={[s.go, !isNext && s.goAlt]}>
-                    <Text style={[s.goText, !isNext && s.goTextAlt]}>{active?.sessionKey === sess.key ? 'Resume' : 'Start'}</Text>
+              <View key={sess.key} style={s.sessWrap}>
+                <Pressable
+                  onPress={() => setOpen(isOpen ? null : sess.key)}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: isOpen }}
+                  accessibilityHint="Shows the exercises in this workout"
+                  style={({ pressed }) => [s.sessRow, pressed && { backgroundColor: C.line2 }]}>
+                  <View style={[s.check, isDone && s.checkDone]}>
+                    {isDone ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
                   </View>
-                )}
-              </Pressable>
+                  <View style={{ flex: 1 }}>
+                    <Name>{sess.plan.name}</Name>
+                    <Meta numberOfLines={isOpen ? undefined : 1}>
+                      {isOpen ? `${sess.plan.items.length} exercises · ~${sess.plan.minutes} min${isDone ? ' · done' : ''}` : sess.plan.items.map((i) => i.exercise.name).join(' · ')}
+                    </Meta>
+                  </View>
+                  {isDone ? null : (
+                    <Pressable onPress={() => start(sess)} hitSlop={6} accessibilityRole="button" accessibilityLabel={`Start ${sess.plan.name}`} style={[s.go, !isNext && s.goAlt]}>
+                      <Text style={[s.goText, !isNext && s.goTextAlt]}>{active?.sessionKey === sess.key ? 'Resume' : 'Start'}</Text>
+                    </Pressable>
+                  )}
+                  <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={15} color={C.faint} style={{ marginLeft: 8 }} />
+                </Pressable>
+                {isOpen ? (
+                  <View style={s.sessDetail}>
+                    {sess.plan.items.map((i, n) => (
+                      <Pressable
+                        key={i.exercise.id}
+                        onPress={() => router.push({ pathname: '/exercise/[id]', params: { id: i.exercise.id } })}
+                        style={({ pressed }) => [s.exRow, pressed && { opacity: 0.6 }]}>
+                        <Text style={s.exNum}>{n + 1}</Text>
+                        <Text style={s.exName} numberOfLines={1}>
+                          {i.exercise.name}
+                        </Text>
+                        <Text style={s.exScheme}>
+                          {i.sets} × {i.reps}
+                        </Text>
+                        <Ionicons name="information-circle-outline" size={16} color={C.faint} />
+                      </Pressable>
+                    ))}
+                    {isDone ? null : (
+                      <Btn
+                        label={active?.sessionKey === sess.key ? 'Resume this workout' : `Start ${sess.plan.name}`}
+                        icon="play"
+                        onPress={() => start(sess)}
+                        style={{ marginTop: 10 }}
+                      />
+                    )}
+                  </View>
+                ) : null}
+              </View>
             );
           })}
         </Card>
@@ -284,14 +317,18 @@ const s = StyleSheet.create({
     gap: 11,
     paddingHorizontal: 14,
     paddingVertical: 11,
-    borderBottomWidth: 1,
-    borderBottomColor: C.line2,
   },
   check: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: C.line, alignItems: 'center', justifyContent: 'center' },
   checkDone: { backgroundColor: C.green, borderColor: C.green },
   go: { height: 28, paddingHorizontal: 12, borderRadius: 14, backgroundColor: C.red, justifyContent: 'center' },
   goText: { color: '#fff', fontSize: 12, fontWeight: '800' },
   goAlt: { backgroundColor: C.redWash },
+  sessWrap: { borderBottomWidth: 1, borderBottomColor: C.line2 },
+  sessDetail: { paddingHorizontal: 14, paddingBottom: 14, paddingLeft: 48 },
+  exRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 7 },
+  exNum: { width: 16, fontSize: 12, fontWeight: '800', color: C.faint },
+  exName: { flex: 1, fontSize: 14, fontWeight: '600', color: C.ink },
+  exScheme: { fontSize: 14, fontWeight: '800', color: C.red },
   goTextAlt: { color: C.red },
   coachIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: C.redWash, alignItems: 'center', justifyContent: 'center' },
   btnRow: { flexDirection: 'row', gap: S.gap, marginTop: 12 },
