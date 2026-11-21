@@ -252,3 +252,12 @@ NEW: Workouts from your coach.
 ```
 Version 2.2.1 adds optional AI check-ins for coaching clients. A client who joined a coach is asked once on Home ("Daily check-ins from [coach]'s AI assistant?" → Allow / Not now) and can change it in Profile → Your coach → AI check-ins. Only after they allow it does our server send their shared progress to Anthropic (Claude) to write a short evening check-in and a Sunday summary, which appear in their chat with the coach and may adjust their calorie and macro targets within fixed safe limits. The coach can switch the feature off for all clients (Profile → My clients) or pause it per client.
 ```
+
+(2.2.1 continued) Add to What's New:
+
+```
+• New workout types: yoga, Pilates, cardio, HIIT and stretching, with timed holds and cardio minutes and distance.
+• Choose your 12-week plan style: Strength, Yoga & Pilates, Cardio or Mixed.
+• Weight-gain plans: pick Lose fat, Gain weight or Maintain, and the plan, coach and check-ins follow your goal.
+• Log meals for earlier days from the day picker on the Meals tab.
+```

@@ -1,3 +1,4 @@
+import { goalOf } from './targets';
 import { waterToday } from './extras';
 import { sharedHealth, weekAverages } from './health';
 import type { Diet } from './mealplan';
@@ -93,6 +94,8 @@ export type ClientSummary = {
   weightNow: number | null;
   weightStart: number | null;
   weightGoal: number | null;
+  /** The plan's goal, when on a plan. */
+  goal?: 'lose' | 'gain' | 'maintain';
   /** Latest weigh-in minus the latest one at least 6 days older. */
   weightChange7d: number | null;
   calorieGoal: number;
@@ -192,6 +195,7 @@ export function summarize(state: AppState, now: number): ClientSummary {
     nextWorkout: nextSession(state, now)?.plan.name ?? null,
     lastWorkoutAt: lastTimes.length ? Math.max(...lastTimes) : null,
     weightNow: latest?.weight ?? null,
+    ...(program ? { goal: goalOf(program) } : {}),
     weightStart: program?.body.startWeight ?? weighIns[0]?.weight ?? null,
     weightGoal: program?.body.goalWeight ?? null,
     weightChange7d: latest && weekAgo ? round1(latest.weight - weekAgo.weight) : null,
@@ -261,8 +265,11 @@ const proteinIdeas: Record<Diet, string> = {
 export function suggestNote(name: string, s: ClientSummary, now: number): string {
   const first = name.trim().split(/\s+/)[0] || 'there';
   const top = flags(s, now)[0];
-  const lost = s.weightStart !== null && s.weightNow !== null ? round1(s.weightStart - s.weightNow) : 0;
-  const praise = lost >= 1 ? ` You're already down ${lost} ${s.units}, so keep it going!` : '';
+  const change = s.weightStart !== null && s.weightNow !== null ? round1(s.weightStart - s.weightNow) : 0;
+  // for someone gaining, progress is weight up
+  const lost = s.goal === 'gain' ? -change : change;
+  const moved = s.goal === 'gain' ? 'up' : 'down';
+  const praise = lost >= 1 ? ` You're already ${moved} ${lost} ${s.units}, so keep it going!` : '';
   const next = s.nextWorkout;
 
   switch (top.key) {
@@ -284,7 +291,7 @@ export function suggestNote(name: string, s: ClientSummary, now: number): string
       return `Hey ${first}, don't forget to log your meals. It's the best way to stay on track, and the meal plan makes it one tap.${praise}`;
     default:
       return lost >= 1
-        ? `Great work ${first}! You're down ${lost} ${s.units} and right on track this week. Keep it going 🔥`
+        ? `Great work ${first}! You're ${moved} ${lost} ${s.units} and right on track this week. Keep it going 🔥`
         : `Great work this week ${first}! You're right on track. Keep it going 🔥`;
   }
 }

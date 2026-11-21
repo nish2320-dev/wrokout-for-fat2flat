@@ -6,7 +6,8 @@ import { EQUIPMENT, Equipment } from '@/data/exercises';
 import { DIETS, Diet } from '@/data/mealplan';
 import { startOfDay } from '@/data/stats';
 import { useStore } from '@/data/store';
-import { ACTIVITY, computeTargets, PACES, validateBody } from '@/data/targets';
+import { PLAN_STYLES, type PlanStyle } from '@/data/program';
+import { ACTIVITY, computeTargets, GAIN_PACES, goalOf, GOALS, PACES, validateBody, type Goal } from '@/data/targets';
 import { Activity, Body, Pace, Program, Sex } from '@/data/types';
 import { fmtWeight } from '@/data/units';
 import { askNotifications } from '@/notify';
@@ -43,6 +44,8 @@ function SetupForm() {
     existing ? fmtWeight(lastWeight ?? existing.body.startWeight) : lastWeight !== undefined ? fmtWeight(lastWeight) : '',
   );
   const [goal, setGoal] = useState(existing ? fmtWeight(existing.body.goalWeight) : '');
+  const [aim, setAim] = useState<Goal>(existing ? goalOf(existing) : 'lose');
+  const [style, setStyle] = useState<PlanStyle>(existing?.style ?? 'strength');
   const [activity, setActivity] = useState<Activity>(existing?.body.activity ?? 'light');
   const [pace, setPace] = useState<Pace>(existing?.pace ?? 'steady');
   const [days, setDays] = useState<Program['daysPerWeek']>(existing?.daysPerWeek ?? 3);
@@ -56,12 +59,17 @@ function SetupForm() {
     heightCm,
     // editing keeps the original starting weight; the current one only feeds the targets
     startWeight: existing ? existing.body.startWeight : num(weight),
-    goalWeight: num(goal),
+    // maintaining: the goal is simply where you are
+    goalWeight: aim === 'maintain' ? num(weight) : num(goal),
     activity,
   };
   const current = num(weight);
-  const problem = validateBody({ ...body, startWeight: current }, units) ?? (equipment.length === 0 ? 'Pick at least one kind of equipment.' : null);
-  const targets = problem ? null : computeTargets(body, pace, units, current);
+  // yoga & Pilates needs no equipment
+  const needsEquipment = style !== 'yogapilates';
+  const problem =
+    validateBody({ ...body, startWeight: current }, units, aim) ?? (needsEquipment && equipment.length === 0 ? 'Pick at least one kind of equipment.' : null);
+  const targets = problem ? null : computeTargets(body, pace, units, current, aim);
+  const paces = aim === 'gain' ? GAIN_PACES : PACES;
 
   const toggleEquipment = (key: Equipment) =>
     setEquipment((cur) => (cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key]));
@@ -70,11 +78,11 @@ function SetupForm() {
     if (!targets || problem) return;
     if (diet) updateProfile({ diet });
     if (existing) {
-      updateProgram({ body, pace, daysPerWeek: days, equipment }, targets);
+      updateProgram({ body, pace, daysPerWeek: days, equipment: equipment.length ? equipment : ['bodyweight'], goal: aim, style }, targets);
       router.back();
     } else {
       startProgram(
-        { startedAt: startOfDay(Date.now()), daysPerWeek: days, equipment, body, pace, adjustments: [] },
+        { startedAt: startOfDay(Date.now()), daysPerWeek: days, equipment: equipment.length ? equipment : ['bodyweight'], body, pace, adjustments: [], goal: aim, style },
         targets,
         current,
       );
@@ -90,11 +98,18 @@ function SetupForm() {
         <View style={{ gap: 4, paddingHorizontal: 2 }}>
           <Text style={s.h1}>Your 12-week Transformation</Text>
           <Meta>
-            Tell us about you and we’ll set your daily calories and protein, plan your workouts week by week, and coach you
-            to the finish line.
+            Tell us your goal and a little about you, and we’ll set your daily calories and protein, plan your workouts week by
+            week, and coach you to the finish line.
           </Meta>
         </View>
       ) : null}
+
+      <Section title="What’s your goal?">
+        {GOALS.map((g) => (
+          <Pill key={g.key} label={g.label} on={aim === g.key} onPress={() => setAim(g.key)} />
+        ))}
+        <Meta style={s.full}>{GOALS.find((g) => g.key === aim)?.detail}</Meta>
+      </Section>
 
       <Section title="About you">
         <Row style={{ justifyContent: 'flex-start', gap: S.gap }}>
@@ -114,7 +129,7 @@ function SetupForm() {
         </View>
         <View style={s.pair}>
           <Field label={`Current weight (${units})`} value={weight} onChange={setWeight} placeholder={units} decimal />
-          <Field label={`Goal weight (${units})`} value={goal} onChange={setGoal} placeholder={units} decimal />
+          {aim === 'maintain' ? null : <Field label={`Goal weight (${units})`} value={goal} onChange={setGoal} placeholder={units} decimal />}
         </View>
       </Section>
 
@@ -125,16 +140,32 @@ function SetupForm() {
         <Meta style={s.full}>{ACTIVITY.find((a) => a.key === activity)?.detail}</Meta>
       </Section>
 
-      <Section title="How fast do you want to lose?">
-        {PACES.map((p) => (
-          <Pill
-            key={p.key}
-            label={`${p.label} · ${p.perWeek[units]} ${units}/wk`}
-            on={pace === p.key}
-            onPress={() => setPace(p.key)}
-          />
+      {aim === 'maintain' ? null : (
+        <Section title={aim === 'gain' ? 'How fast do you want to gain?' : 'How fast do you want to lose?'}>
+          {paces.map((p) => (
+            <Pill
+              key={p.key}
+              label={`${p.label} · ${p.perWeek[units]} ${units}/wk`}
+              on={pace === p.key}
+              onPress={() => setPace(p.key)}
+            />
+          ))}
+          <Meta style={s.full}>
+            {aim === 'gain'
+              ? 'Lean is best for most people: slower gain means more of it is muscle, not fat.'
+              : 'Steady is the sweet spot for most people: real progress without losing muscle.'}
+          </Meta>
+        </Section>
+      )}
+
+      <Section title="Plan style">
+        {PLAN_STYLES.map((p) => (
+          <Pill key={p.key} label={p.label} on={style === p.key} onPress={() => setStyle(p.key)} />
         ))}
-        <Meta style={s.full}>Steady is the sweet spot for most people: real progress without losing muscle.</Meta>
+        <Meta style={s.full}>
+          {PLAN_STYLES.find((p) => p.key === style)?.detail}
+          {aim === 'gain' && (style === 'yogapilates' || style === 'cardio') ? ' For gaining muscle, Strength or Mixed works best.' : ''}
+        </Meta>
       </Section>
 
       <Section title="Workouts per week">
@@ -143,11 +174,13 @@ function SetupForm() {
         ))}
       </Section>
 
+      {!needsEquipment ? null : (
       <Section title="Equipment you can use">
         {EQUIPMENT.map((e) => (
           <Pill key={e.key} label={e.label} on={equipment.includes(e.key)} onPress={() => toggleEquipment(e.key)} />
         ))}
       </Section>
+      )}
 
       <Section title="How do you eat?">
         {DIETS.map((d) => (
@@ -175,7 +208,9 @@ function SetupForm() {
             <Meta>
               {targets.maintaining
                 ? `That’s maintenance (${targets.maintenance.toLocaleString()} cal), so the plan focuses on training and body composition.`
-                : `You burn about ${targets.maintenance.toLocaleString()} cal a day; eating ${(targets.maintenance - targets.calories).toLocaleString()} less loses fat steadily.`}
+                : targets.gaining
+                  ? `You burn about ${targets.maintenance.toLocaleString()} cal a day; eating ${(targets.calories - targets.maintenance).toLocaleString()} more, with strength training, builds muscle steadily.`
+                  : `You burn about ${targets.maintenance.toLocaleString()} cal a day; eating ${(targets.maintenance - targets.calories).toLocaleString()} less loses fat steadily.`}
             </Meta>
             {targets.note ? <Meta style={{ color: C.red }}>{targets.note}</Meta> : null}
           </>

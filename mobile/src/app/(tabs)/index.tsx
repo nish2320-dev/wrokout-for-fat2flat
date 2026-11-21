@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { exerciseName } from '@/data/exercises';
-import { checkInDue, nextSession, phaseOf, programProgress, weekOf, WEEKS } from '@/data/program';
+import { checkInDue, nextSession, phaseFor, programProgress, weekOf, WEEKS } from '@/data/program';
 import { useActiveWorkout, useStore } from '@/data/store';
 import { durationMin, finished, fmtDate, fmtVolume, setCount, streak, thisWeek, volume } from '@/data/stats';
 import { C, S } from '@/theme';
@@ -203,7 +203,7 @@ function TransformCard() {
         <Text style={s.tfTitle}>
           {week > WEEKS ? 'See your results' : next ? `Up next: ${next.plan.name}` : 'This week is done 💪'}
         </Text>
-        {week <= WEEKS ? <Text style={s.tfBody}>{phaseOf(week).label} phase · tap for your plan, coach and check-ins</Text> : null}
+        {week <= WEEKS ? <Text style={s.tfBody}>{phaseFor(program, week).label} phase · tap for your plan, coach and check-ins</Text> : null}
         <View style={s.tfTrack}>
           <View style={[s.tfFill, { width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }]} />
         </View>

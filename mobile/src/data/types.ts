@@ -132,6 +132,10 @@ export type Program = {
   body: Body;
   pace: Pace;
   adjustments: Adjustment[];
+  /** Lose fat, gain weight or maintain. Unset (plans made before 2.2.1): lose if the goal is below the start, else maintain. */
+  goal?: 'lose' | 'gain' | 'maintain';
+  /** What the 12 weeks are made of; strength (weights) when unset. */
+  style?: 'strength' | 'yogapilates' | 'cardio' | 'mixed';
 };
 
 /**

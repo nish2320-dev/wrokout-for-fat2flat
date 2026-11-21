@@ -59,7 +59,7 @@ and write what (needs PostgreSQL 16 installed locally).
 
 ## Version 2.2.1: AI coaching agent
 
-1. Re-run `schema.sql` (adds the agent settings).
+1. Re-run `schema.sql` (adds the agent settings, and lets coaches send timed and cardio moves).
 2. Edge Functions → Deploy a new function → Via editor → name `coach-agent` →
    paste `functions/coach-agent/index.ts` → Deploy → Settings → turn **off**
    "Verify JWT with legacy secret" → Save.

@@ -1,4 +1,4 @@
-import { minimumCalories, PACES } from './targets';
+import { goalOf, minimumCalories, PACES, plannedRate } from './targets';
 import { AppState, Program, WeighIn } from './types';
 import { fmtWeight, Units } from './units';
 
@@ -67,7 +67,29 @@ export function coachAdvice(state: AppState, now: number): Advice | null {
     };
   }
 
-  const losing = program.body.goalWeight < program.body.startWeight && program.body.age >= 18;
+  const planGoal = program.body.age >= 18 ? goalOf(program) : 'maintain';
+  const losing = planGoal === 'lose';
+
+  if (planGoal === 'gain') {
+    const target = plannedRate('gain', program.pace, units);
+    if (trend < target * 0.5) {
+      return {
+        kind: 'raise',
+        title: 'Slower than planned',
+        detail: `You're ${trend >= 0 ? 'gaining' : 'losing'} about ${per(trend, units)}; the plan is to gain ${per(target, units)}. Eat ${STEP} more calories a day, ideally from protein and carbs around your workouts.`,
+        to: goal + STEP,
+      };
+    }
+    if (trend > target * 1.5 + (units === 'lb' ? 0.25 : 0.1)) {
+      return {
+        kind: 'lower',
+        title: 'Faster than planned',
+        detail: `You're gaining about ${per(trend, units)}; the plan is ${per(target, units)}. Gaining this fast adds more fat than muscle, so eat ${STEP} fewer calories a day.`,
+        to: goal - STEP,
+      };
+    }
+    return { kind: 'hold', title: 'Right on track', detail: `You're gaining about ${per(trend, units)}, right on plan. Keep training hard and eating well.` };
+  }
   const floor = minimumCalories(program.body.sex);
 
   if (!losing) {

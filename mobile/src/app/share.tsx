@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import { Alert, Platform, Share, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Svg, { Circle, Defs, G, LinearGradient, Rect, Stop, Text as SvgText, TSpan } from 'react-native-svg';
 
+import { goalOf } from '@/data/targets';
 import { badges } from '@/data/badges';
 import { finished } from '@/data/stats';
 import { useStore } from '@/data/store';
@@ -29,6 +30,8 @@ export default function ShareProgress() {
   const startWeight = state.program?.body.startWeight ?? weighIns[0]?.weight;
   const nowWeight = weighIns[weighIns.length - 1]?.weight;
   const lost = startWeight !== undefined && nowWeight !== undefined ? round1(startWeight - nowWeight) : 0;
+  const gaining = state.program ? goalOf(state.program) === 'gain' : false;
+  const gained = gaining ? Math.max(0, -lost) : 0;
   const since = state.program?.startedAt ?? weighIns[0]?.at ?? finished(state)[finished(state).length - 1]?.startedAt;
   const weeks = since ? Math.max(1, Math.round((Date.now() - since) / (7 * DAY))) : 0;
   const waists = [...state.checkIns].sort((a, b) => a.at - b.at).filter((c) => c.waist !== undefined);
@@ -37,7 +40,8 @@ export default function ShareProgress() {
   const earned = badges(state, Date.now()).filter((b) => b.earned).length;
 
   const stats: { value: string; label: string }[] = [
-    ...(lost > 0 ? [{ value: `−${lost} ${u}`, label: 'WEIGHT LOST' }] : []),
+    ...(gained > 0 ? [{ value: `+${gained} ${u}`, label: 'WEIGHT GAINED' }] : []),
+    ...(!gaining && lost > 0 ? [{ value: `−${lost} ${u}`, label: 'WEIGHT LOST' }] : []),
     ...(waistDown > 0.4 ? [{ value: `−${fmtLength(waistDown, u)} ${lengthUnit(u)}`, label: 'OFF MY WAIST' }] : []),
     { value: `${workouts}`, label: workouts === 1 ? 'WORKOUT' : 'WORKOUTS' },
     { value: `${earned}`, label: earned === 1 ? 'BADGE EARNED' : 'BADGES EARNED' },
@@ -54,7 +58,7 @@ export default function ShareProgress() {
         await Share.share(
           Platform.OS === 'ios'
             ? { url: file.uri }
-            : { message: `${weeks} weeks into my Fat2Flat journey${lost > 0 ? `: −${lost} ${u} so far` : ''}! 💪` },
+            : { message: `${weeks} weeks into my Fat2Flat journey${gained > 0 ? `: +${gained} ${u} so far` : !gaining && lost > 0 ? `: −${lost} ${u} so far` : ''}! 💪` },
         );
       } catch {
         Alert.alert('Couldn’t share', 'Please try again.');

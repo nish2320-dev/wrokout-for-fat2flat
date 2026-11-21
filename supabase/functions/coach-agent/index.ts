@@ -37,7 +37,7 @@ type Workout = { name: string; finishedAt?: number; exercises: { exerciseId: str
 type Snapshot = {
   v?: number;
   profile?: { calorieGoal: number; proteinGoal: number; carbGoal?: number; fatGoal?: number; units: 'lb' | 'kg'; diet?: string };
-  program?: { startedAt: number; daysPerWeek: number; body?: { sex?: string; goalWeight?: number } } | null;
+  program?: { startedAt: number; daysPerWeek: number; goal?: 'lose' | 'gain' | 'maintain'; style?: string; body?: { sex?: string; goalWeight?: number; startWeight?: number } } | null;
   workouts?: Workout[];
   meals?: Meal[];
   weighIns?: { at: number; weight: number }[];
@@ -112,6 +112,15 @@ export function safeTargets(cur: Targets, want: Targets, sex: string | undefined
 
 const localDate = (t: number, tz: string | null) => localParts(t, tz).date;
 
+/** The client's plan goal (older plans: lose if the goal weight is below the start). */
+export function goalOfSnap(snap: Snapshot): 'lose' | 'gain' | 'maintain' | null {
+  const p = snap.program;
+  if (!p) return null;
+  if (p.goal) return p.goal;
+  const b = p.body;
+  return b?.goalWeight !== undefined && b?.startWeight !== undefined && b.goalWeight < b.startWeight ? 'lose' : 'maintain';
+}
+
 /** A plain-text picture of the client's day and week, for the model. */
 export function clientContext(name: string, snap: Snapshot, tz: string | null, now: number, kind: 'daily' | 'weekly') {
   const units = snap.profile?.units ?? 'lb';
@@ -167,7 +176,9 @@ export function clientContext(name: string, snap: Snapshot, tz: string | null, n
     );
     if (kind === 'weekly') lines.push(`Weigh-ins, last 5 weeks: ${weights.map((w) => `${localDate(w.at, tz).slice(5)} ${w.weight}`).join(', ')}.`);
   } else lines.push('No weigh-ins in the last 5 weeks.');
-  if (snap.program?.body?.goalWeight) lines.push(`Goal weight: ${snap.program.body.goalWeight} ${units}.`);
+  const goal = goalOfSnap(snap);
+  if (goal) lines.push(`Goal: ${goal === 'gain' ? 'GAIN weight (build muscle) in a calorie surplus' : goal === 'lose' ? 'lose fat' : 'maintain weight'}${snap.program?.body?.goalWeight && goal !== 'maintain' ? `, target ${snap.program.body.goalWeight} ${units}` : ''}.`);
+  if (snap.program?.style && snap.program.style !== 'strength') lines.push(`Plan style: ${snap.program.style === 'yogapilates' ? 'yoga & Pilates' : snap.program.style}.`);
 
   const health = (snap.health?.days ?? []).filter((h) => h.date >= now - 8 * DAY);
   const steps = health.map((h) => h.steps).filter((n): n is number => typeof n === 'number');
@@ -177,7 +188,7 @@ export function clientContext(name: string, snap: Snapshot, tz: string | null, n
 
 // ── the model ───────────────────────────────────────────────────────────────
 
-const SYSTEM = (coach: string) => `You are the AI assistant working for ${coach}, a personal trainer, inside the Fat2Flat Fitness app. You write short check-in messages to ${coach}'s clients, who are trying to lose fat and get fitter. ${coach} reads every message you send.
+const SYSTEM = (coach: string) => `You are the AI assistant working for ${coach}, a personal trainer, inside the Fat2Flat Fitness app. You write short check-in messages to ${coach}'s clients. Most are trying to lose fat; some are gaining weight to build muscle, or maintaining. Always coach toward the client's own goal shown below. ${coach} reads every message you send.
 
 How to write:
 - Warm, encouraging and direct, like a good personal trainer texting a client. Use their first name. Plain text, no headings or lists, no hashtags, at most one emoji.
@@ -186,7 +197,8 @@ How to write:
 - Don't repeat what recent messages already said; vary the wording.
 - If they logged nothing, gently encourage logging rather than guessing.
 - You give general fitness and nutrition guidance, not medical advice. If anything suggests pain, injury, illness or an unhealthy relationship with food, keep it kind and suggest they talk to ${coach} or a doctor.
-- Never suggest eating under 1,200 calories (women) or 1,500 (men), fasting, or supplements beyond protein powder or creatine.`;
+- Never suggest eating under 1,200 calories (women) or 1,500 (men), fasting, or supplements beyond protein powder or creatine.
+- For someone gaining, eating enough is the challenge: praise hitting calories and protein, and suggest easy extra calories rather than cutting back.`;
 
 const DAILY_SCHEMA = {
   type: 'object',
@@ -210,7 +222,7 @@ const WEEKLY_SCHEMA = {
   additionalProperties: false,
 };
 
-const WEEKLY_RULES = `For the weekly summary, also review the targets. Change them only with a clear reason, for example: weight flat for 2+ weeks while they logged most days (lower calories by 100–150), losing faster than about 1% of body weight a week (raise calories by 100–150), protein regularly far below target (keep the target, coach them on it), or carbs or fat regularly over while calories are on target (rebalance carbs and fat). If unsure, don't change anything (change: false, and repeat the current numbers). Changes are capped automatically at ±150 calories, ±20 g protein, ±40 g carbs and ±15 g fat.`;
+const WEEKLY_RULES = `For the weekly summary, also review the targets. Change them only with a clear reason. If the goal is to LOSE fat: weight flat for 2+ weeks while they logged most days (lower calories by 100–150), or losing faster than about 1% of body weight a week (raise calories by 100–150). If the goal is to GAIN: weight flat or down for 2+ weeks while eating near target (raise calories by 100–150), or gaining faster than about 0.5% of body weight a week (lower calories by 100). If MAINTAINING: only correct a clear drift. Any goal: protein regularly far below target (keep the target, coach them on it), or carbs or fat regularly over while calories are on target (rebalance carbs and fat). If unsure, don't change anything (change: false, and repeat the current numbers). Changes are capped automatically at ±150 calories, ±20 g protein, ±40 g carbs and ±15 g fat.`;
 
 type Out = { message: string; change?: boolean; calorieGoal?: number; proteinGoal?: number; carbGoal?: number; fatGoal?: number; reason?: string };
 

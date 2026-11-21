@@ -8,8 +8,8 @@ import { personalRecords, streak, thisWeek, todayMacros, volume, weeklyVolume } 
 import { AppState, initialState } from '../src/data/types';
 import { convertUnits, fmtWeight } from '../src/data/units';
 import { sampleState } from '../src/data/sample';
-import { computeTargets, validateBody } from '../src/data/targets';
-import { WEEKS, buildSession, preferredIds, checkInDue, nextSession, phaseOf, programProgress, weekOf, weekSessions } from '../src/data/program';
+import { computeTargets, validateBody, goalOf, plannedRate } from '../src/data/targets';
+import { WEEKS, buildSession, phaseFor, preferredIds, checkInDue, nextSession, phaseOf, programProgress, weekOf, weekSessions } from '../src/data/program';
 import { coachAdvice, weeklyTrend } from '../src/data/coach';
 import { Body, Program } from '../src/data/types';
 import { EXERCISES } from '../src/data/exercises';
@@ -417,6 +417,41 @@ eq('exercise ids are unique', new Set(EXERCISES.map((e) => e.id)).size, EXERCISE
 eq('scheme text', [schemeText('reps', 3, 10), schemeText('hold', 2, 45), schemeText('cardio', 1, 20)], ['3 × 10', '2 × 45s', '20 min']);
 const cat = (id: string) => exById(id)?.muscle;
 eq('health: workout types', [workoutActivity(['downward-dog', 'warrior-1', 'plank'], cat), workoutActivity(['rower'], cat), workoutActivity(['rower', 'stationary-bike'], cat), workoutActivity(['bench-press', 'squat'], cat), workoutActivity(['hamstring-stretch'], cat)], ['yoga', 'rowing', 'cardio', 'strength', 'stretching']);
+
+// --- weight gain ---
+const gainer = { ...man, startWeight: 70, goalWeight: 78 };
+const gainT = computeTargets(gainer, 'gentle', 'kg', 70, 'gain');
+eq('gain: lean pace is a 250 cal surplus', [gainT.calories - gainT.maintenance, gainT.gaining], [250, true]);
+eq('gain: faster pace is 500 over', computeTargets(gainer, 'fast', 'kg', 70, 'gain').calories - gainT.maintenance, 500);
+eq('gain: goal must be above current weight', validateBody({ ...gainer, goalWeight: 65 }, 'kg', 'gain'), 'To gain weight, set a goal weight above your current weight.');
+eq('gain: goal capped at a healthy weight', validateBody({ ...gainer, goalWeight: 95 }, 'kg', 'gain'), 'That goal is above a healthy weight for your height. Pick a lower goal weight.');
+eq('lose: goal must be below current weight', validateBody({ ...man, goalWeight: 95 }, 'kg', 'lose'), 'For fat loss, set a goal weight below your current weight.');
+eq('maintain: calories at maintenance', computeTargets({ ...man, goalWeight: man.startWeight }, 'steady', 'kg', man.startWeight, 'maintain').maintaining, true);
+eq('under 18 gaining still gets maintenance', computeTargets({ ...gainer, age: 16 }, 'fast', 'kg', 70, 'gain').maintaining, true);
+eq('old plans: goal worked out from the weights', [goalOf(prog), goalOf({ body: { ...man, goalWeight: 95 } })], ['lose', 'maintain']);
+eq('planned rates', [plannedRate('gain', 'gentle', 'lb'), plannedRate('lose', 'steady', 'lb'), plannedRate('maintain', 'fast', 'kg')], [0.5, -1, 0]);
+const gainProg: Program = { ...prog, goal: 'gain', body: { ...gainer }, startedAt: startOfDayAt(now - 30 * DAY) };
+const flatWeights = (base: number, perWeek: number) => Array.from({ length: 6 }, (_, i) => ({ at: now - (20 - i * 4) * DAY, weight: Math.round((base + (perWeek * (i * 4)) / 7) * 10) / 10 }));
+const gainState = (perWeek: number) => ({ ...initialState, program: gainProg, profile: { ...initialState.profile, units: 'kg' as const, calorieGoal: 3000 }, weighIns: flatWeights(70, perWeek) });
+eq('gain coach: not gaining → eat more', coachAdvice(gainState(0), now)?.kind, 'raise');
+eq('gain coach: gaining too fast → eat a bit less', coachAdvice(gainState(1), now)?.kind, 'lower');
+eq('gain coach: on pace → hold', coachAdvice(gainState(0.25), now)?.kind, 'hold');
+eq('gain: last phase is Strength', [phaseFor(gainProg, 10).label, phaseFor(prog, 10).label], ['Strength', 'Shred']);
+const gainBadges = badges({ ...initialState, program: gainProg, profile: { ...initialState.profile, units: 'kg' }, weighIns: [{ at: now - 3 * DAY, weight: 73.2 }] }, now).filter((b) => b.earned).map((b) => b.id);
+eq('gain: gained badges, no lost badges', [gainBadges.includes('gained-3kg'), gainBadges.some((id) => id.startsWith('lost-'))], [true, false]);
+
+// --- plan styles ---
+const styled = (style: Program['style'], days: Program['daysPerWeek']) => weekSessions({ ...prog, style, daysPerWeek: days, equipment: ['barbell'] }, 2);
+const yp = styled('yogapilates', 4);
+eq('yoga & Pilates plan: no equipment needed, 4 sessions', [yp.length, yp.every((x) => x.plan.items.length >= 6), yp.map((x) => x.plan.name)], [4, true, ['Yoga Flow', 'Pilates Core', 'Power Yoga', 'Pilates Full Body']]);
+eq('yoga holds get longer by phase', [weekSessions({ ...prog, style: 'yogapilates' }, 2)[0].plan.items.find((i) => i.exercise.id === 'warrior-1')?.reps, weekSessions({ ...prog, style: 'yogapilates' }, 10)[0].plan.items.find((i) => i.exercise.id === 'warrior-1')?.reps], [30, 60]);
+const cp = styled('cardio', 3);
+eq('cardio plan: steady, intervals, long', cp.map((x) => x.plan.name), ['Steady Cardio', 'HIIT Intervals', 'Long Cardio']);
+eq('cardio without machines: walks and runs', cp[0].plan.items[0].exercise.equipment, 'bodyweight');
+eq('cardio sessions get longer', [weekSessions({ ...prog, style: 'cardio', daysPerWeek: 3 }, 2)[2].plan.items[0].reps, weekSessions({ ...prog, style: 'cardio', daysPerWeek: 3 }, 11)[2].plan.items[0].reps], [35, 50]);
+eq('mixed plan: weights, cardio and yoga', styled('mixed', 4).map((x) => x.plan.name), ['Upper A', 'Lower A', 'Steady Cardio', 'Yoga Flow']);
+eq('strength stays the default', weekSessions(prog, 2).map((x) => x.plan.name), ['Upper A', 'Lower A', 'Upper B', 'Lower B']);
+eq('yoga plan phases read right', phaseFor({ ...prog, style: 'yogapilates' }, 2).blurb.includes('poses'), true);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

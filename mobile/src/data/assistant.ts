@@ -1,8 +1,9 @@
 import { waterToday } from './extras';
 import { healthDay } from './health';
 import { dayTotals, goalsFor } from './macros';
+import { goalOf } from './targets';
 import { DIETS } from './mealplan';
-import { nextSession, phaseOf, WEEKS, weekOf } from './program';
+import { nextSession, phaseFor, WEEKS, weekOf } from './program';
 import { summarize } from './sharing';
 import { fmtDate } from './stats';
 import { AppState, AssistantMessage } from './types';
@@ -29,12 +30,21 @@ export function assistantContext(s: AppState, now: number, coachName?: string | 
   lines.push(`Daily targets: ${p.calorieGoal.toLocaleString()} calories, ${p.proteinGoal} g protein, ${goals.carbs} g carbs, ${goals.fat} g fat, ${p.waterGoal ?? 8} glasses of water.`);
 
   if (s.program) {
+    const g = goalOf(s.program);
+    lines.push(
+      g === 'gain'
+        ? `Goal: gain weight (muscle) to ${s.program.body.goalWeight} ${u}, eating in a calorie surplus.`
+        : g === 'lose'
+          ? `Goal: lose fat, down to ${s.program.body.goalWeight} ${u}.`
+          : 'Goal: maintain weight while getting fitter.',
+    );
+    if (s.program.style && s.program.style !== 'strength') lines.push(`Plan style: ${s.program.style === 'yogapilates' ? 'yoga & Pilates' : s.program.style}.`);
     const week = weekOf(s.program, now);
     const b = s.program.body;
     if (week <= WEEKS) {
       const next = nextSession(s, now);
       lines.push(
-        `On the 12-week Transformation: week ${week} of ${WEEKS}, ${phaseOf(week).label} phase, ${s.program.daysPerWeek} workouts a week; ${sum.workoutsThisWeek} of ${s.program.daysPerWeek} done this week${next ? `; next workout: ${next.plan.name} (${next.plan.items.map((i) => i.exercise.name).join(', ')})` : ''}.`,
+        `On the 12-week Transformation: week ${week} of ${WEEKS}, ${phaseFor(s.program, week).label} phase, ${s.program.daysPerWeek} workouts a week; ${sum.workoutsThisWeek} of ${s.program.daysPerWeek} done this week${next ? `; next workout: ${next.plan.name} (${next.plan.items.map((i) => i.exercise.name).join(', ')})` : ''}.`,
       );
     } else lines.push('Finished the 12-week Transformation.');
     lines.push(`Goal weight ${b.goalWeight} ${u}; ${b.sex}, age ${b.age}; activity: ${b.activity}; pace: ${s.program.pace}.`);

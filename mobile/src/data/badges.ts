@@ -1,3 +1,4 @@
+import { goalOf } from './targets';
 import { DEFAULT_WATER_GOAL } from './extras';
 import { WEEKS, weekOf } from './program';
 import { activeDays, finished, startOfDay } from './stats';
@@ -42,6 +43,7 @@ export function badges(s: AppState, now: number): Badge[] {
   const start = s.program?.body.startWeight ?? weighIns[0]?.weight;
   const latest = weighIns[weighIns.length - 1]?.weight;
   const lost = start !== undefined && latest !== undefined ? start - latest : 0;
+  const gaining = s.program ? goalOf(s.program) === 'gain' : false;
   const waists = [...s.checkIns].sort((a, b) => a.at - b.at).filter((c) => c.waist !== undefined);
   const waistDown = waists.length > 1 ? waists[0].waist! - waists[waists.length - 1].waist! : 0;
   const week = s.program ? weekOf(s.program, now) : 0;
@@ -55,7 +57,9 @@ export function badges(s: AppState, now: number): Badge[] {
     { id: 'workout-1', title: 'First workout', detail: 'You logged your first workout. The hardest one is done.', icon: 'barbell', earned: workouts >= 1 },
     ...[10, 25, 50, 100].map((n) => ({ id: `workout-${n}`, title: `${n} workouts`, detail: `${n} workouts logged. Consistency is everything.`, icon: 'trophy', earned: workouts >= n })),
     ...[3, 7, 14].map((n) => ({ id: `streak-${n}`, title: `${n}-day streak`, detail: `You trained ${n} days in a row.`, icon: 'flame', earned: streak >= n })),
-    ...steps.map((n) => ({ id: `lost-${n}${unit}`, title: `${n} ${unit} down`, detail: `You’ve lost ${n} ${unit} since you started. Keep going!`, icon: 'trending-down', earned: lost >= n })),
+    ...(gaining
+      ? (kg ? [1, 3, 5] : [2, 5, 10]).map((n) => ({ id: `gained-${n}${unit}`, title: `${n} ${unit} gained`, detail: `You’ve gained ${n} ${unit} since you started. That’s muscle being built!`, icon: 'trending-up', earned: -lost >= n }))
+      : steps.map((n) => ({ id: `lost-${n}${unit}`, title: `${n} ${unit} down`, detail: `You’ve lost ${n} ${unit} since you started. Keep going!`, icon: 'trending-down', earned: lost >= n }))),
     { id: 'waist-5cm', title: kg ? 'Waist down 5 cm' : 'Waist down 2 in', detail: `Your waist is down ${kg ? '5 cm' : '2 inches'} since your first check-in.`, icon: 'resize', earned: waistDown >= 5 },
     { id: 'checkin-1', title: 'First check-in', detail: 'Your first weekly check-in is in the books.', icon: 'camera', earned: s.checkIns.length >= 1 },
     { id: 'checkin-4', title: '4 check-ins', detail: 'A month of weekly check-ins. That’s how real change is tracked.', icon: 'calendar', earned: s.checkIns.length >= 4 },

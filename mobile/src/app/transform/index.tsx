@@ -4,13 +4,14 @@ import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { coachAdvice } from '@/data/coach';
+import { goalOf } from '@/data/targets';
 import { schemeText } from '@/data/exercises';
 import { planToExercises } from '@/data/generator';
 import {
   checkInDue,
   completedKeys,
   nextSession,
-  phaseOf,
+  phaseFor,
   PHASES,
   programProgress,
   ProgramSession,
@@ -50,7 +51,7 @@ export default function TransformScreen() {
   const units = state.profile.units;
   const week = weekOf(program, now);
   const finished = week > WEEKS;
-  const phase = phaseOf(Math.min(week, WEEKS));
+  const phase = phaseFor(program, Math.min(week, WEEKS));
   const progress = programProgress(state);
   const done = completedKeys(program, state.workouts);
   const sessions = finished ? [] : weekSessions(program, week);
@@ -62,6 +63,11 @@ export default function TransformScreen() {
 
   const latestWeight = state.weighIns[state.weighIns.length - 1]?.weight ?? program.body.startWeight;
   const lost = program.body.startWeight - latestWeight;
+  const gaining = goalOf(program) === 'gain';
+  const change = Math.round(Math.abs(lost) * 10) / 10;
+  const progressText = gaining
+    ? lost < 0 ? `${fmtWeight(change)} ${units} gained` : 'just getting started'
+    : lost > 0 ? `${fmtWeight(change)} ${units} down` : 'just getting started';
   const toGo = latestWeight - program.body.goalWeight;
   const waists = state.checkIns.filter((c) => c.waist !== undefined).map((c) => c.waist!);
   const waistChange = waists.length >= 2 ? waists[0] - waists[waists.length - 1] : null;
@@ -119,14 +125,14 @@ export default function TransformScreen() {
           <View style={[s.fill, { width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }]} />
         </View>
         <Text style={s.heroMeta}>
-          {progress.done} of {progress.total} workouts · {lost > 0 ? `${fmtWeight(Math.round(lost * 10) / 10)} ${units} down` : 'just getting started'}
+          {progress.done} of {progress.total} workouts · {progressText}
           {waistChange !== null && waistChange > 0 ? ` · ${fmtLength(waistChange, units)} ${lengthUnit(units)} off the waist` : ''}
         </Text>
         <View style={s.phases}>
           {PHASES.map((p) => (
             <View key={p.key} style={[s.phaseChip, (finished || week > p.weeks[1]) && s.phaseDone, !finished && p.key === phase.key && s.phaseNow]}>
               <Text style={[s.phaseText, (finished || week >= p.weeks[0]) && { color: '#fff' }]}>
-                {p.label} · wk {p.weeks[0]}–{p.weeks[1]}
+                {phaseFor(program, p.weeks[0]).label} · wk {p.weeks[0]}–{p.weeks[1]}
               </Text>
             </View>
           ))}
@@ -137,7 +143,7 @@ export default function TransformScreen() {
         <Card>
           <CardTitle>Your results</CardTitle>
           <Row style={{ marginTop: 10 }}>
-            <Stat label="Weight" value={lost > 0 ? `−${fmtWeight(Math.round(lost * 10) / 10)}` : fmtWeight(Math.round(-lost * 10) / 10)} unit={units} />
+            <Stat label="Weight" value={`${lost > 0 ? '−' : lost < 0 ? '+' : ''}${fmtWeight(change)}`} unit={units} />
             <Stat label="Waist" value={waistChange !== null ? `−${fmtLength(Math.max(0, waistChange), units)}` : '—'} unit={lengthUnit(units)} />
             <Stat label="Workouts" value={`${progress.done}`} />
           </Row>
