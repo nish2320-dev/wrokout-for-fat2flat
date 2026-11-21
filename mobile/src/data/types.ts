@@ -1,7 +1,8 @@
 import type { Equipment } from './exercises';
 import type { Diet } from './mealplan';
 
-export type SetEntry = { reps: number; weight: number; done: boolean };
+/** For holds `reps` is seconds and for cardio it's minutes; `dist` is a cardio distance in miles (lb users) or km. */
+export type SetEntry = { reps: number; weight: number; done: boolean; dist?: number };
 
 /** `restSec` and `note` come from a coach-built workout. */
 export type LoggedExercise = { exerciseId: string; sets: SetEntry[]; restSec?: number; note?: string };

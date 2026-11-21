@@ -7,7 +7,9 @@ import type { HealthPull } from '@/data/health';
  */
 
 export type MealWrite = { at: number; calories: number; protein: number; name: string };
-export type WorkoutWrite = { start: number; end: number; name: string };
+import type { WorkoutActivity } from '@/data/health';
+
+export type WorkoutWrite = { start: number; end: number; name: string; activity?: WorkoutActivity };
 
 export const healthAppName: string | null = null;
 

@@ -1,9 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
 
-import { KEEP_DAYS } from '@/data/health';
+import { KEEP_DAYS, workoutActivity } from '@/data/health';
 import { useStore } from '@/data/store';
 
+import { byId } from '@/data/exercises';
 import { healthAppName, healthAvailable, openHealthSettings, pullHealth, requestHealth, writeMeal, writeWorkout } from './native';
 
 /**
@@ -79,7 +80,8 @@ export function HealthProvider({ children }: { children: ReactNode }) {
     for (const w of state.workouts) {
       if (w.finishedAt === undefined || seen.current.has(`w:${w.id}`)) continue;
       seen.current.add(`w:${w.id}`);
-      writeWorkout({ start: w.startedAt, end: w.finishedAt, name: w.name }).catch(() => {});
+      const activity = workoutActivity(w.exercises.map((e) => e.exerciseId), (id) => byId(id)?.muscle);
+      writeWorkout({ start: w.startedAt, end: w.finishedAt, name: w.name, activity }).catch(() => {});
     }
     for (const m of state.meals) {
       if (seen.current.has(`m:${m.id}`)) continue;

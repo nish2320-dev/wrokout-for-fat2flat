@@ -331,7 +331,8 @@ begin
     if jsonb_typeof(v_item) <> 'object'
       or coalesce(v_item->>'exerciseId', '') !~ '^[a-z0-9-]{1,60}$'
       or (v_item->>'sets') !~ '^[0-9]+$' or (v_item->>'sets')::int not between 1 and 10
-      or (v_item->>'reps') !~ '^[0-9]+$' or (v_item->>'reps')::int not between 1 and 100
+      -- reps, or seconds for holds, or minutes for cardio
+      or (v_item->>'reps') !~ '^[0-9]+$' or (v_item->>'reps')::int not between 1 and 600
       or coalesce(v_item->>'restSec', '0') !~ '^[0-9]+$' or coalesce(v_item->>'restSec', '0')::int > 600
       or char_length(coalesce(v_item->>'note', '')) > 200
     then

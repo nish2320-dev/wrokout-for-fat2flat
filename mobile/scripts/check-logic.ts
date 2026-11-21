@@ -2,6 +2,8 @@
 declare const process: { exit(code: number): never };
 
 import { generate, planToExercises } from '../src/data/generator';
+import { workoutActivity } from '../src/data/health';
+import { byId as exById, schemeText } from '../src/data/exercises';
 import { personalRecords, streak, thisWeek, todayMacros, volume, weeklyVolume } from '../src/data/stats';
 import { AppState, initialState } from '../src/data/types';
 import { convertUnits, fmtWeight } from '../src/data/units';
@@ -401,6 +403,20 @@ const past = stampFor(t0 - 3 * DAY, now);
 eq('days: a meal for an earlier day lands on that day', startOfDayAt(past), startOfDayAt(t0 - 3 * DAY));
 eq('days: and counts toward that day, not today', [dayTotals([{ id: 'p', name: 'Late dinner', calories: 700, protein: 40, carbs: 60, fat: 25, at: past }], past).calories, dayTotals([{ id: 'p', name: 'Late dinner', calories: 700, protein: 40, at: past }], now).calories], [700, 0]);
 eq('days: the warning names the day', crossingWarning({ calories: 1900, protein: 0, carbs: 0, fat: 0 }, { calories: 2100, protein: 0, carbs: 0, fat: 0 }, g, 'yesterday’s'), 'That puts you over yesterday’s calories by 100 cal.');
+
+// --- yoga, Pilates, cardio, HIIT, stretch ---
+const yoga = generate({ focus: 'yoga', equipment: ['barbell'], goal: 'fat', minutes: 30 });
+eq('yoga: builds a flow even without bodyweight ticked', [yoga.items.length >= 8, yoga.items.every((i) => i.exercise.muscle === 'yoga')], [true, true]);
+eq('yoga: poses are held in seconds', yoga.items.find((i) => i.exercise.id === 'downward-dog')?.reps, 30);
+const cardioPlan = generate({ focus: 'cardio', equipment: ['machine'], goal: 'fat', minutes: 40 });
+eq('cardio: machines split the minutes', [cardioPlan.items.length, cardioPlan.items.every((i) => i.exercise.equipment === 'machine'), cardioPlan.items.reduce((n, i) => n + i.reps, 0)], [2, true, 40]);
+eq('cardio: no machines falls back to outdoor/bodyweight', generate({ focus: 'cardio', equipment: ['barbell'], goal: 'endurance', minutes: 30 }).items.map((i) => [i.exercise.equipment, i.reps]), [['bodyweight', 30]]);
+eq('hiit: rounds of timed moves', generate({ focus: 'hiit', equipment: ['dumbbells'], goal: 'fat', minutes: 30 }).items.find((i) => i.exercise.kind === 'hold')?.reps, 40);
+eq('every exercise has cues and a known category', EXERCISES.filter((e) => e.cues.length < 2).map((e) => e.id), []);
+eq('exercise ids are unique', new Set(EXERCISES.map((e) => e.id)).size, EXERCISES.length);
+eq('scheme text', [schemeText('reps', 3, 10), schemeText('hold', 2, 45), schemeText('cardio', 1, 20)], ['3 × 10', '2 × 45s', '20 min']);
+const cat = (id: string) => exById(id)?.muscle;
+eq('health: workout types', [workoutActivity(['downward-dog', 'warrior-1', 'plank'], cat), workoutActivity(['rower'], cat), workoutActivity(['rower', 'stationary-bike'], cat), workoutActivity(['bench-press', 'squat'], cat), workoutActivity(['hamstring-stretch'], cat)], ['yoga', 'rowing', 'cardio', 'strength', 'stretching']);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

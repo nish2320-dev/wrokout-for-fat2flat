@@ -138,3 +138,30 @@ export function sharedHealth(s: AppState, now: number) {
     ...(h.bodyFat ? { bodyFat: h.bodyFat } : {}),
   };
 }
+
+/** What kind of workout to save to Apple Health / Health Connect. */
+export type WorkoutActivity =
+  | 'strength' | 'yoga' | 'pilates' | 'hiit' | 'stretching'
+  | 'running' | 'walking' | 'cycling' | 'rowing' | 'elliptical' | 'stairs' | 'swimming' | 'jumprope' | 'dance' | 'cardio';
+
+const CARDIO_ACTIVITY: Record<string, WorkoutActivity> = {
+  run: 'running', treadmill: 'running', 'brisk-walk': 'walking', 'incline-walk': 'walking', 'stationary-bike': 'cycling',
+  rower: 'rowing', elliptical: 'elliptical', 'stair-climber': 'stairs', swim: 'swimming', 'jump-rope': 'jumprope', 'dance-cardio': 'dance',
+};
+
+/** The main kind of a logged workout: what most of its exercises are. A single cardio activity keeps its own type. */
+export function workoutActivity(exerciseIds: string[], categoryOf: (id: string) => string | undefined): WorkoutActivity {
+  if (exerciseIds.length === 0) return 'strength';
+  const count = new Map<string, number>();
+  for (const id of exerciseIds) {
+    const c = categoryOf(id) ?? 'strength';
+    const key = ['yoga', 'pilates', 'cardio', 'hiit', 'mobility'].includes(c) ? c : 'strength';
+    count.set(key, (count.get(key) ?? 0) + 1);
+  }
+  const top = [...count.entries()].sort((a, b) => b[1] - a[1])[0][0];
+  if (top === 'cardio') {
+    const kinds = new Set(exerciseIds.filter((id) => categoryOf(id) === 'cardio').map((id) => CARDIO_ACTIVITY[id] ?? 'cardio'));
+    return kinds.size === 1 ? [...kinds][0] : 'cardio';
+  }
+  return top === 'mobility' ? 'stretching' : (top as WorkoutActivity);
+}

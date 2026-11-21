@@ -126,10 +126,27 @@ export async function pullHealth(since: number): Promise<HealthPull> {
   };
 }
 
+const ANDROID_ACTIVITY: Record<string, number> = {
+  strength: ExerciseType.STRENGTH_TRAINING,
+  yoga: ExerciseType.YOGA,
+  pilates: ExerciseType.PILATES,
+  hiit: ExerciseType.HIGH_INTENSITY_INTERVAL_TRAINING,
+  stretching: ExerciseType.STRETCHING,
+  running: ExerciseType.RUNNING,
+  walking: ExerciseType.WALKING,
+  cycling: ExerciseType.BIKING_STATIONARY,
+  rowing: ExerciseType.ROWING_MACHINE,
+  elliptical: ExerciseType.ELLIPTICAL,
+  stairs: ExerciseType.STAIR_CLIMBING_MACHINE,
+  swimming: ExerciseType.SWIMMING_POOL,
+  dance: ExerciseType.DANCING,
+};
+
 export async function writeWorkout(w: WorkoutWrite): Promise<void> {
   if (!(await init())) return;
+  const exerciseType = ANDROID_ACTIVITY[w.activity ?? 'strength'] ?? ExerciseType.OTHER_WORKOUT;
   await insertRecords([
-    { recordType: 'ExerciseSession', exerciseType: ExerciseType.STRENGTH_TRAINING, title: w.name, startTime: iso(w.start), endTime: iso(w.end) },
+    { recordType: 'ExerciseSession', exerciseType, title: w.name, startTime: iso(w.start), endTime: iso(w.end) },
   ]);
 }
 

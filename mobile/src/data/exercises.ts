@@ -1,4 +1,12 @@
-export type Muscle = 'chest' | 'back' | 'legs' | 'shoulders' | 'arms' | 'core';
+/** Strength muscle groups, plus the other kinds of training (used as categories the same way). */
+export type Muscle = 'chest' | 'back' | 'legs' | 'shoulders' | 'arms' | 'core' | 'yoga' | 'pilates' | 'cardio' | 'hiit' | 'mobility';
+
+/**
+ * How a set is logged: reps × weight (default), a hold in seconds (yoga poses,
+ * planks, stretches, timed HIIT moves) or cardio in minutes (with an optional
+ * distance). For holds and cardio, a set's `reps` holds the seconds or minutes.
+ */
+export type ExerciseKind = 'reps' | 'hold' | 'cardio';
 export type Equipment = 'barbell' | 'dumbbells' | 'bodyweight' | 'machine' | 'cables';
 
 export type Exercise = {
@@ -7,6 +15,8 @@ export type Exercise = {
   muscle: Muscle;
   equipment: Equipment;
   compound: boolean;
+  /** Defaults to 'reps'. */
+  kind?: ExerciseKind;
   /** Short form cues shown on the exercise guide screen. */
   cues: string[];
 };
@@ -18,7 +28,15 @@ export const MUSCLES: { key: Muscle; label: string }[] = [
   { key: 'shoulders', label: 'Shoulders' },
   { key: 'arms', label: 'Arms' },
   { key: 'core', label: 'Core' },
+  { key: 'yoga', label: 'Yoga' },
+  { key: 'pilates', label: 'Pilates' },
+  { key: 'cardio', label: 'Cardio' },
+  { key: 'hiit', label: 'HIIT' },
+  { key: 'mobility', label: 'Stretch & mobility' },
 ];
+
+/** The strength groups (the original six); the rest are other kinds of training. */
+export const STRENGTH_GROUPS: Muscle[] = ['chest', 'back', 'legs', 'shoulders', 'arms', 'core'];
 
 export const EQUIPMENT: { key: Equipment; label: string }[] = [
   { key: 'dumbbells', label: 'Dumbbells' },
@@ -186,6 +204,206 @@ export const EXERCISES: Exercise[] = [
   { id: 'dead-bug', name: 'Dead Bug', muscle: 'core', equipment: 'bodyweight', compound: false,
     cues: ['Press your lower back into the floor and keep it there.',
            'Extend the opposite arm and leg slowly, then switch.'] },
+  // ---- yoga (holds are seconds per side where it applies) ----
+  { id: 'sun-salutation', name: 'Sun Salutation', muscle: 'yoga', equipment: 'bodyweight', compound: true,
+    cues: ['Flow through mountain, forward fold, plank, low push-up, cobra and downward dog.',
+           'One breath per movement: inhale as you lift or open, exhale as you fold or lower.',
+           'Each rep is one full round.'] },
+  { id: 'downward-dog', name: 'Downward Dog', muscle: 'yoga', equipment: 'bodyweight', compound: false, kind: 'hold',
+    cues: ['Hands shoulder-width, feet hip-width; push the floor away and lift your hips.',
+           'Bend your knees if you need to so your back stays long.',
+           'Let your head hang between your arms and breathe slowly.'] },
+  { id: 'warrior-1', name: 'Warrior I', muscle: 'yoga', equipment: 'bodyweight', compound: false, kind: 'hold',
+    cues: ['Step one foot back, back heel down at about 45°.',
+           'Bend the front knee over the ankle and square your hips forward.',
+           'Reach your arms up; hold each side.'] },
+  { id: 'warrior-2', name: 'Warrior II', muscle: 'yoga', equipment: 'bodyweight', compound: false, kind: 'hold',
+    cues: ['Wide stance, front toes forward, back foot parallel to the back of the mat.',
+           'Bend the front knee toward 90° and keep it tracking over the middle toes.',
+           'Arms long at shoulder height, gaze over the front hand; hold each side.'] },
+  { id: 'triangle', name: 'Triangle Pose', muscle: 'yoga', equipment: 'bodyweight', compound: false, kind: 'hold',
+    cues: ['From a wide stance with both legs straight, reach forward over the front leg.',
+           'Lower the front hand to your shin or a block; top arm reaches up.',
+           'Keep both sides of your waist long; hold each side.'] },
+  { id: 'chair-pose', name: 'Chair Pose', muscle: 'yoga', equipment: 'bodyweight', compound: false, kind: 'hold',
+    cues: ['Feet together or hip-width, sit back as if into a chair.',
+           'Weight in your heels, arms up alongside your ears.',
+           'Draw your belly in so your lower back does not arch.'] },
+  { id: 'tree-pose', name: 'Tree Pose', muscle: 'yoga', equipment: 'bodyweight', compound: false, kind: 'hold',
+    cues: ['Place one foot on the inner calf or thigh (never on the knee).',
+           'Press foot and leg into each other and stand tall.',
+           'Fix your gaze on one spot to balance; hold each side.'] },
+  { id: 'low-lunge', name: 'Low Lunge', muscle: 'yoga', equipment: 'bodyweight', compound: false, kind: 'hold',
+    cues: ['Step one foot forward, back knee down on the mat.',
+           'Sink your hips forward to stretch the front of the back hip.',
+           'Lift your chest and arms; hold each side.'] },
+  { id: 'cobra', name: 'Cobra', muscle: 'yoga', equipment: 'bodyweight', compound: false, kind: 'hold',
+    cues: ['Lie face down, hands under your shoulders, elbows close to your sides.',
+           'Press the tops of your feet down and lift your chest using your back, not your arms.',
+           'Keep your shoulders away from your ears.'] },
+  { id: 'bridge-pose', name: 'Bridge Pose', muscle: 'yoga', equipment: 'bodyweight', compound: false, kind: 'hold',
+    cues: ['Lie on your back, knees bent, feet flat and hip-width.',
+           'Press through your feet and lift your hips; knees stay over the ankles.',
+           'Roll your shoulders under and breathe into your chest.'] },
+  { id: 'boat-pose', name: 'Boat Pose', muscle: 'yoga', equipment: 'bodyweight', compound: false, kind: 'hold',
+    cues: ['Sit tall, lean back slightly and lift your feet, knees bent.',
+           'Straighten your legs only if your back stays long.',
+           'Reach your arms forward and keep breathing.'] },
+  { id: 'pigeon', name: 'Pigeon Pose', muscle: 'yoga', equipment: 'bodyweight', compound: false, kind: 'hold',
+    cues: ['From downward dog, bring one knee forward behind the same wrist.',
+           'Extend the back leg straight behind you and square your hips.',
+           'Fold forward if it feels good; hold each side.'] },
+  { id: 'cat-cow', name: 'Cat-Cow', muscle: 'yoga', equipment: 'bodyweight', compound: false,
+    cues: ['On hands and knees, wrists under shoulders, knees under hips.',
+           'Inhale: drop your belly and lift your chest. Exhale: round your back.',
+           'Each rep is one round; move slowly with your breath.'] },
+  { id: 'childs-pose', name: 'Child’s Pose', muscle: 'yoga', equipment: 'bodyweight', compound: false, kind: 'hold',
+    cues: ['Knees wide, big toes together, sit back toward your heels.',
+           'Walk your hands forward and rest your forehead down.',
+           'Breathe into your back; use it to rest between harder poses.'] },
+  { id: 'seated-forward-fold', name: 'Seated Forward Fold', muscle: 'yoga', equipment: 'bodyweight', compound: false, kind: 'hold',
+    cues: ['Sit with legs straight, knees soft if your hamstrings are tight.',
+           'Hinge from your hips with a long back, reaching toward your feet.',
+           'Relax your neck and breathe; do not bounce.'] },
+
+  // ---- pilates ----
+  { id: 'pilates-hundred', name: 'The Hundred', muscle: 'pilates', equipment: 'bodyweight', compound: false,
+    cues: ['Lie on your back, lift your head and shoulders, legs in tabletop or extended.',
+           'Pump your straight arms by your sides: breathe in for 5 pumps, out for 5.',
+           'Each rep is one pump; 100 is the classic count.'] },
+  { id: 'roll-up', name: 'Roll-Up', muscle: 'pilates', equipment: 'bodyweight', compound: false,
+    cues: ['Lie flat with arms overhead.',
+           'Peel up one vertebra at a time, reaching for your toes.',
+           'Roll back down just as slowly; bend your knees to make it easier.'] },
+  { id: 'single-leg-stretch', name: 'Single-Leg Stretch', muscle: 'pilates', equipment: 'bodyweight', compound: false,
+    cues: ['Head and shoulders lifted, one knee pulled in, the other leg extended.',
+           'Switch legs with control, keeping your lower back on the mat.',
+           'Each switch is one rep.'] },
+  { id: 'double-leg-stretch', name: 'Double-Leg Stretch', muscle: 'pilates', equipment: 'bodyweight', compound: false,
+    cues: ['Hug both knees in with your head lifted.',
+           'Inhale: reach arms back and legs long. Exhale: circle the arms and hug back in.',
+           'Lower the legs higher if your back lifts off the mat.'] },
+  { id: 'criss-cross', name: 'Criss-Cross', muscle: 'pilates', equipment: 'bodyweight', compound: false,
+    cues: ['Hands behind your head, elbows wide, head and shoulders lifted.',
+           'Rotate your ribs toward the opposite knee as the other leg extends.',
+           'Move slowly; each side is one rep.'] },
+  { id: 'leg-circles', name: 'Single-Leg Circles', muscle: 'pilates', equipment: 'bodyweight', compound: false,
+    cues: ['Lie on your back, one leg raised toward the ceiling.',
+           'Draw small circles with the leg while your hips stay completely still.',
+           'Reverse direction halfway; switch legs.'] },
+  { id: 'side-leg-lift', name: 'Side-Lying Leg Lift', muscle: 'pilates', equipment: 'bodyweight', compound: false,
+    cues: ['Lie on your side in a straight line, head resting on your arm.',
+           'Lift the top leg to hip height and lower with control.',
+           'Keep your hips stacked; do each side.'] },
+  { id: 'pilates-swimming', name: 'Swimming', muscle: 'pilates', equipment: 'bodyweight', compound: false, kind: 'hold',
+    cues: ['Lie face down, arms and legs long and lifted a little.',
+           'Flutter opposite arm and leg in small, quick movements.',
+           'Keep your neck long and your belly lifted.'] },
+  { id: 'teaser', name: 'Teaser', muscle: 'pilates', equipment: 'bodyweight', compound: false,
+    cues: ['From lying, roll up into a V with legs and arms reaching.',
+           'Balance on your sit bones, then roll down with control.',
+           'Bend your knees to start; straighten them as you get stronger.'] },
+  { id: 'shoulder-bridge', name: 'Shoulder Bridge', muscle: 'pilates', equipment: 'bodyweight', compound: false,
+    cues: ['Feet flat, roll your spine up into a bridge.',
+           'Hold the top and lift one leg, then lower it and switch.',
+           'Roll down one vertebra at a time; each lift is one rep.'] },
+  { id: 'spine-twist', name: 'Spine Twist', muscle: 'pilates', equipment: 'bodyweight', compound: false,
+    cues: ['Sit tall with legs together and arms out to the sides.',
+           'Twist from your waist twice to one side, return to center, then switch.',
+           'Hips stay still; grow taller as you twist.'] },
+
+  // ---- cardio (logged in minutes) ----
+  { id: 'brisk-walk', name: 'Brisk Walk', muscle: 'cardio', equipment: 'bodyweight', compound: false, kind: 'cardio',
+    cues: ['Walk fast enough that talking takes a little effort.',
+           'Swing your arms and take quick, short steps.'] },
+  { id: 'run', name: 'Run (outdoors)', muscle: 'cardio', equipment: 'bodyweight', compound: false, kind: 'cardio',
+    cues: ['Start with 5 minutes of easy jogging to warm up.',
+           'Land softly under your hips with quick steps; relax your shoulders.',
+           'Most runs should feel conversational.'] },
+  { id: 'treadmill', name: 'Treadmill Run', muscle: 'cardio', equipment: 'machine', compound: false, kind: 'cardio',
+    cues: ['Set a 1% incline to mimic running outside.',
+           'Do not hold the rails; stay near the front of the belt.'] },
+  { id: 'incline-walk', name: 'Incline Walk', muscle: 'cardio', equipment: 'machine', compound: false, kind: 'cardio',
+    cues: ['Set the treadmill to a 8–12% incline at a pace you can hold.',
+           'Stand tall and avoid holding the rails.'] },
+  { id: 'stationary-bike', name: 'Stationary Bike', muscle: 'cardio', equipment: 'machine', compound: false, kind: 'cardio',
+    cues: ['Seat height so your knee is slightly bent at the bottom.',
+           'Keep a steady cadence; add resistance rather than bouncing.'] },
+  { id: 'rower', name: 'Rowing Machine', muscle: 'cardio', equipment: 'machine', compound: false, kind: 'cardio',
+    cues: ['Push with your legs first, then lean back slightly, then pull with your arms.',
+           'Return in reverse order: arms, body, legs.',
+           'About 60% legs, 20% body, 20% arms.'] },
+  { id: 'elliptical', name: 'Elliptical', muscle: 'cardio', equipment: 'machine', compound: false, kind: 'cardio',
+    cues: ['Stand tall and push and pull the handles.',
+           'Raise the resistance until it feels like a real effort.'] },
+  { id: 'stair-climber', name: 'Stair Climber', muscle: 'cardio', equipment: 'machine', compound: false, kind: 'cardio',
+    cues: ['Light hands on the rails for balance only.',
+           'Step through your whole foot and keep your chest up.'] },
+  { id: 'jump-rope', name: 'Jump Rope', muscle: 'cardio', equipment: 'bodyweight', compound: false, kind: 'cardio',
+    cues: ['Small, quick jumps on the balls of your feet.',
+           'Turn the rope with your wrists, elbows close to your sides.',
+           'Rest briefly whenever you trip; log the total minutes.'] },
+  { id: 'swim', name: 'Swimming', muscle: 'cardio', equipment: 'bodyweight', compound: false, kind: 'cardio',
+    cues: ['Any stroke counts; mix in rests at the wall as you need.',
+           'Breathe out steadily underwater so you can breathe in quickly.'] },
+  { id: 'dance-cardio', name: 'Dance Cardio', muscle: 'cardio', equipment: 'bodyweight', compound: false, kind: 'cardio',
+    cues: ['Follow a dance or Zumba-style class or your own playlist.',
+           'Keep moving the whole time; bigger moves burn more.'] },
+
+  // ---- HIIT (timed moves are seconds per round) ----
+  { id: 'burpee', name: 'Burpee', muscle: 'hiit', equipment: 'bodyweight', compound: true,
+    cues: ['Squat, hands down, jump or step back to plank.',
+           'Jump or step your feet in and stand up (add a jump for more).'] },
+  { id: 'mountain-climber', name: 'Mountain Climbers', muscle: 'hiit', equipment: 'bodyweight', compound: false, kind: 'hold',
+    cues: ['High plank, shoulders over wrists.',
+           'Drive your knees toward your chest one at a time, fast but controlled.'] },
+  { id: 'jumping-jack', name: 'Jumping Jacks', muscle: 'hiit', equipment: 'bodyweight', compound: false, kind: 'hold',
+    cues: ['Jump your feet wide as your arms go overhead, then back together.',
+           'Stay light on the balls of your feet. Step side to side for a low-impact version.'] },
+  { id: 'high-knees', name: 'High Knees', muscle: 'hiit', equipment: 'bodyweight', compound: false, kind: 'hold',
+    cues: ['Run on the spot, driving your knees to hip height.',
+           'Pump your arms and stay tall.'] },
+  { id: 'squat-jump', name: 'Squat Jump', muscle: 'hiit', equipment: 'bodyweight', compound: true,
+    cues: ['Squat down, then jump straight up.',
+           'Land softly with bent knees and go straight into the next rep.'] },
+  { id: 'skater', name: 'Skaters', muscle: 'hiit', equipment: 'bodyweight', compound: false,
+    cues: ['Leap sideways onto one foot, swinging the other leg behind.',
+           'Land softly and bound back the other way; each side is one rep.'] },
+  { id: 'plank-jack', name: 'Plank Jacks', muscle: 'hiit', equipment: 'bodyweight', compound: false, kind: 'hold',
+    cues: ['From a plank, jump your feet wide and back together.',
+           'Keep your hips level, not piked up.'] },
+  { id: 'kettlebell-swing', name: 'Kettlebell / Dumbbell Swing', muscle: 'hiit', equipment: 'dumbbells', compound: true,
+    cues: ['Hinge at the hips and hike the weight back between your legs.',
+           'Snap your hips forward to swing it to chest height; arms just guide it.'] },
+
+  // ---- stretch & mobility (holds are seconds per side) ----
+  { id: 'hamstring-stretch', name: 'Hamstring Stretch', muscle: 'mobility', equipment: 'bodyweight', compound: false, kind: 'hold',
+    cues: ['Lie on your back and raise one straight leg, holding behind the thigh.',
+           'Keep the other leg long on the floor; hold each side.'] },
+  { id: 'hip-flexor-stretch', name: 'Hip Flexor Stretch', muscle: 'mobility', equipment: 'bodyweight', compound: false, kind: 'hold',
+    cues: ['Half-kneeling, squeeze the glute of the back leg.',
+           'Shift forward gently until you feel the front of that hip; hold each side.'] },
+  { id: 'figure-four', name: 'Figure-Four Stretch', muscle: 'mobility', equipment: 'bodyweight', compound: false, kind: 'hold',
+    cues: ['On your back, cross one ankle over the opposite knee.',
+           'Pull the bottom leg toward you to stretch the outer hip; hold each side.'] },
+  { id: 'worlds-greatest', name: 'World’s Greatest Stretch', muscle: 'mobility', equipment: 'bodyweight', compound: false,
+    cues: ['Step into a deep lunge, both hands inside the front foot.',
+           'Rotate and reach the inside arm to the ceiling, then switch sides.',
+           'Each side is one rep.'] },
+  { id: 'thoracic-rotation', name: 'Open Book Rotation', muscle: 'mobility', equipment: 'bodyweight', compound: false,
+    cues: ['Lie on your side, knees bent, arms out in front together.',
+           'Open the top arm across to the other side, following it with your eyes.',
+           'Each opening is one rep; do both sides.'] },
+  { id: 'chest-doorway-stretch', name: 'Doorway Chest Stretch', muscle: 'mobility', equipment: 'bodyweight', compound: false, kind: 'hold',
+    cues: ['Forearm on a door frame, elbow at shoulder height.',
+           'Step through gently until you feel the chest open; hold each side.'] },
+  { id: 'calf-stretch', name: 'Calf Stretch', muscle: 'mobility', equipment: 'bodyweight', compound: false, kind: 'hold',
+    cues: ['Hands on a wall, one leg back with the heel down and knee straight.',
+           'Lean in until you feel the calf; hold each side.'] },
+  { id: 'foam-roll', name: 'Foam Rolling', muscle: 'mobility', equipment: 'bodyweight', compound: false, kind: 'cardio',
+    cues: ['Roll slowly over calves, quads, glutes and upper back.',
+           'Pause on tender spots for a few breaths; avoid rolling your lower back.',
+           'Log the total minutes.'] },
 ];
 
 export const byId = (id: string) => EXERCISES.find((e) => e.id === id);
@@ -194,6 +412,15 @@ export const exerciseName = (id: string) => byId(id)?.name ?? 'Exercise';
 
 export const equipmentLabel = (k: Equipment) =>
   EQUIPMENT.find((e) => e.key === k)?.label ?? k;
+
+export const kindOf = (id: string): ExerciseKind => byId(id)?.kind ?? 'reps';
+
+/** "Reps", "Seconds" or "Minutes": what the number in a set means. */
+export const amountLabel = (kind: ExerciseKind) => (kind === 'hold' ? 'Seconds' : kind === 'cardio' ? 'Minutes' : 'Reps');
+
+/** "3 × 10", "3 × 30s" or "20 min". */
+export const schemeText = (kind: ExerciseKind, sets: number, amount: number) =>
+  kind === 'cardio' ? `${sets > 1 ? `${sets} × ` : ''}${amount} min` : kind === 'hold' ? `${sets} × ${amount}s` : `${sets} × ${amount}`;
 
 export const muscleLabel = (k: Muscle) =>
   MUSCLES.find((m) => m.key === k)?.label ?? k;

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { coachAdvice } from '@/data/coach';
+import { schemeText } from '@/data/exercises';
 import { planToExercises } from '@/data/generator';
 import {
   checkInDue,
@@ -197,7 +198,7 @@ export default function TransformScreen() {
                           {i.exercise.name}
                         </Text>
                         <Text style={s.exScheme}>
-                          {i.sets} × {i.reps}
+                          {schemeText(i.exercise.kind ?? 'reps', i.sets, i.reps)}
                         </Text>
                         <Ionicons name="information-circle-outline" size={16} color={C.faint} />
                       </Pressable>

@@ -1,4 +1,4 @@
-import { byId } from './exercises';
+import { byId, schemeText } from './exercises';
 import type { LoggedExercise, Workout } from './types';
 
 /** One exercise in a workout a coach built: what to do and how. */
@@ -37,7 +37,8 @@ export function cleanItems(items: CoachWorkoutItem[]): CoachWorkoutItem[] {
       return {
         exerciseId: i.exerciseId,
         sets: clamp(i.sets || 1, 1, 10),
-        reps: clamp(i.reps || 1, 1, 100),
+        // reps, seconds for holds or minutes for cardio
+        reps: clamp(i.reps || 1, 1, 600),
         restSec: clamp(i.restSec ?? DEFAULT_REST, 0, 600),
         ...(note ? { note } : {}),
       };
@@ -58,8 +59,13 @@ export const totalSets = (items: CoachWorkoutItem[]) => items.reduce((n, i) => n
 /** "5 exercises · 15 sets · ~40 min" */
 export function describe(items: CoachWorkoutItem[]) {
   const sets = totalSets(items);
-  // a set takes about 45 s plus its rest
-  const minutes = Math.max(5, Math.round(items.reduce((t, i) => t + i.sets * (45 + (i.restSec ?? DEFAULT_REST)), 0) / 60 / 5) * 5);
+  // a set takes about 45 s (or its hold time, or its cardio minutes) plus its rest
+  const seconds = items.reduce((t, i) => {
+    const kind = byId(i.exerciseId)?.kind;
+    const work = kind === 'cardio' ? i.reps * 60 : kind === 'hold' ? i.reps : 45;
+    return t + i.sets * (work + (kind === 'cardio' ? 0 : (i.restSec ?? DEFAULT_REST)));
+  }, 0);
+  const minutes = Math.max(5, Math.round(seconds / 60 / 5) * 5);
   return `${items.length} exercise${items.length === 1 ? '' : 's'} · ${sets} set${sets === 1 ? '' : 's'} · ~${minutes} min`;
 }
 
@@ -80,6 +86,13 @@ export function resultLines(w: Workout, units: string) {
     .map((e) => {
       const top = e.sets.reduce((a, b) => (b.weight > a.weight || (b.weight === a.weight && b.reps > a.reps) ? b : a));
       const name = byId(e.exerciseId)?.name ?? 'Exercise';
+      const kind = byId(e.exerciseId)?.kind ?? 'reps';
+      if (kind === 'cardio') {
+        const mins = e.sets.reduce((n, x) => n + x.reps, 0);
+        const dist = e.sets.reduce((n, x) => n + (x.dist ?? 0), 0);
+        return `${name}: ${mins} min${dist > 0 ? `, ${Math.round(dist * 10) / 10} ${units === 'lb' ? 'mi' : 'km'}` : ''}`;
+      }
+      if (kind === 'hold') return `${name}: ${schemeText('hold', e.sets.length, top.reps)}`;
       return `${name}: ${e.sets.length} × ${top.reps}${top.weight > 0 ? ` @ ${top.weight} ${units}` : ''}`;
     });
 }

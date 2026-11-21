@@ -4,8 +4,8 @@ import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { EQUIPMENT, Equipment, equipmentLabel, muscleLabel } from '@/data/exercises';
-import { FOCUS, Focus, GOALS, Goal, LENGTHS, generate, planToExercises } from '@/data/generator';
+import { EQUIPMENT, Equipment, equipmentLabel, muscleLabel, schemeText } from '@/data/exercises';
+import { FOCUS, Focus, GOALS, Goal, LENGTHS, generate, isOtherFocus, planToExercises } from '@/data/generator';
 import { useActiveWorkout, useStore } from '@/data/store';
 import { C, S } from '@/theme';
 import { CoachWorkoutsCard } from '@/ui/CoachWorkouts';
@@ -78,12 +78,13 @@ export default function WorkoutsScreen() {
 
       <CoachWorkoutsCard />
 
-      <Group title="Muscle group">
+      <Group title="Workout type">
         {FOCUS.map((f) => (
           <Pill key={f.key} label={f.label} on={focus === f.key} onPress={() => setFocus(f.key)} />
         ))}
       </Group>
 
+      {!isOtherFocus(focus) || focus === 'cardio' ? (
       <Group title="Equipment">
         {EQUIPMENT.map((e) => (
           <Pill
@@ -94,6 +95,8 @@ export default function WorkoutsScreen() {
           />
         ))}
       </Group>
+
+      ) : null}
 
       <Group title="Goal">
         {GOALS.map((g) => (
@@ -112,7 +115,7 @@ export default function WorkoutsScreen() {
           <View style={{ flex: 1 }}>
             <CardTitle>Today's plan</CardTitle>
             <Meta>
-              {plan.items.length} exercises · {totalSets} sets · ~{minutes} min
+              {plan.items.length} {isOtherFocus(focus) ? (focus === 'cardio' ? 'activities' : 'moves') : 'exercises'} · {totalSets} sets · ~{minutes} min
             </Meta>
           </View>
           <Tag label="Auto-built" />
@@ -137,9 +140,7 @@ export default function WorkoutsScreen() {
                   {muscleLabel(item.exercise.muscle)} · {equipmentLabel(item.exercise.equipment)}
                 </Meta>
               </View>
-              <Text style={s.scheme}>
-                {item.sets} × {item.reps}
-              </Text>
+              <Text style={s.scheme}>{schemeText(item.exercise.kind ?? 'reps', item.sets, item.reps)}</Text>
             </View>
           ))
         )}

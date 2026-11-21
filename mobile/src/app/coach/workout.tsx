@@ -8,19 +8,19 @@ import { listClients, sendWorkout, type ClientRow } from '@/cloud/coachApi';
 import { useCloud } from '@/cloud/CloudProvider';
 import { errorText } from '@/cloud/supabase';
 import { cleanItems, DEFAULT_REST, describe, MAX_ITEMS, REST_CHOICES, type CoachWorkoutItem } from '@/data/coachWorkouts';
-import { byId, EQUIPMENT, EXERCISES, equipmentLabel, MUSCLES, muscleLabel, type Exercise, type Muscle } from '@/data/exercises';
+import { amountLabel, byId, EQUIPMENT, EXERCISES, equipmentLabel, MUSCLES, muscleLabel, type Exercise, type Muscle } from '@/data/exercises';
 import { FOCUS, generate, type Focus } from '@/data/generator';
 import { C, S } from '@/theme';
 import { Btn, Card, CardTitle, Eyebrow, Meta, Name, Pill, Row, Screen } from '@/ui/kit';
 
 const restLabel = (sec: number) => (sec >= 60 ? `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}` : `${sec}s`);
 
-const newItem = (e: Exercise): CoachWorkoutItem => ({
-  exerciseId: e.id,
-  sets: 3,
-  reps: e.compound ? 8 : 12,
-  restSec: e.compound ? 120 : 60,
-});
+const newItem = (e: Exercise): CoachWorkoutItem =>
+  e.kind === 'cardio'
+    ? { exerciseId: e.id, sets: 1, reps: 20, restSec: 0 }
+    : e.kind === 'hold'
+      ? { exerciseId: e.id, sets: 2, reps: 30, restSec: 30 }
+      : { exerciseId: e.id, sets: 3, reps: e.compound ? 8 : 12, restSec: e.compound ? 120 : 60 };
 
 /** The coach builds a workout from the exercise library and sends it to one or more clients. */
 export default function BuildWorkout() {
@@ -145,16 +145,25 @@ export default function BuildWorkout() {
             </Row>
             <Row style={{ gap: 10 }}>
               <Stepper label="Sets" value={it.sets} min={1} max={10} onChange={(sets) => patch(i, { sets })} />
-              <Stepper label="Reps" value={it.reps} min={1} max={100} onChange={(reps) => patch(i, { reps })} />
+              <Stepper
+                label={amountLabel(ex?.kind ?? 'reps')}
+                value={it.reps}
+                min={1}
+                max={ex?.kind ? 600 : 100}
+                step={ex?.kind ? 5 : 1}
+                onChange={(reps) => patch(i, { reps })}
+              />
             </Row>
-            <View style={{ gap: 6 }}>
-              <Eyebrow>Rest between sets</Eyebrow>
-              <View style={s.chips}>
-                {REST_CHOICES.map((r) => (
-                  <Pill key={r} label={restLabel(r)} on={(it.restSec ?? DEFAULT_REST) === r} onPress={() => patch(i, { restSec: r })} />
-                ))}
+            {ex?.kind === 'cardio' ? null : (
+              <View style={{ gap: 6 }}>
+                <Eyebrow>Rest between sets</Eyebrow>
+                <View style={s.chips}>
+                  {REST_CHOICES.map((r) => (
+                    <Pill key={r} label={restLabel(r)} on={(it.restSec ?? DEFAULT_REST) === r} onPress={() => patch(i, { restSec: r })} />
+                  ))}
+                </View>
               </View>
-            </View>
+            )}
             <TextInput
               value={it.note ?? ''}
               onChangeText={(t) => patch(i, { note: t })}
@@ -230,16 +239,16 @@ function IconBtn({ name, label, onPress, disabled }: { name: keyof typeof Ionico
   );
 }
 
-function Stepper({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (n: number) => void }) {
+function Stepper({ label, value, min, max, step = 1, onChange }: { label: string; value: number; min: number; max: number; step?: number; onChange: (n: number) => void }) {
   return (
     <View style={s.stepper}>
       <Text style={s.stepLabel}>{label}</Text>
       <Row style={{ gap: 6 }}>
-        <Pressable onPress={() => onChange(Math.max(min, value - 1))} style={s.stepBtn} accessibilityLabel={`Fewer ${label.toLowerCase()}`}>
+        <Pressable onPress={() => onChange(Math.max(min, value - step))} style={s.stepBtn} accessibilityLabel={`Fewer ${label.toLowerCase()}`}>
           <Ionicons name="remove" size={16} color={C.ink} />
         </Pressable>
         <Text style={s.stepVal}>{value}</Text>
-        <Pressable onPress={() => onChange(Math.min(max, value + 1))} style={s.stepBtn} accessibilityLabel={`More ${label.toLowerCase()}`}>
+        <Pressable onPress={() => onChange(Math.min(max, value + step))} style={s.stepBtn} accessibilityLabel={`More ${label.toLowerCase()}`}>
           <Ionicons name="add" size={16} color={C.ink} />
         </Pressable>
       </Row>

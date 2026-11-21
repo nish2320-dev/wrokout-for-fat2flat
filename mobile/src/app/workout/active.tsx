@@ -8,7 +8,7 @@ import { useCloud } from '@/cloud/CloudProvider';
 import { shouldAskForReview } from '@/data/extras';
 import { askForReview } from '@/review';
 
-import { byId, exerciseName } from '@/data/exercises';
+import { amountLabel, byId, exerciseName, kindOf } from '@/data/exercises';
 import { finished, previousBest } from '@/data/stats';
 import { useActiveWorkout, useStore } from '@/data/store';
 import { fmtWeight } from '@/data/units';
@@ -29,6 +29,8 @@ export default function ActiveWorkoutScreen() {
   // phone is locked or the app is in the background and the ticker is paused.
   const [restEndsAt, setRestEndsAt] = useState<number | null>(null);
   const [restTotal, setRestTotal] = useState(REST_SECONDS);
+  // the same timer counts down a yoga pose or timed move when it's a hold
+  const [timerLabel, setTimerLabel] = useState<'Rest' | 'Hold'>('Rest');
 
   // one ticker drives both the elapsed clock and the rest countdown
   useEffect(() => {
@@ -65,8 +67,9 @@ export default function ActiveWorkoutScreen() {
 
   const rest = restEndsAt === null ? null : Math.max(0, Math.ceil((restEndsAt - now) / 1000));
 
-  const startRest = (seconds = REST_SECONDS) => {
+  const startRest = (seconds = REST_SECONDS, label: 'Rest' | 'Hold' = 'Rest') => {
     if (seconds <= 0) return;
+    setTimerLabel(label);
     const t = Date.now();
     setNow(t);
     setRestTotal(seconds);
@@ -103,7 +106,8 @@ export default function ActiveWorkoutScreen() {
   const onToggle = (ei: number, si: number, wasDone: boolean) => {
     toggleSetDone(ei, si);
     if (wasDone) setRestEndsAt(null);
-    else startRest(workout.exercises[ei]?.restSec ?? REST_SECONDS);
+    else if (kindOf(workout.exercises[ei].exerciseId) === 'hold') startRest(workout.exercises[ei].sets[si]?.reps ?? 30, 'Hold');
+    else if (kindOf(workout.exercises[ei].exerciseId) !== 'cardio') startRest(workout.exercises[ei]?.restSec ?? REST_SECONDS);
   };
 
   const confirmFinish = () => {
@@ -162,7 +166,7 @@ export default function ActiveWorkoutScreen() {
       {rest !== null ? (
         <View style={s.rest}>
           <View>
-            <Text style={s.restLabel}>Rest</Text>
+            <Text style={s.restLabel}>{timerLabel}</Text>
             <Text style={s.restVal}>
               {Math.floor(rest / 60)}:{String(rest % 60).padStart(2, '0')}
             </Text>
@@ -190,6 +194,7 @@ export default function ActiveWorkoutScreen() {
       ) : (
         workout.exercises.map((ex, ei) => {
           const meta = byId(ex.exerciseId);
+          const kind = meta?.kind ?? 'reps';
           const best = previousBest(state, ex.exerciseId, workout.startedAt);
           const heaviest = Math.max(0, ...ex.sets.filter((x) => x.done).map((x) => x.weight));
           const isPR = best !== null && heaviest > best.weight;
@@ -200,7 +205,11 @@ export default function ActiveWorkoutScreen() {
                 <View style={{ flex: 1 }}>
                   <CardTitle>{exerciseName(ex.exerciseId)}</CardTitle>
                   <Meta>
-                    {best
+                    {kind === 'hold'
+                      ? 'Seconds per set · Log starts the hold timer'
+                      : kind === 'cardio'
+                        ? `Minutes${state.profile.units === 'lb' ? ', miles' : ', km'} optional`
+                        : best
                       ? `Last time: ${best.reps} × ${fmtWeight(best.weight)} ${state.profile.units}`
                       : meta
                         ? `${meta.compound ? 'Compound' : 'Isolation'} · first time`
@@ -220,8 +229,10 @@ export default function ActiveWorkoutScreen() {
 
               <View style={s.headRow}>
                 <Text style={[s.headCell, { width: 26 }]}>Set</Text>
-                <Text style={[s.headCell, { flex: 1 }]}>Reps</Text>
-                <Text style={[s.headCell, { flex: 1 }]}>Weight</Text>
+                <Text style={[s.headCell, { flex: 1 }]}>{amountLabel(kind)}</Text>
+                {kind === 'hold' ? null : (
+                  <Text style={[s.headCell, { flex: 1 }]}>{kind === 'cardio' ? (state.profile.units === 'lb' ? 'Miles' : 'Km') : 'Weight'}</Text>
+                )}
                 <View style={{ width: 76 }} />
               </View>
 
@@ -231,14 +242,23 @@ export default function ActiveWorkoutScreen() {
                   <NumField
                     value={set.reps}
                     onChange={(reps) => updateSet(ei, si, { reps })}
-                    accessibilityLabel={`Reps for set ${si + 1}`}
+                    accessibilityLabel={`${amountLabel(kind)} for set ${si + 1}`}
                   />
-                  <NumField
-                    value={set.weight}
-                    format={fmtWeight}
-                    onChange={(weight) => updateSet(ei, si, { weight })}
-                    accessibilityLabel={`Weight for set ${si + 1}`}
-                  />
+                  {kind === 'hold' ? null : kind === 'cardio' ? (
+                    <NumField
+                      value={set.dist ?? 0}
+                      format={fmtWeight}
+                      onChange={(dist) => updateSet(ei, si, { dist })}
+                      accessibilityLabel={`Distance for set ${si + 1}`}
+                    />
+                  ) : (
+                    <NumField
+                      value={set.weight}
+                      format={fmtWeight}
+                      onChange={(weight) => updateSet(ei, si, { weight })}
+                      accessibilityLabel={`Weight for set ${si + 1}`}
+                    />
+                  )}
                   <Pressable
                     onPress={() => onToggle(ei, si, set.done)}
                     style={[s.doneBtn, !set.done && s.doneBtnIdle]}

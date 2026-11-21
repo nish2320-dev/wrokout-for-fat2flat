@@ -3,7 +3,7 @@ import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { useCloud } from '@/cloud/CloudProvider';
 import { describe, pendingFromCoach, toExercises, type CoachWorkout } from '@/data/coachWorkouts';
-import { exerciseName } from '@/data/exercises';
+import { exerciseName, kindOf, schemeText } from '@/data/exercises';
 import { useActiveWorkout, useStore } from '@/data/store';
 import { C } from '@/theme';
 import { Btn, Card, CardTitle, Meta, Row, Tag } from '@/ui/kit';
@@ -47,7 +47,7 @@ export function CoachWorkoutsCard({ compact = false }: { compact?: boolean }) {
             <View style={{ gap: 2 }}>
               {w.items.map((it, j) => (
                 <Meta key={`${it.exerciseId}-${j}`}>
-                  {j + 1}. {exerciseName(it.exerciseId)} · {it.sets} × {it.reps}
+                  {j + 1}. {exerciseName(it.exerciseId)} · {schemeText(kindOf(it.exerciseId), it.sets, it.reps)}
                 </Meta>
               ))}
             </View>

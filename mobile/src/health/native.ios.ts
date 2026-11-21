@@ -124,8 +124,27 @@ export async function pullHealth(since: number): Promise<HealthPull> {
   };
 }
 
+const IOS_ACTIVITY: Record<string, WorkoutActivityType> = {
+  strength: WorkoutActivityType.traditionalStrengthTraining,
+  yoga: WorkoutActivityType.yoga,
+  pilates: WorkoutActivityType.pilates,
+  hiit: WorkoutActivityType.highIntensityIntervalTraining,
+  stretching: WorkoutActivityType.flexibility,
+  running: WorkoutActivityType.running,
+  walking: WorkoutActivityType.walking,
+  cycling: WorkoutActivityType.cycling,
+  rowing: WorkoutActivityType.rowing,
+  elliptical: WorkoutActivityType.elliptical,
+  stairs: WorkoutActivityType.stairClimbing,
+  swimming: WorkoutActivityType.swimming,
+  jumprope: WorkoutActivityType.jumpRope,
+  dance: WorkoutActivityType.cardioDance,
+  cardio: WorkoutActivityType.mixedCardio,
+};
+
 export async function writeWorkout(w: WorkoutWrite): Promise<void> {
-  await saveWorkoutSample(WorkoutActivityType.traditionalStrengthTraining, [], new Date(w.start), new Date(w.end));
+  const type = IOS_ACTIVITY[w.activity ?? 'strength'] ?? WorkoutActivityType.traditionalStrengthTraining;
+  await saveWorkoutSample(type, [], new Date(w.start), new Date(w.end));
 }
 
 export async function writeMeal(m: MealWrite): Promise<void> {

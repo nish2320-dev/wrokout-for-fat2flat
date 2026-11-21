@@ -1,3 +1,4 @@
+import { kindOf } from './exercises';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   createContext,
@@ -145,7 +146,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     addExercise(exerciseId) {
       patchActive((w) => ({
         ...w,
-        exercises: [...w.exercises, { exerciseId, sets: [{ reps: 10, weight: 0, done: false }] }],
+        exercises: [...w.exercises, { exerciseId, sets: [{ reps: { reps: 10, hold: 30, cardio: 20 }[kindOf(exerciseId)], weight: 0, done: false }] }],
       }));
     },
 

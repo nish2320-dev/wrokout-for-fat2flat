@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { byId, equipmentLabel, muscleLabel } from '@/data/exercises';
+import { byId, equipmentLabel, muscleLabel, STRENGTH_GROUPS } from '@/data/exercises';
 import { personalRecords } from '@/data/stats';
 import { useActiveWorkout, useStore } from '@/data/store';
 import { fmtWeight } from '@/data/units';
@@ -24,7 +24,8 @@ export default function ExerciseGuide() {
     );
   }
 
-  const pr = personalRecords(state).find((p) => p.exerciseId === exercise.id);
+  // a heaviest-set record only means something for weights
+  const pr = exercise.kind ? undefined : personalRecords(state).find((p) => p.exerciseId === exercise.id && p.weight > 0);
 
   return (
     <Screen>
@@ -35,7 +36,10 @@ export default function ExerciseGuide() {
         <Row style={{ justifyContent: 'flex-start', gap: 6, marginTop: 9 }}>
           <Tag label={muscleLabel(exercise.muscle)} />
           <Tag tone="grey" label={equipmentLabel(exercise.equipment)} />
-          <Tag tone="grey" label={exercise.compound ? 'Compound' : 'Isolation'} />
+          <Tag
+            tone="grey"
+            label={exercise.kind === 'hold' ? 'Timed hold' : exercise.kind === 'cardio' ? 'Logged in minutes' : STRENGTH_GROUPS.includes(exercise.muscle) ? (exercise.compound ? 'Compound' : 'Isolation') : 'Reps'}
+          />
         </Row>
       </Card>
 
