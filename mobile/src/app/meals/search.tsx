@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react
 
 import { Food, searchCommon, searchFoods } from '@/data/food';
 import { C } from '@/theme';
+import { LogDayNote } from '@/ui/LogDayNote';
 import { Btn, Card, Empty, Eyebrow, Meta, Name, Screen } from '@/ui/kit';
 
 type Online =
@@ -39,6 +40,7 @@ export default function FoodSearchScreen() {
 
   return (
     <Screen>
+      <LogDayNote />
       <View style={s.search}>
         <Ionicons name="search" size={16} color={C.muted} />
         <TextInput

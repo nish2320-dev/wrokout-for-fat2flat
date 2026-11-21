@@ -4,7 +4,9 @@ import { Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-na
 
 import { Food, macrosFor } from '@/data/food';
 import { C, S } from '@/theme';
+import { LogDayNote } from '@/ui/LogDayNote';
 import { Btn, Card, CardTitle, Empty, Label, Meta, Metric, Row, Screen } from '@/ui/kit';
+import { useLogDay } from '@/ui/logDay';
 import { useLogMeal } from '@/ui/useLogMeal';
 
 const parseFood = (raw?: string): Food | null => {
@@ -19,6 +21,7 @@ export default function PortionScreen() {
   const router = useRouter();
   const { food: raw } = useLocalSearchParams<{ food?: string }>();
   const logMeal = useLogMeal();
+  const logDay = useLogDay();
   const food = parseFood(raw);
 
   const [mode, setMode] = useState<'serving' | 'grams'>(food?.serving ? 'serving' : 'grams');
@@ -59,6 +62,7 @@ export default function PortionScreen() {
 
   return (
     <Screen>
+      <LogDayNote />
       <Card>
         <CardTitle>{food.name}</CardTitle>
         <Meta>
@@ -129,7 +133,7 @@ export default function PortionScreen() {
         </Row>
       </Card>
 
-      <Btn label="Add to today" icon="add" onPress={add} disabled={grams <= 0} />
+      <Btn label={logDay.isToday ? 'Add to today' : `Add to ${logDay.label === 'Yesterday' ? 'yesterday' : logDay.label}`} icon="add" onPress={add} disabled={grams <= 0} />
       {grams <= 0 ? <Meta style={{ textAlign: 'center' }}>Enter an amount to add it.</Meta> : null}
     </Screen>
   );

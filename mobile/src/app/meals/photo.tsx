@@ -9,7 +9,9 @@ import { useCloud, type MealGuessItem } from '@/cloud/CloudProvider';
 import { errorText } from '@/cloud/supabase';
 import { useStore } from '@/data/store';
 import { C, S } from '@/theme';
+import { LogDayNote } from '@/ui/LogDayNote';
 import { Btn, Card, CardTitle, Label, Meta, Metric, Row, Screen } from '@/ui/kit';
+import { useLogDay } from '@/ui/logDay';
 import { useLogMeal } from '@/ui/useLogMeal';
 
 type Phase = { step: 'pick' } | { step: 'reading'; uri: string } | { step: 'result'; uri: string; confidence: string; note: string };
@@ -20,6 +22,7 @@ export default function MealPhoto() {
   const cloud = useCloud();
   const { state } = useStore();
   const logMeal = useLogMeal();
+  const logDay = useLogDay();
   const [phase, setPhase] = useState<Phase>({ step: 'pick' });
   const [items, setItems] = useState<MealGuessItem[]>([]);
   const [name, setName] = useState('');
@@ -104,6 +107,7 @@ export default function MealPhoto() {
   if (phase.step === 'pick') {
     return (
       <Screen>
+        <LogDayNote />
         <Card>
           <View style={s.hero}>
             <Ionicons name="camera" size={34} color={C.red} />
@@ -122,6 +126,7 @@ export default function MealPhoto() {
 
   return (
     <Screen>
+      <LogDayNote />
       <Image source={{ uri: phase.uri }} style={s.photo} contentFit="cover" />
       {phase.step === 'reading' ? (
         <Card>
@@ -194,7 +199,7 @@ export default function MealPhoto() {
           <Card>
             <Label>Meal name</Label>
             <TextInput value={name} onChangeText={setName} placeholder="e.g. Chicken curry and rice" placeholderTextColor={C.faint} style={[s.field, { marginTop: 4 }]} maxLength={60} />
-            <Btn label="Add to today" icon="add" onPress={log} disabled={items.length === 0} style={{ marginTop: 12 }} />
+            <Btn label={logDay.isToday ? 'Add to today' : `Add to ${logDay.label === 'Yesterday' ? 'yesterday' : logDay.label}`} icon="add" onPress={log} disabled={items.length === 0} style={{ marginTop: 12 }} />
             <Btn label="Try another photo" icon="camera-outline" ghost onPress={() => setPhase({ step: 'pick' })} style={{ marginTop: 9 }} />
           </Card>
         </>

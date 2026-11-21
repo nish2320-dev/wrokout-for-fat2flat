@@ -36,7 +36,8 @@ type Store = {
   addSet: (exerciseIndex: number) => void;
   updateSet: (exerciseIndex: number, setIndex: number, patch: Partial<SetEntry>) => void;
   toggleSetDone: (exerciseIndex: number, setIndex: number) => void;
-  addMeal: (meal: Omit<Meal, 'id' | 'at'>) => void;
+  /** `at` defaults to now; pass it to log a meal on an earlier day. */
+  addMeal: (meal: Omit<Meal, 'id' | 'at'> & { at?: number }) => void;
   removeMeal: (id: string) => void;
   addWeighIn: (weight: number) => void;
   updateProfile: (patch: Partial<Profile>) => void;
@@ -186,7 +187,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
 
     addMeal(meal) {
-      setState((s) => ({ ...s, meals: [{ ...meal, id: uid(), at: Date.now() }, ...s.meals] }));
+      const at = meal.at ?? Date.now();
+      // newest first, also when logging for an earlier day
+      setState((s) => ({ ...s, meals: [{ ...meal, id: uid(), at }, ...s.meals].sort((a, b) => b.at - a.at) }));
     },
 
     removeMeal(id) {

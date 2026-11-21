@@ -86,10 +86,10 @@ const fmt = (key: Macro, n: number) => (key === 'calories' ? `${n.toLocaleString
  * The warning to show after logging a meal: only for limits this meal pushed
  * over (or further over), so it doesn't nag on every snack once you're past one.
  */
-export function crossingWarning(before: Totals, after: Totals, goals: Goals): string | null {
+export function crossingWarning(before: Totals, after: Totals, goals: Goals, day = 'today’s'): string | null {
   const crossed = MACROS.filter(({ key }) => key !== 'protein' && after[key] > goals[key] && after[key] > before[key]);
   if (crossed.length === 0) return null;
   const parts = crossed.map(({ key, label }) => `${label.toLowerCase()} by ${fmt(key, overBy(key, after, goals))}`);
   const list = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
-  return `That puts you over today’s ${list}.`;
+  return `That puts you over ${day} ${list}.`;
 }

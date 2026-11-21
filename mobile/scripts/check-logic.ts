@@ -19,6 +19,7 @@ import { addGlasses, applyTargets, shouldAskForReview, unseenTargets, waterToday
 import { assistantContext, recentTurns } from '../src/data/assistant';
 import { badges, bestStreak, newBadges } from '../src/data/badges';
 import { COMMON_FOODS, macrosFor, parseProduct, searchCommon } from '../src/data/food';
+import { dayLabel, stampFor } from '../src/data/days';
 import { autoCarbsFat, crossingWarning, dayTotals, goalsFor, overBy, statusOf } from '../src/data/macros';
 import { cleanItems, describe, pendingFromCoach, resultFor, resultLines, toExercises, type CoachWorkout } from '../src/data/coachWorkouts';
 
@@ -391,6 +392,15 @@ eq('macros: warning names what this meal pushed over', crossingWarning(tot, big,
 eq('macros: no warning when nothing new goes over', crossingWarning(tot, { ...tot, protein: 200 }, g), null);
 eq('macros: coach targets set carbs and fat, or back to automatic', [applyTargets(sam, { ...tgt, carbGoal: 180, fatGoal: 60, at: now + 1 }, now).profile.fatGoal, applyTargets({ ...sam, profile: { ...sam.profile, fatGoal: 70 } }, { ...tgt, at: now + 2 }, now).profile.fatGoal], [60, undefined]);
 eq('macros: meal plan days total their carbs and fat', (() => { const d = planDay({ dateKey: '2026-11-18', diet: 'veg', calories: 2000, workoutDay: false }); return d.carbs === d.meals.reduce((n, m) => n + m.carbs, 0) && d.fat > 0; })(), true);
+
+// --- logging meals on earlier days ---
+const t0 = startOfDayAt(now);
+eq('days: labels', [dayLabel(t0, t0), dayLabel(t0 - DAY, t0)], ['Today', 'Yesterday']);
+eq('days: a meal for today is stamped now', stampFor(t0, now), now);
+const past = stampFor(t0 - 3 * DAY, now);
+eq('days: a meal for an earlier day lands on that day', startOfDayAt(past), startOfDayAt(t0 - 3 * DAY));
+eq('days: and counts toward that day, not today', [dayTotals([{ id: 'p', name: 'Late dinner', calories: 700, protein: 40, carbs: 60, fat: 25, at: past }], past).calories, dayTotals([{ id: 'p', name: 'Late dinner', calories: 700, protein: 40, at: past }], now).calories], [700, 0]);
+eq('days: the warning names the day', crossingWarning({ calories: 1900, protein: 0, carbs: 0, fat: 0 }, { calories: 2100, protein: 0, carbs: 0, fat: 0 }, g, 'yesterday’s'), 'That puts you over yesterday’s calories by 100 cal.');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

@@ -10,6 +10,7 @@ import { C, S } from '@/theme';
 import { Btn, Card, CardTitle, Empty, Label, Meta, Name, Row, Screen, Title } from '@/ui/kit';
 import { MacrosCard } from '@/ui/MacrosCard';
 import { MealPlanCard } from '@/ui/MealPlanCard';
+import { MAX_DAYS_BACK, useLogDay } from '@/ui/logDay';
 import { useLogMeal } from '@/ui/useLogMeal';
 
 export default function MealsScreen() {
@@ -17,6 +18,7 @@ export default function MealsScreen() {
   const router = useRouter();
   const { state, removeMeal } = useStore();
   const logMeal = useLogMeal();
+  const logDay = useLogDay();
 
   const [name, setName] = useState('');
   const [calories, setCalories] = useState('');
@@ -25,8 +27,10 @@ export default function MealsScreen() {
   const [fat, setFat] = useState('');
 
   const today = startOfDay(Date.now());
-  const todaysMeals = state.meals.filter((m) => startOfDay(m.at) === today);
-  const earlier = state.meals.filter((m) => startOfDay(m.at) !== today).slice(0, 10);
+  const { day, isToday, label } = logDay;
+  const todaysMeals = state.meals.filter((m) => startOfDay(m.at) === day);
+  const earlier = state.meals.filter((m) => startOfDay(m.at) !== day && m.at < today + 86400000).slice(0, 10);
+  const canGoBack = today - day < MAX_DAYS_BACK * 86400000;
 
   const valid = name.trim() !== '' && calories !== '';
   // say what's missing rather than leaving a grey button to puzzle over
@@ -61,9 +65,23 @@ export default function MealsScreen() {
       <View style={{ height: insets.top }} />
       <Title>Meals</Title>
 
-      <MacrosCard />
+      <View style={s.dayBar}>
+        <Pressable onPress={logDay.back} disabled={!canGoBack} hitSlop={8} style={[s.dayArrow, !canGoBack && { opacity: 0.3 }]} accessibilityLabel="Previous day">
+          <Ionicons name="chevron-back" size={18} color={C.ink} />
+        </Pressable>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={s.dayLabel}>{label}</Text>
+          {!isToday ? <Text style={s.daySub}>Logging meals for this day</Text> : null}
+        </View>
+        <Pressable onPress={logDay.forward} disabled={isToday} hitSlop={8} style={[s.dayArrow, isToday && { opacity: 0.3 }]} accessibilityLabel="Next day">
+          <Ionicons name="chevron-forward" size={18} color={C.ink} />
+        </Pressable>
+      </View>
+      {!isToday ? <Btn label="Back to today" icon="today-outline" ghost onPress={logDay.toToday} /> : null}
 
-      <MealPlanCard />
+      <MacrosCard day={day} dayLabel={label} />
+
+      {isToday ? <MealPlanCard /> : null}
 
       <Card>
         <CardTitle>Log a meal</CardTitle>
@@ -124,14 +142,14 @@ export default function MealsScreen() {
 
       <Card flush>
         <Row style={{ paddingHorizontal: 14, paddingBottom: 10 }}>
-          <CardTitle>Today</CardTitle>
+          <CardTitle>{label}</CardTitle>
           <Label>{todaysMeals.length} logged</Label>
         </Row>
         <View style={s.hair} />
         {todaysMeals.length === 0 ? (
           <Empty
             icon="restaurant-outline"
-            title="Nothing logged today"
+            title={isToday ? 'Nothing logged today' : `Nothing logged for ${label === 'Yesterday' ? 'yesterday' : label}`}
             body="Add a meal above and it'll count toward today's macros."
           />
         ) : (
@@ -198,6 +216,10 @@ const s = StyleSheet.create({
     color: C.ink,
   },
   pair: { flexDirection: 'row', gap: S.gap, marginTop: 8 },
+  dayBar: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: C.line, padding: 8 },
+  dayArrow: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.wash, alignItems: 'center', justifyContent: 'center' },
+  dayLabel: { fontSize: 16, fontWeight: '800', color: C.ink },
+  daySub: { fontSize: 11, fontWeight: '700', color: C.red, marginTop: 1 },
 
   row: {
     flexDirection: 'row',
