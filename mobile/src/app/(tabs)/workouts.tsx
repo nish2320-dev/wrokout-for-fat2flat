@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EQUIPMENT, Equipment, equipmentLabel, muscleLabel, schemeText } from '@/data/exercises';
@@ -14,7 +14,7 @@ import { Btn, Card, CardTitle, Empty, Eyebrow, Label, Meta, Name, Pill, Row, Scr
 export default function WorkoutsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { startWorkout } = useStore();
+  const { startWorkout, discardWorkout } = useStore();
   const active = useActiveWorkout();
 
   const [focus, setFocus] = useState<Focus>('full');
@@ -39,13 +39,31 @@ export default function WorkoutsScreen() {
 
   const totalSets = plan.items.reduce((n, i) => n + i.sets, 0);
 
-  const start = () => {
-    if (active) {
-      router.push('/workout/active');
-      return;
-    }
+  const begin = () => {
     startWorkout(plan.name, planToExercises(plan));
     router.push('/workout/active');
+  };
+
+  // a workout left open shouldn't block starting a new one: offer to switch
+  const start = () => {
+    if (!active) return begin();
+    const logged = active.exercises.some((e) => e.sets.some((x) => x.done));
+    Alert.alert(
+      `${active.name} is still open`,
+      logged ? `Start ${plan.name} instead? The sets you logged in ${active.name} will be lost. To keep them, open it and tap Finish.` : `Start ${plan.name} instead?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: `Open ${active.name}`, onPress: () => router.push('/workout/active') },
+        {
+          text: `Start ${plan.name}`,
+          style: logged ? 'destructive' : 'default',
+          onPress: () => {
+            discardWorkout();
+            begin();
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -146,12 +164,7 @@ export default function WorkoutsScreen() {
         )}
       </Card>
 
-      <Btn
-        label={active ? 'Resume workout' : 'Start this workout'}
-        icon="play"
-        onPress={start}
-        disabled={!active && plan.items.length === 0}
-      />
+      <Btn label={active ? 'Start this workout instead' : 'Start this workout'} icon="play" onPress={start} disabled={plan.items.length === 0} />
     </Screen>
   );
 }
