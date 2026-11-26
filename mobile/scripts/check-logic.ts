@@ -23,7 +23,7 @@ import { badges, bestStreak, newBadges } from '../src/data/badges';
 import { COMMON_FOODS, macrosFor, parseProduct, searchCommon } from '../src/data/food';
 import { dayLabel, stampFor } from '../src/data/days';
 import { autoCarbsFat, crossingWarning, dayTotals, goalsFor, overBy, statusOf } from '../src/data/macros';
-import { cleanItems, describe, pendingFromCoach, resultFor, resultLines, toExercises, type CoachWorkout } from '../src/data/coachWorkouts';
+import { itemsFromWorkout, cleanItems, describe, pendingFromCoach, resultFor, resultLines, toExercises, type CoachWorkout } from '../src/data/coachWorkouts';
 
 const DAY = 86400000;
 const startOfDayAt = (t: number) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
@@ -452,6 +452,15 @@ eq('cardio sessions get longer', [weekSessions({ ...prog, style: 'cardio', daysP
 eq('mixed plan: weights, cardio and yoga', styled('mixed', 4).map((x) => x.plan.name), ['Upper A', 'Lower A', 'Steady Cardio', 'Yoga Flow']);
 eq('strength stays the default', weekSessions(prog, 2).map((x) => x.plan.name), ['Upper A', 'Lower A', 'Upper B', 'Lower B']);
 eq('yoga plan phases read right', phaseFor({ ...prog, style: 'yogapilates' }, 2).blurb.includes('poses'), true);
+
+// --- my workouts ---
+const adhoc = { id: 'h', name: 'Garage session', startedAt: now - 3600000, exercises: [
+  { exerciseId: 'goblet-squat', sets: [{ reps: 12, weight: 40, done: true }, { reps: 10, weight: 45, done: true }, { reps: 10, weight: 45, done: false }] },
+  { exerciseId: 'plank', sets: [{ reps: 45, weight: 0, done: false }] },
+  { exerciseId: 'downward-dog', sets: [{ reps: 30, weight: 0, done: true }], restSec: 15 },
+] };
+eq('my workouts: a finished workout becomes a reusable plan', itemsFromWorkout(adhoc), [{ exerciseId: 'goblet-squat', sets: 2, reps: 12, restSec: 90 }, { exerciseId: 'downward-dog', sets: 1, reps: 30, restSec: 15 }]);
+eq('my workouts: and starts again as fresh sets', toExercises(itemsFromWorkout(adhoc))[0].sets.map((x) => [x.reps, x.done]), [[12, false], [12, false]]);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

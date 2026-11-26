@@ -104,6 +104,15 @@ export type CoachTargets = {
 /** A message in the conversation with the in-app AI assistant. */
 export type AssistantMessage = { id: string; role: 'user' | 'assistant'; content: string; at: number };
 
+/** A workout someone built and saved to reuse (same shape as a coach's workout). */
+export type MyWorkout = {
+  id: string;
+  name: string;
+  note?: string;
+  items: { exerciseId: string; sets: number; reps: number; restSec?: number; note?: string }[];
+  updatedAt: number;
+};
+
 /** Glasses of water on a day; `date` is local midnight. */
 export type WaterDay = { date: number; glasses: number };
 
@@ -163,6 +172,8 @@ export type AppState = {
   /** Absent until the user connects a health app. */
   health?: HealthState;
   water?: WaterDay[];
+  /** Workouts the user built and saved, newest first. */
+  myWorkouts?: MyWorkout[];
   /** Conversation with the AI assistant (newest last), kept on the phone. */
   assistant?: AssistantMessage[];
 };

@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useCloud } from '@/cloud/CloudProvider';
+import { itemsFromWorkout } from '@/data/coachWorkouts';
 import { shouldAskForReview } from '@/data/extras';
 import { askForReview } from '@/review';
 
@@ -22,7 +23,7 @@ export default function ActiveWorkoutScreen() {
   const router = useRouter();
   const workout = useActiveWorkout();
   const cloud = useCloud();
-  const { state, addSet, updateSet, toggleSetDone, finishWorkout, discardWorkout, removeExercise, updateProfile } = useStore();
+  const { state, addSet, updateSet, toggleSetDone, finishWorkout, discardWorkout, removeExercise, updateProfile, saveMyWorkout } = useStore();
 
   const [now, setNow] = useState(Date.now());
   // The rest timer is an end time, not a counter, so it stays right while the
@@ -115,23 +116,34 @@ export default function ActiveWorkoutScreen() {
       Alert.alert('Nothing logged yet', 'Mark at least one set as done before finishing.');
       return;
     }
+    const done = () => {
+      const fromCoach = workout.coachWorkoutId;
+      finishWorkout();
+      if (fromCoach && cloud.membership) cloud.completeCoachWorkout(fromCoach).catch(() => {});
+      router.replace('/');
+      // a good moment to ask for a rating: right after a finished workout
+      const now = Date.now();
+      if (shouldAskForReview(finished(state).length + 1, state.profile.reviewAskedAt, now)) {
+        updateProfile({ reviewAskedAt: now });
+        setTimeout(askForReview, 1500);
+      }
+    };
+    // a workout made up on the spot can be kept for next time
+    const canSave = !workout.sessionKey && !workout.coachWorkoutId && !(state.myWorkouts ?? []).some((m) => m.name === workout.name);
     Alert.alert('Finish workout?', `${doneSets} sets logged.`, [
       { text: 'Keep going', style: 'cancel' },
-      {
-        text: 'Finish',
-        onPress: () => {
-          const fromCoach = workout.coachWorkoutId;
-          finishWorkout();
-          if (fromCoach && cloud.membership) cloud.completeCoachWorkout(fromCoach).catch(() => {});
-          router.replace('/');
-          // a good moment to ask for a rating: right after a finished workout
-          const now = Date.now();
-          if (shouldAskForReview(finished(state).length + 1, state.profile.reviewAskedAt, now)) {
-            updateProfile({ reviewAskedAt: now });
-            setTimeout(askForReview, 1500);
-          }
-        },
-      },
+      ...(canSave
+        ? [
+            {
+              text: 'Finish & save to My workouts',
+              onPress: () => {
+                saveMyWorkout({ name: workout.name, items: itemsFromWorkout(workout) });
+                done();
+              },
+            },
+          ]
+        : []),
+      { text: 'Finish', onPress: done },
     ]);
   };
 

@@ -49,6 +49,7 @@ export default function RootLayout() {
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen name="workout/active" options={{ title: 'Workout', headerBackTitle: 'Back' }} />
               <Stack.Screen name="workout/library" options={{ title: 'Exercises' }} />
+              <Stack.Screen name="workout/build" options={{ title: 'My workout', headerBackTitle: 'Back' }} />
               <Stack.Screen name="exercise/[id]" options={{ title: 'Exercise guide' }} />
               <Stack.Screen name="meals/search" options={{ title: 'Search food', headerBackTitle: 'Meals' }} />
               <Stack.Screen name="meals/scan" options={{ title: 'Scan barcode', headerBackTitle: 'Meals' }} />

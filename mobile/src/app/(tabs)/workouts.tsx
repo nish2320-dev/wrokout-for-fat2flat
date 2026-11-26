@@ -9,6 +9,7 @@ import { FOCUS, Focus, GOALS, Goal, LENGTHS, generate, isOtherFocus, planToExerc
 import { useActiveWorkout, useStore } from '@/data/store';
 import { C, S } from '@/theme';
 import { CoachWorkoutsCard } from '@/ui/CoachWorkouts';
+import { MyWorkoutsCard } from '@/ui/MyWorkouts';
 import { Btn, Card, CardTitle, Empty, Eyebrow, Label, Meta, Name, Pill, Row, Screen, Tag, Title } from '@/ui/kit';
 
 export default function WorkoutsScreen() {
@@ -96,6 +97,8 @@ export default function WorkoutsScreen() {
 
       <CoachWorkoutsCard />
 
+      <MyWorkoutsCard />
+
       <Group title="Workout type">
         {FOCUS.map((f) => (
           <Pill key={f.key} label={f.label} on={focus === f.key} onPress={() => setFocus(f.key)} />
@@ -165,6 +168,19 @@ export default function WorkoutsScreen() {
       </Card>
 
       <Btn label={active ? 'Start this workout instead' : 'Start this workout'} icon="play" onPress={start} disabled={plan.items.length === 0} />
+      {plan.items.length > 0 ? (
+        <Btn
+          label="Save to My workouts and edit"
+          icon="bookmark-outline"
+          ghost
+          onPress={() =>
+            router.push({
+              pathname: '/workout/build',
+              params: { copy: JSON.stringify({ name: plan.name, note: '', items: plan.items.map((i) => ({ exerciseId: i.exercise.id, sets: i.sets, reps: i.reps })) }) },
+            })
+          }
+        />
+      ) : null}
     </Screen>
   );
 }

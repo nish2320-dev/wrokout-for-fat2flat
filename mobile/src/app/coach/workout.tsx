@@ -10,6 +10,7 @@ import { errorText } from '@/cloud/supabase';
 import { cleanItems, DEFAULT_REST, describe, MAX_ITEMS, REST_CHOICES, type CoachWorkoutItem } from '@/data/coachWorkouts';
 import { amountLabel, byId, EQUIPMENT, EXERCISES, equipmentLabel, MUSCLES, muscleLabel, type Exercise, type Muscle } from '@/data/exercises';
 import { FOCUS, generate, type Focus } from '@/data/generator';
+import { useStore } from '@/data/store';
 import { C, S } from '@/theme';
 import { Btn, Card, CardTitle, Eyebrow, Meta, Name, Pill, Row, Screen } from '@/ui/kit';
 
@@ -23,16 +24,29 @@ const newItem = (e: Exercise): CoachWorkoutItem =>
       : { exerciseId: e.id, sets: 3, reps: e.compound ? 8 : 12, restSec: e.compound ? 120 : 60 };
 
 /** The coach builds a workout from the exercise library and sends it to one or more clients. */
-export default function BuildWorkout() {
+export default function CoachBuildWorkout() {
   const { to, copy } = useLocalSearchParams<{ to?: string; copy?: string }>();
+  return <WorkoutBuilder to={to} copy={copy} />;
+}
+
+/**
+ * Builds a workout from the exercise library. For a coach (default) it's sent
+ * to clients; with `mine` it's saved to the user's own "My workouts" to reuse.
+ */
+export function WorkoutBuilder({ mine = false, to, copy, editId }: { mine?: boolean; to?: string; copy?: string; editId?: string }) {
   const router = useRouter();
   const cloud = useCloud();
+  const { state, saveMyWorkout, deleteMyWorkout } = useStore();
+  const editing = editId ? state.myWorkouts?.find((w) => w.id === editId) : undefined;
   const start = useMemo(() => {
+    if (editing) return { name: editing.name, note: editing.note ?? '', items: editing.items };
     try {
       return copy ? (JSON.parse(copy) as { name: string; note: string; items: CoachWorkoutItem[] }) : null;
     } catch {
       return null;
     }
+    // only the first render's starting point matters
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [copy]);
   const [name, setName] = useState(start?.name ?? '');
   const [note, setNote] = useState(start?.note ?? '');
@@ -44,7 +58,7 @@ export default function BuildWorkout() {
   const coachId = cloud.coach ? cloud.userId : null;
 
   useEffect(() => {
-    if (!coachId) return;
+    if (!coachId || mine) return;
     listClients(coachId)
       .then((cs) => setClients(cs.sort((a, b) => a.name.localeCompare(b.name))))
       .catch((e) => {
@@ -77,6 +91,28 @@ export default function BuildWorkout() {
       ]);
   };
 
+  const saveMine = () => {
+    const clean = cleanItems(items);
+    if (!name.trim()) return Alert.alert('Name the workout', 'For example “Push day” or “Morning yoga”.');
+    if (clean.length === 0) return Alert.alert('Add an exercise', 'Tap “Add exercise” to pick from the library.');
+    saveMyWorkout({ id: editing?.id, name: name.trim(), ...(note.trim() ? { note: note.trim() } : {}), items: clean });
+    router.back();
+  };
+
+  const confirmDelete = () =>
+    editing &&
+    Alert.alert(`Delete “${editing.name}”?`, 'Workouts you already did with it stay in your history.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          deleteMyWorkout(editing.id);
+          router.back();
+        },
+      },
+    ]);
+
   const send = async () => {
     if (!cloud.coach || !clients) return;
     const clean = cleanItems(items);
@@ -102,11 +138,11 @@ export default function BuildWorkout() {
       <Card style={{ gap: 10 }}>
         <Eyebrow>Workout name</Eyebrow>
         <TextInput value={name} onChangeText={setName} placeholder="e.g. Upper body A" placeholderTextColor={C.faint} style={s.input} maxLength={60} />
-        <Eyebrow>Note for your client (optional)</Eyebrow>
+        <Eyebrow>{mine ? 'Notes (optional)' : 'Note for your client (optional)'}</Eyebrow>
         <TextInput
           value={note}
           onChangeText={setNote}
-          placeholder="e.g. Go light today, focus on form."
+          placeholder={mine ? 'e.g. Warm up 5 min on the bike first.' : 'e.g. Go light today, focus on form.'}
           placeholderTextColor={C.faint}
           style={[s.input, { minHeight: 64 }]}
           multiline
@@ -123,6 +159,25 @@ export default function BuildWorkout() {
               <Pill key={f.key} label={f.label} on={false} onPress={() => quickFill(f.key)} />
             ))}
           </View>
+          {!mine && state.myWorkouts?.length ? (
+            <>
+              <Meta style={{ marginTop: 4 }}>Or one of your saved workouts:</Meta>
+              <View style={s.chips}>
+                {state.myWorkouts.slice(0, 12).map((w) => (
+                  <Pill
+                    key={w.id}
+                    label={w.name}
+                    on={false}
+                    onPress={() => {
+                      setItems(cleanItems(w.items));
+                      if (!name.trim()) setName(w.name);
+                      if (!note.trim() && w.note) setNote(w.note);
+                    }}
+                  />
+                ))}
+              </View>
+            </>
+          ) : null}
         </Card>
       ) : (
         <Meta style={{ paddingHorizontal: 2 }}>{describe(cleanItems(items))}</Meta>
@@ -183,41 +238,50 @@ export default function BuildWorkout() {
         onPress={() => (items.length >= MAX_ITEMS ? Alert.alert('That’s plenty', `A workout can have up to ${MAX_ITEMS} exercises.`) : setPicking(true))}
       />
 
-      <Card style={{ gap: 10 }}>
-        <CardTitle>Send to</CardTitle>
-        {clients === null ? (
-          <Meta>Loading your clients…</Meta>
-        ) : clients.length === 0 ? (
-          <Meta>No clients yet. Share your coach code first.</Meta>
-        ) : (
-          <>
-            <View style={s.chips}>
-              {clients.map((c) => (
-                <Pill
-                  key={c.user_id}
-                  label={c.name}
-                  on={chosen.includes(c.user_id)}
-                  onPress={() => setChosen((cur) => (cur.includes(c.user_id) ? cur.filter((x) => x !== c.user_id) : [...cur, c.user_id]))}
-                />
-              ))}
-            </View>
-            {clients.length > 1 ? (
-              <Pressable
-                onPress={() => setChosen(chosen.length === clients.length ? [] : clients.map((c) => c.user_id))}
-                accessibilityRole="button">
-                <Text style={s.link}>{chosen.length === clients.length ? 'Clear all' : 'Choose everyone'}</Text>
-              </Pressable>
-            ) : null}
-          </>
-        )}
-      </Card>
+      {mine ? (
+        <>
+          <Btn label={editing ? 'Save changes' : 'Save workout'} icon="checkmark" onPress={saveMine} disabled={items.length === 0 || !name.trim()} />
+          {editing ? <Btn label="Delete workout" icon="trash-outline" ghost onPress={confirmDelete} /> : null}
+        </>
+      ) : (
+        <>
+          <Card style={{ gap: 10 }}>
+            <CardTitle>Send to</CardTitle>
+            {clients === null ? (
+              <Meta>Loading your clients…</Meta>
+            ) : clients.length === 0 ? (
+              <Meta>No clients yet. Share your coach code first.</Meta>
+            ) : (
+              <>
+                <View style={s.chips}>
+                  {clients.map((c) => (
+                    <Pill
+                      key={c.user_id}
+                      label={c.name}
+                      on={chosen.includes(c.user_id)}
+                      onPress={() => setChosen((cur) => (cur.includes(c.user_id) ? cur.filter((x) => x !== c.user_id) : [...cur, c.user_id]))}
+                    />
+                  ))}
+                </View>
+                {clients.length > 1 ? (
+                  <Pressable
+                    onPress={() => setChosen(chosen.length === clients.length ? [] : clients.map((c) => c.user_id))}
+                    accessibilityRole="button">
+                    <Text style={s.link}>{chosen.length === clients.length ? 'Clear all' : 'Choose everyone'}</Text>
+                  </Pressable>
+                ) : null}
+              </>
+            )}
+          </Card>
 
-      <Btn
-        label={sending ? 'Sending…' : chosen.length > 1 ? `Send to ${chosen.length} clients` : 'Send workout'}
-        icon="send"
-        onPress={send}
-        disabled={sending || items.length === 0 || chosen.length === 0 || !name.trim()}
-      />
+          <Btn
+            label={sending ? 'Sending…' : chosen.length > 1 ? `Send to ${chosen.length} clients` : 'Send workout'}
+            icon="send"
+            onPress={send}
+            disabled={sending || items.length === 0 || chosen.length === 0 || !name.trim()}
+          />
+        </>
+      )}
 
       <ExercisePicker
         visible={picking}

@@ -96,3 +96,13 @@ export function resultLines(w: Workout, units: string) {
       return `${name}: ${e.sets.length} × ${top.reps}${top.weight > 0 ? ` @ ${top.weight} ${units}` : ''}`;
     });
 }
+
+/** A logged workout as a reusable plan: each exercise's logged sets, with the reps (or seconds/minutes) of its first logged set. */
+export function itemsFromWorkout(w: Workout): CoachWorkoutItem[] {
+  return cleanItems(
+    w.exercises
+      .map((e) => ({ e, done: e.sets.filter((x) => x.done) }))
+      .filter(({ done }) => done.length > 0)
+      .map(({ e, done }) => ({ exerciseId: e.exerciseId, sets: done.length, reps: done[0].reps, restSec: e.restSec, ...(e.note ? { note: e.note } : {}) })),
+  );
+}
