@@ -54,6 +54,7 @@ export default function RootLayout() {
               <Stack.Screen name="meals/search" options={{ title: 'Search food', headerBackTitle: 'Meals' }} />
               <Stack.Screen name="meals/scan" options={{ title: 'Scan barcode', headerBackTitle: 'Meals' }} />
               <Stack.Screen name="meals/portion" options={{ title: 'Add food' }} />
+              <Stack.Screen name="meals/create" options={{ title: 'My meal', headerBackTitle: 'Meals' }} />
             <Stack.Screen name="meals/photo" options={{ title: 'Meal photo', headerBackTitle: 'Meals' }} />
               <Stack.Screen name="transform/index" options={{ title: 'Transformation', headerBackTitle: 'Back' }} />
               <Stack.Screen name="transform/setup" options={{ title: 'Set up your plan' }} />

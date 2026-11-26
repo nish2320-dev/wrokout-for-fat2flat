@@ -113,6 +113,12 @@ export type MyWorkout = {
   updatedAt: number;
 };
 
+/** One food inside a saved meal, as it will be counted. */
+export type MealItem = { name: string; calories: number; protein: number; carbs?: number; fat?: number };
+
+/** A meal the user built from several foods and saved to log again in one tap. */
+export type MyMeal = { id: string; name: string; items: MealItem[]; updatedAt: number };
+
 /** Glasses of water on a day; `date` is local midnight. */
 export type WaterDay = { date: number; glasses: number };
 
@@ -172,6 +178,8 @@ export type AppState = {
   /** Absent until the user connects a health app. */
   health?: HealthState;
   water?: WaterDay[];
+  /** Meals the user built and saved, newest first. */
+  myMeals?: MyMeal[];
   /** Workouts the user built and saved, newest first. */
   myWorkouts?: MyWorkout[];
   /** Conversation with the AI assistant (newest last), kept on the phone. */

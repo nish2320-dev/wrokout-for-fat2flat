@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
@@ -16,6 +16,7 @@ type Online =
 
 export default function FoodSearchScreen() {
   const router = useRouter();
+  const { for: forWhat } = useLocalSearchParams<{ for?: string }>();
   const [query, setQuery] = useState('');
   const [online, setOnline] = useState<Online>({ kind: 'idle' });
 
@@ -36,11 +37,11 @@ export default function FoodSearchScreen() {
   };
 
   const open = (food: Food) =>
-    router.push({ pathname: '/meals/portion', params: { food: JSON.stringify(food) } });
+    router.push({ pathname: '/meals/portion', params: { food: JSON.stringify(food), ...(forWhat === 'meal' ? { for: 'meal', back: '2' } : {}) } });
 
   return (
     <Screen>
-      <LogDayNote />
+      {forWhat === 'meal' ? <Meta>Pick a food to add to your meal.</Meta> : <LogDayNote />}
       <View style={s.search}>
         <Ionicons name="search" size={16} color={C.muted} />
         <TextInput

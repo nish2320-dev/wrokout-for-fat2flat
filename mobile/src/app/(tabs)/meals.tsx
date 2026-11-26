@@ -10,6 +10,7 @@ import { C, S } from '@/theme';
 import { Btn, Card, CardTitle, Empty, Label, Meta, Name, Row, Screen, Title } from '@/ui/kit';
 import { MacrosCard } from '@/ui/MacrosCard';
 import { MealPlanCard } from '@/ui/MealPlanCard';
+import { QuickAddCard } from '@/ui/QuickAddCard';
 import { MAX_DAYS_BACK, useLogDay } from '@/ui/logDay';
 import { useLogMeal } from '@/ui/useLogMeal';
 
@@ -80,6 +81,8 @@ export default function MealsScreen() {
       {!isToday ? <Btn label="Back to today" icon="today-outline" ghost onPress={logDay.toToday} /> : null}
 
       <MacrosCard day={day} dayLabel={label} />
+
+      <QuickAddCard />
 
       {isToday ? <MealPlanCard /> : null}
 

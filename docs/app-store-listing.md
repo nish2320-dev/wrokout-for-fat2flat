@@ -261,4 +261,5 @@ Version 2.2.1 adds optional AI check-ins for coaching clients. A client who join
 • Weight-gain plans: pick Lose fat, Gain weight or Maintain, and the plan, coach and check-ins follow your goal.
 • Log meals for earlier days from the day picker on the Meals tab.
 • My workouts: build and save your own workouts, or save one when you finish it, and start them any time.
+• Quick add: log foods you ate recently in one tap, or build and save your own meals from several foods.
 ```

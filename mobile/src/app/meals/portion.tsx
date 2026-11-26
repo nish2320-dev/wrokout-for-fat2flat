@@ -7,6 +7,7 @@ import { C, S } from '@/theme';
 import { LogDayNote } from '@/ui/LogDayNote';
 import { Btn, Card, CardTitle, Empty, Label, Meta, Metric, Row, Screen } from '@/ui/kit';
 import { useLogDay } from '@/ui/logDay';
+import { mealDraft } from '@/ui/mealDraft';
 import { useLogMeal } from '@/ui/useLogMeal';
 
 const parseFood = (raw?: string): Food | null => {
@@ -19,7 +20,9 @@ const parseFood = (raw?: string): Food | null => {
 
 export default function PortionScreen() {
   const router = useRouter();
-  const { food: raw } = useLocalSearchParams<{ food?: string }>();
+  // for=meal: adding a food to a meal being built (Create a meal), not logging it
+  const { food: raw, for: forWhat, back } = useLocalSearchParams<{ food?: string; for?: string; back?: string }>();
+  const forMeal = forWhat === 'meal';
   const logMeal = useLogMeal();
   const logDay = useLogDay();
   const food = parseFood(raw);
@@ -55,14 +58,20 @@ export default function PortionScreen() {
           ? food.serving.label
           : `${qty} × ${food.serving.label}`
         : `${Math.round(grams)} g`;
-    logMeal({ name: `${food.name} (${portion})`, ...macros });
     Keyboard.dismiss();
+    if (forMeal) {
+      mealDraft.add({ name: `${food.name} (${portion})`, ...macros });
+      // back past the search (or scanner) to the meal builder
+      router.dismiss(Number(back) || 1);
+      return;
+    }
+    logMeal({ name: `${food.name} (${portion})`, ...macros });
     router.dismissTo('/meals');
   };
 
   return (
     <Screen>
-      <LogDayNote />
+      {forMeal ? null : <LogDayNote />}
       <Card>
         <CardTitle>{food.name}</CardTitle>
         <Meta>
@@ -133,7 +142,7 @@ export default function PortionScreen() {
         </Row>
       </Card>
 
-      <Btn label={logDay.isToday ? 'Add to today' : `Add to ${logDay.label === 'Yesterday' ? 'yesterday' : logDay.label}`} icon="add" onPress={add} disabled={grams <= 0} />
+      <Btn label={forMeal ? 'Add to meal' : logDay.isToday ? 'Add to today' : `Add to ${logDay.label === 'Yesterday' ? 'yesterday' : logDay.label}`} icon="add" onPress={add} disabled={grams <= 0} />
       {grams <= 0 ? <Meta style={{ textAlign: 'center' }}>Enter an amount to add it.</Meta> : null}
     </Screen>
   );

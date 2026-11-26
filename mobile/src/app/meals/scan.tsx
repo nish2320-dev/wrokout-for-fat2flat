@@ -1,5 +1,5 @@
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, StyleSheet, Text, View } from 'react-native';
 
@@ -9,6 +9,7 @@ import { Btn, Empty, Screen } from '@/ui/kit';
 
 export default function ScanScreen() {
   const router = useRouter();
+  const { for: forWhat } = useLocalSearchParams<{ for?: string }>();
   const [permission, requestPermission] = useCameraPermissions();
   const [looking, setLooking] = useState(false);
   // the camera reports the same code many times a second; handle it once
@@ -58,7 +59,7 @@ export default function ScanScreen() {
     try {
       const food = await lookupBarcode(data);
       if (food) {
-        router.replace({ pathname: '/meals/portion', params: { food: JSON.stringify(food) } });
+        router.replace({ pathname: '/meals/portion', params: { food: JSON.stringify(food), ...(forWhat === 'meal' ? { for: 'meal', back: '1' } : {}) } });
         return;
       }
       Alert.alert(
@@ -66,7 +67,7 @@ export default function ScanScreen() {
         "This barcode isn't in the food database yet. You can search by name or enter the calories yourself.",
         [
           { text: 'Scan again', onPress: resume },
-          { text: 'Search by name', onPress: () => router.replace('/meals/search') },
+          { text: 'Search by name', onPress: () => router.replace({ pathname: '/meals/search', params: forWhat === 'meal' ? { for: 'meal' } : {} }) },
           { text: 'Enter manually', style: 'cancel', onPress: () => router.back() },
         ],
       );

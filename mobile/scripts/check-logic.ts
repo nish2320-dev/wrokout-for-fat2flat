@@ -23,6 +23,7 @@ import { badges, bestStreak, newBadges } from '../src/data/badges';
 import { COMMON_FOODS, macrosFor, parseProduct, searchCommon } from '../src/data/food';
 import { dayLabel, stampFor } from '../src/data/days';
 import { autoCarbsFat, crossingWarning, dayTotals, goalsFor, overBy, statusOf } from '../src/data/macros';
+import { itemFromMeal, macroLine, mealTotals, recentMeals } from '../src/data/myMeals';
 import { itemsFromWorkout, cleanItems, describe, pendingFromCoach, resultFor, resultLines, toExercises, type CoachWorkout } from '../src/data/coachWorkouts';
 
 const DAY = 86400000;
@@ -461,6 +462,20 @@ const adhoc = { id: 'h', name: 'Garage session', startedAt: now - 3600000, exerc
 ] };
 eq('my workouts: a finished workout becomes a reusable plan', itemsFromWorkout(adhoc), [{ exerciseId: 'goblet-squat', sets: 2, reps: 12, restSec: 90 }, { exerciseId: 'downward-dog', sets: 1, reps: 30, restSec: 15 }]);
 eq('my workouts: and starts again as fresh sets', toExercises(itemsFromWorkout(adhoc))[0].sets.map((x) => [x.reps, x.done]), [[12, false], [12, false]]);
+
+// --- my meals & recent foods ---
+const breakfast = [{ name: 'Oats', calories: 300, protein: 10, carbs: 54, fat: 5 }, { name: 'Banana', calories: 105, protein: 1, carbs: 27, fat: 0 }];
+eq('my meals: totals', mealTotals(breakfast), { calories: 405, protein: 11, carbs: 81, fat: 5 });
+eq('my meals: carbs/fat left out if a food lacks them', mealTotals([...breakfast, { name: 'Chai', calories: 90, protein: 3 }]), { calories: 495, protein: 14 });
+const loggedMeals = [
+  { id: '1', name: 'Protein shake', calories: 240, protein: 32, at: now - 3600000 },
+  { id: '2', name: 'protein shake ', calories: 240, protein: 32, at: now - 2 * DAY },
+  { id: '3', name: 'Dal & rice', calories: 520, protein: 20, carbs: 83, fat: 12, at: now - 5 * DAY },
+  { id: '4', name: 'Old pizza', calories: 800, protein: 30, at: now - 90 * DAY },
+];
+eq('recent: one per food, newest first, last 60 days', recentMeals(loggedMeals, now).map((m) => m.id), ['1', '3']);
+eq('recent: becomes a meal ingredient', itemFromMeal(loggedMeals[2]), { name: 'Dal & rice', calories: 520, protein: 20, carbs: 83, fat: 12 });
+eq('macro line', macroLine({ calories: 1240, protein: 52, carbs: 100, fat: 30 }), '1,240 cal · 52 g protein · 100 C · 30 F');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

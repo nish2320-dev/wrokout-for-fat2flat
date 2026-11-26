@@ -16,7 +16,7 @@ import { deleteAllPhotos, deletePhotos } from '@/photos';
 import { emptyHealth, HealthPull, mergeHealth } from './health';
 import { addGlasses, applyTargets } from './extras';
 import { badges } from './badges';
-import { AppState, AssistantMessage, CheckIn, CoachTargets, HealthState, LoggedExercise, Meal, MyWorkout, Profile, Program, SetEntry, WeighIn, Workout, initialState } from './types';
+import { AppState, AssistantMessage, CheckIn, CoachTargets, HealthState, LoggedExercise, Meal, MyMeal, MyWorkout, Profile, Program, SetEntry, WeighIn, Workout, initialState } from './types';
 import { sampleState } from './sample';
 import { convertUnits } from './units';
 
@@ -40,6 +40,9 @@ type Store = {
   /** Saves (adds or replaces by id) one of the user's own workouts. Returns its id. */
   saveMyWorkout: (w: Omit<MyWorkout, 'id' | 'updatedAt'> & { id?: string }) => string;
   deleteMyWorkout: (id: string) => void;
+  /** Saves (adds or replaces by id) one of the user's own meals. Returns its id. */
+  saveMyMeal: (m: Omit<MyMeal, 'id' | 'updatedAt'> & { id?: string }) => string;
+  deleteMyMeal: (id: string) => void;
   /** `at` defaults to now; pass it to log a meal on an earlier day. */
   addMeal: (meal: Omit<Meal, 'id' | 'at'> & { at?: number }) => void;
   removeMeal: (id: string) => void;
@@ -201,6 +204,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const saved: MyWorkout = { ...w, id, updatedAt: Date.now() };
       setState((s) => ({ ...s, myWorkouts: [saved, ...(s.myWorkouts ?? []).filter((x) => x.id !== id)] }));
       return id;
+    },
+
+    saveMyMeal(m) {
+      const id = m.id ?? uid();
+      const saved: MyMeal = { ...m, id, updatedAt: Date.now() };
+      setState((s) => ({ ...s, myMeals: [saved, ...(s.myMeals ?? []).filter((x) => x.id !== id)] }));
+      return id;
+    },
+
+    deleteMyMeal(id) {
+      setState((s) => ({ ...s, myMeals: (s.myMeals ?? []).filter((x) => x.id !== id) }));
     },
 
     deleteMyWorkout(id) {
