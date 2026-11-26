@@ -23,6 +23,7 @@ import { badges, bestStreak, newBadges } from '../src/data/badges';
 import { COMMON_FOODS, macrosFor, parseProduct, searchCommon } from '../src/data/food';
 import { dayLabel, stampFor } from '../src/data/days';
 import { autoCarbsFat, crossingWarning, dayTotals, goalsFor, overBy, statusOf } from '../src/data/macros';
+import { loggedSlots, mealToLog, orderedMeals, planTotals } from '../src/data/coachMealPlans';
 import { itemFromMeal, macroLine, mealTotals, recentMeals } from '../src/data/myMeals';
 import { itemsFromWorkout, cleanItems, describe, pendingFromCoach, resultFor, resultLines, toExercises, type CoachWorkout } from '../src/data/coachWorkouts';
 
@@ -476,6 +477,21 @@ const loggedMeals = [
 eq('recent: one per food, newest first, last 60 days', recentMeals(loggedMeals, now).map((m) => m.id), ['1', '3']);
 eq('recent: becomes a meal ingredient', itemFromMeal(loggedMeals[2]), { name: 'Dal & rice', calories: 520, protein: 20, carbs: 83, fat: 12 });
 eq('macro line', macroLine({ calories: 1240, protein: 52, carbs: 100, fat: 30 }), '1,240 cal · 52 g protein · 100 C · 30 F');
+
+// --- meal plans from the coach ---
+const cplan = { id: 'p1', name: 'Cut week 1', note: '', created_at: '2026-11-26', meals: [
+  { slot: 'dinner' as const, items: [{ name: 'Tandoori chicken', calories: 400, protein: 45, carbs: 10, fat: 18 }] },
+  { slot: 'breakfast' as const, items: [{ name: 'Oats', calories: 300, protein: 10, carbs: 54, fat: 5 }, { name: 'Banana', calories: 105, protein: 1, carbs: 27, fat: 0 }] },
+  { slot: 'lunch' as const, items: [] },
+] };
+eq('meal plan: in order of the day, empty meals left out', orderedMeals(cplan.meals).map((m) => m.slot), ['breakfast', 'dinner']);
+eq('meal plan: day totals', planTotals(cplan.meals), { calories: 805, protein: 56, carbs: 91, fat: 23 });
+const bLog = mealToLog(cplan, cplan.meals[1]);
+eq('meal plan: logging a meal', [bLog.name, bLog.calories, bLog.planRef], ['Breakfast: Oats, Banana', 405, 'p1:breakfast']);
+eq('meal plan: one-food meal keeps its name', mealToLog(cplan, cplan.meals[0]).name, 'Tandoori chicken');
+const ate = [{ id: 'm', name: 'x', calories: 405, protein: 11, at: now - 60000, planRef: 'p1:breakfast' }, { id: 'n', name: 'y', calories: 400, protein: 45, at: now - 2 * DAY, planRef: 'p1:dinner' }];
+eq('meal plan: which meals were logged today', [...loggedSlots(ate, 'p1', now)], ['breakfast']);
+eq('meal plan: the coach can see it through the snapshot', snapshot({ ...initialState, meals: ate }, now, false).meals[0].planRef, 'p1:breakfast');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

@@ -148,6 +148,26 @@ select pg_temp.eq((select count(*) from coach_workouts where done_at is not null
 update coach_workouts set done_at = null;
 select pg_temp.eq((select count(*) from coach_workouts where done_at is not null), 1, 'coach cannot undo done');
 
+-- meal plans from the coach
+select set_config('request.jwt.claim.sub', :coach, false);
+select pg_temp.eq(send_coach_meal_plan(array[:alice]::uuid[], 'Cut week 1', 'Drink water',
+  '[{"slot": "breakfast", "items": [{"name": "Oats", "calories": 300, "protein": 10, "carbs": 54, "fat": 5, "x": 1}]}, {"slot": "dinner", "items": [{"name": "Dal & rice", "calories": 520, "protein": 20}]}]'), 1, 'coach sends a meal plan');
+select pg_temp.eq((select count(*) from coach_meal_plans where meals->0->'items'->0 ? 'x'), 0, 'unknown food fields dropped');
+select pg_temp.must_fail('select send_coach_meal_plan(array[' || quote_literal(:alice) || ']::uuid[], ''X'', '''', ''[{"slot": "brunch", "items": [{"name": "A", "calories": 1}]}]'')', 'unknown meal slot');
+select pg_temp.must_fail('select send_coach_meal_plan(array[' || quote_literal(:alice) || ']::uuid[], ''X'', '''', ''[{"slot": "lunch", "items": [{"name": "A", "calories": 99999}]}]'')', 'silly calories');
+select pg_temp.must_fail('select send_coach_meal_plan(array[' || quote_literal(:bob) || ']::uuid[], ''X'', '''', ''[{"slot": "lunch", "items": [{"name": "A", "calories": 100}]}]'')', 'meal plan to a non-client');
+select pg_temp.must_fail('insert into coach_meal_plans (coach_id, client_id, name, meals) values (auth.uid(), ' || quote_literal(:alice) || ', ''X'', ''[{}]'')', 'coach inserts plan directly');
+select set_config('request.jwt.claim.sub', :coach2, false);
+select pg_temp.eq((select count(*) from coach_meal_plans), 0, 'other coach sees no meal plans');
+select set_config('request.jwt.claim.sub', :alice, false);
+select pg_temp.eq((select count(*) from coach_meal_plans), 1, 'client sees the meal plan');
+select pg_temp.must_fail('select send_coach_meal_plan(array[auth.uid()]::uuid[], ''X'', '''', ''[{"slot": "lunch", "items": [{"name": "A", "calories": 100}]}]'')', 'client sends a meal plan');
+delete from coach_meal_plans;
+select pg_temp.eq((select count(*) from coach_meal_plans), 1, 'client cannot delete the plan');
+select set_config('request.jwt.claim.sub', :coach, false);
+delete from coach_meal_plans;
+select pg_temp.eq((select count(*) from coach_meal_plans), 0, 'coach removes the plan');
+
 -- AI coaching agent settings
 select set_config('request.jwt.claim.sub', :alice, false);
 update clients set ai_checkins = true, tz = 'America/Los_Angeles' where user_id = auth.uid();

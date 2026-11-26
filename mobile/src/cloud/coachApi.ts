@@ -1,3 +1,4 @@
+import type { CoachMealPlan, PlanMeal } from '@/data/coachMealPlans';
 import type { CoachWorkout, CoachWorkoutItem } from '@/data/coachWorkouts';
 import type { ClientSummary, SharedSnapshot } from '@/data/sharing';
 import type { CoachTargets } from '@/data/types';
@@ -152,5 +153,42 @@ export async function deleteWorkout(id: string) {
 /** Pauses or resumes the AI check-ins for one client. */
 export async function setClientAgent(clientId: string, paused: boolean) {
   const { error } = await sb().rpc('set_client_agent', { p_client: clientId, p_paused: paused });
+  if (error) throw error;
+}
+
+/** The client's current meal plan from this coach (the newest one), or null. */
+export async function latestMealPlan(clientId: string): Promise<CoachMealPlan | null> {
+  const { data, error } = await sb()
+    .from('coach_meal_plans')
+    .select('id, name, note, meals, created_at')
+    .eq('client_id', clientId)
+    .order('created_at', { ascending: false })
+    .limit(1);
+  if (error) throw error;
+  return ((data ?? [])[0] as CoachMealPlan | undefined) ?? null;
+}
+
+/** Sends a meal plan to each client and lets their phones know. Returns how many got it. */
+export async function sendMealPlan(
+  coachName: string,
+  clients: Pick<ClientRow, 'user_id' | 'push_token'>[],
+  plan: { name: string; note: string; meals: PlanMeal[] },
+) {
+  const { data, error } = await sb().rpc('send_coach_meal_plan', {
+    p_clients: clients.map((c) => c.user_id),
+    p_name: plan.name.trim(),
+    p_note: plan.note.trim(),
+    p_meals: plan.meals,
+  });
+  if (error) throw error;
+  await Promise.all(
+    clients.filter((c) => c.push_token).map((c) => sendPush(c.push_token!, coachName, `New meal plan for you: ${plan.name.trim()} 🍽️`).catch(() => {})),
+  );
+  return data as number;
+}
+
+/** Removes the client's meal plans from this coach; their app goes back to the automatic meal plan. */
+export async function removeMealPlans(clientId: string) {
+  const { error } = await sb().from('coach_meal_plans').delete().eq('client_id', clientId);
   if (error) throw error;
 }

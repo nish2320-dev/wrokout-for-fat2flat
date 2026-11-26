@@ -3,15 +3,17 @@ import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from '
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
-import { clientNotes, deleteWorkout, getClient, sentWorkouts, setClientAgent, hasSummary, markRepliesRead, photoUrls, removeClient, sendNote, setTargets, type ClientDetail, type SentNote } from '@/cloud/coachApi';
+import { clientNotes, deleteWorkout, getClient, latestMealPlan, removeMealPlans, sentWorkouts, setClientAgent, hasSummary, markRepliesRead, photoUrls, removeClient, sendNote, setTargets, type ClientDetail, type SentNote } from '@/cloud/coachApi';
 import { useCloud } from '@/cloud/CloudProvider';
 import { errorText } from '@/cloud/supabase';
+import { loggedSlots, orderedMeals, planTotals, slotLabel, type CoachMealPlan } from '@/data/coachMealPlans';
 import { describe, resultFor, resultLines, type CoachWorkout } from '@/data/coachWorkouts';
+import { macroLine } from '@/data/myMeals';
 import { autoCarbsFat, dayTotals, goalsFor } from '@/data/macros';
 import { fmtSleep, fmtSteps } from '@/data/health';
 import { flags, snapshotToState, suggestNote, timeAgo, type SharedSnapshot } from '@/data/sharing';
 import { fmtDate, fmtVolume, setCount, volume } from '@/data/stats';
-import type { Workout } from '@/data/types';
+import type { Meal, Workout } from '@/data/types';
 import { fmtLength, fmtWeight, lengthUnit } from '@/data/units';
 import { C, S } from '@/theme';
 import { ChatThread } from '@/ui/Chat';
@@ -156,6 +158,8 @@ export default function ClientScreen() {
       <TargetsCard client={client} onSaved={load} />
 
       <WorkoutsCard client={client} workouts={st.workouts} units={units} />
+
+      <MealPlanSentCard client={client} meals={st.meals} />
 
       {st.assistant?.length ? (
         <Card>
@@ -403,6 +407,72 @@ function WorkoutsCard({ client, workouts, units }: { client: ClientDetail; worko
         })
       )}
       <Btn label="New workout" icon="add" onPress={() => router.push({ pathname: '/coach/workout', params: { to: client.user_id } })} />
+    </Card>
+  );
+}
+
+function MealPlanSentCard({ client, meals }: { client: ClientDetail; meals: Meal[] }) {
+  const router = useRouter();
+  const [plan, setPlan] = useState<CoachMealPlan | null | undefined>(undefined);
+  const first = client.name.split(' ')[0];
+  const load = useCallback(() => {
+    latestMealPlan(client.user_id)
+      .then(setPlan)
+      .catch(() => setPlan((p) => p ?? null));
+  }, [client.user_id]);
+  useFocusEffect(load);
+
+  const remove = () =>
+    Alert.alert('Remove the meal plan?', `${first} goes back to the automatic meal plan built from their targets.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () =>
+          removeMealPlans(client.user_id)
+            .then(load)
+            .catch((e) => Alert.alert('Could not remove', errorText(e))),
+      },
+    ]);
+
+  const ordered = plan ? orderedMeals(plan.meals) : [];
+  const done = plan ? loggedSlots(meals, plan.id, Date.now()) : new Set();
+  return (
+    <Card style={{ gap: 8 }}>
+      <CardTitle>Meal plan</CardTitle>
+      {plan === undefined ? (
+        <Meta>Loading…</Meta>
+      ) : plan === null ? (
+        <Meta>{first} is on the automatic meal plan from their targets. Write your own and it replaces it on their Meals tab.</Meta>
+      ) : (
+        <>
+          <Text style={s.line}>{plan.name}</Text>
+          <Meta>
+            Sent {fmtDate(new Date(plan.created_at).getTime())} · {macroLine(planTotals(ordered))}
+          </Meta>
+          <View style={{ gap: 3 }}>
+            {ordered.map((m) => (
+              <Row key={m.slot}>
+                <Meta style={{ flex: 1 }} numberOfLines={1}>
+                  {slotLabel(m.slot)}: {m.items.map((i) => i.name).join(', ')}
+                </Meta>
+                <Tag label={done.has(m.slot) ? 'Logged today' : 'Not yet'} tone={done.has(m.slot) ? 'green' : 'grey'} />
+              </Row>
+            ))}
+          </View>
+          <Row style={{ justifyContent: 'flex-start', gap: 16, marginTop: 2 }}>
+            <Pressable
+              onPress={() => router.push({ pathname: '/coach/mealplan', params: { to: client.user_id, copy: JSON.stringify({ name: plan.name, note: plan.note, meals: plan.meals }) } })}
+              hitSlop={6}>
+              <Text style={s.action}>Edit & resend</Text>
+            </Pressable>
+            <Pressable onPress={remove} hitSlop={6}>
+              <Text style={[s.action, { color: C.muted }]}>Remove</Text>
+            </Pressable>
+          </Row>
+        </>
+      )}
+      <Btn label="New meal plan" icon="restaurant-outline" onPress={() => router.push({ pathname: '/coach/mealplan', params: { to: client.user_id } })} />
     </Card>
   );
 }

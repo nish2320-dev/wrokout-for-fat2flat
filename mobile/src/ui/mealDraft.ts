@@ -3,37 +3,49 @@ import { useSyncExternalStore } from 'react';
 import type { MealItem } from '@/data/types';
 
 /**
- * The foods of the meal being built on the Create a meal screen. The food
- * search, barcode scanner and portion screens add to it when opened from
- * there (with ?for=meal), then return to the builder.
+ * Foods being collected on a builder screen: Create a meal (key "meal") or a
+ * coach's meal plan (one key per meal, e.g. "breakfast"). The food search,
+ * barcode scanner and portion screens add to the active key when opened from
+ * a builder (with ?for=meal), then return to it.
  */
 
-let items: MealItem[] = [];
+let drafts: Record<string, MealItem[]> = {};
+let active = 'meal';
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
+const EMPTY: MealItem[] = [];
 
 export const mealDraft = {
-  set(next: MealItem[]) {
-    items = next;
+  /** Where the next food from search/scan goes. */
+  target(key: string) {
+    active = key;
+  },
+  set(key: string, items: MealItem[]) {
+    drafts = { ...drafts, [key]: items };
     emit();
   },
-  add(item: MealItem) {
-    items = [...items, item];
+  add(item: MealItem, key = active) {
+    drafts = { ...drafts, [key]: [...(drafts[key] ?? []), item] };
     emit();
   },
-  remove(index: number) {
-    items = items.filter((_, i) => i !== index);
+  remove(key: string, index: number) {
+    drafts = { ...drafts, [key]: (drafts[key] ?? []).filter((_, i) => i !== index) };
+    emit();
+  },
+  clear() {
+    drafts = {};
+    active = 'meal';
     emit();
   },
 };
 
-export function useMealDraft() {
+export function useMealDraft(key = 'meal') {
   return useSyncExternalStore(
     (l) => {
       listeners.add(l);
       return () => listeners.delete(l);
     },
-    () => items,
-    () => items,
+    () => drafts[key] ?? EMPTY,
+    () => drafts[key] ?? EMPTY,
   );
 }

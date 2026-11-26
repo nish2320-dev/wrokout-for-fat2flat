@@ -24,6 +24,8 @@ export type Meal = {
   name: string;
   calories: number;
   protein: number;
+  /** Set when logged from the coach's meal plan: "<plan id>:<meal slot>". */
+  planRef?: string;
   /** Grams; absent on meals logged before carbs and fat were tracked. */
   carbs?: number;
   fat?: number;

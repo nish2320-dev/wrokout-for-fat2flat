@@ -176,7 +176,10 @@ export default function CoachHome() {
       )}
 
       {clients && clients.length > 0 ? (
-        <Btn label="Send a workout" icon="barbell-outline" ghost onPress={() => router.push('/coach/workout')} />
+        <Row style={{ gap: 9 }}>
+          <Btn label="Send a workout" icon="barbell-outline" ghost onPress={() => router.push('/coach/workout')} style={{ flex: 1 }} />
+          <Btn label="Send a meal plan" icon="restaurant-outline" ghost onPress={() => router.push('/coach/mealplan')} style={{ flex: 1 }} />
+        </Row>
       ) : null}
 
       {cloud.coach ? (

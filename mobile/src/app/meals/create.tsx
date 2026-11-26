@@ -24,8 +24,9 @@ export default function CreateMeal() {
 
   // start from the saved meal (or empty) and clear the draft when leaving
   useEffect(() => {
-    mealDraft.set(editing?.items ?? []);
-    return () => mealDraft.set([]);
+    mealDraft.target('meal');
+    mealDraft.set('meal', editing?.items ?? []);
+    return () => mealDraft.clear();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -82,7 +83,7 @@ export default function CreateMeal() {
               <Name>{it.name}</Name>
               <Meta>{macroLine(it)}</Meta>
             </View>
-            <Pressable onPress={() => mealDraft.remove(i)} hitSlop={10} accessibilityLabel={`Remove ${it.name}`}>
+            <Pressable onPress={() => mealDraft.remove('meal', i)} hitSlop={10} accessibilityLabel={`Remove ${it.name}`}>
               <Ionicons name="close" size={17} color={C.faint} />
             </Pressable>
           </View>

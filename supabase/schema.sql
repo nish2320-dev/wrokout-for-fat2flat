@@ -365,6 +365,105 @@ $$;
 revoke execute on function public.send_coach_workout(uuid[], text, text, jsonb) from public, anon;
 grant execute on function public.send_coach_workout(uuid[], text, text, jsonb) to authenticated;
 
+-- ── Meal plans from the coach (2.2.1) ────────────────────────────────────
+-- The coach writes a day of meals (breakfast, lunch, snacks, dinner) and sends
+-- it to one or more clients. The client's newest plan replaces the automatic
+-- meal plan on their Meals tab until the coach removes it.
+
+create table if not exists public.coach_meal_plans (
+  id         uuid primary key default gen_random_uuid(),
+  coach_id   uuid not null references public.coaches (user_id) on delete cascade,
+  client_id  uuid not null references public.clients (user_id) on delete cascade,
+  name       text not null check (char_length(name) between 1 and 80),
+  note       text not null default '' check (char_length(note) <= 500),
+  meals      jsonb not null check (jsonb_typeof(meals) = 'array' and jsonb_array_length(meals) between 1 and 6),
+  created_at timestamptz not null default now()
+);
+create index if not exists coach_meal_plans_client_idx on public.coach_meal_plans (client_id, created_at desc);
+alter table public.coach_meal_plans enable row level security;
+
+revoke all on public.coach_meal_plans from anon;
+revoke insert, update, delete on public.coach_meal_plans from authenticated;
+grant select, delete on public.coach_meal_plans to authenticated;
+
+drop policy if exists "client reads meal plans from their coach" on public.coach_meal_plans;
+create policy "client reads meal plans from their coach" on public.coach_meal_plans for select to authenticated
+  using (client_id = auth.uid() and coach_id = (select c.coach_id from public.clients c where c.user_id = auth.uid()));
+
+drop policy if exists "coach reads meal plans they sent" on public.coach_meal_plans;
+create policy "coach reads meal plans they sent" on public.coach_meal_plans for select to authenticated
+  using (coach_id = auth.uid() and exists (select 1 from public.clients c where c.user_id = client_id and c.coach_id = auth.uid()));
+
+drop policy if exists "coach deletes meal plans they sent" on public.coach_meal_plans;
+create policy "coach deletes meal plans they sent" on public.coach_meal_plans for delete to authenticated
+  using (coach_id = auth.uid());
+
+-- Sends one meal plan to each of the given clients; returns how many got it.
+create or replace function public.send_coach_meal_plan(p_clients uuid[], p_name text, p_note text, p_meals jsonb)
+returns integer
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_meal jsonb;
+  v_item jsonb;
+  v_meals jsonb := '[]'::jsonb;
+  v_items jsonb;
+  v_count int;
+begin
+  if auth.uid() is null or is_guest() then raise exception 'Please sign in first.'; end if;
+  if not exists (select 1 from coaches where user_id = auth.uid()) then raise exception 'Only coaches can send meal plans.'; end if;
+  if char_length(trim(coalesce(p_name, ''))) not between 1 and 80 then raise exception 'Give the meal plan a name.'; end if;
+  if char_length(coalesce(p_note, '')) > 500 then raise exception 'Keep the note under 500 letters.'; end if;
+  if jsonb_typeof(p_meals) <> 'array' or jsonb_array_length(p_meals) not between 1 and 6 then
+    raise exception 'Add at least one meal.';
+  end if;
+  for v_meal in select * from jsonb_array_elements(p_meals) loop
+    if jsonb_typeof(v_meal) <> 'object'
+      or coalesce(v_meal->>'slot', '') not in ('breakfast', 'lunch', 'snack', 'dinner', 'snack2')
+      or jsonb_typeof(v_meal->'items') <> 'array'
+      or jsonb_array_length(v_meal->'items') not between 1 and 15
+    then
+      raise exception 'Each meal needs between 1 and 15 foods.';
+    end if;
+    v_items := '[]'::jsonb;
+    for v_item in select * from jsonb_array_elements(v_meal->'items') loop
+      if jsonb_typeof(v_item) <> 'object'
+        or char_length(coalesce(v_item->>'name', '')) not between 1 and 120
+        or coalesce(v_item->>'calories', '') !~ '^[0-9]+$' or (v_item->>'calories')::int > 5000
+        or coalesce(v_item->>'protein', '0') !~ '^[0-9]+$' or coalesce(v_item->>'protein', '0')::int > 500
+        or coalesce(v_item->>'carbs', '0') !~ '^[0-9]+$' or coalesce(v_item->>'carbs', '0')::int > 800
+        or coalesce(v_item->>'fat', '0') !~ '^[0-9]+$' or coalesce(v_item->>'fat', '0')::int > 400
+      then
+        raise exception 'One of the foods has a problem. Check its name and numbers.';
+      end if;
+      v_items := v_items || jsonb_strip_nulls(jsonb_build_object(
+        'name', v_item->>'name',
+        'calories', (v_item->>'calories')::int,
+        'protein', coalesce(v_item->>'protein', '0')::int,
+        'carbs', (v_item->>'carbs')::int,
+        'fat', (v_item->>'fat')::int
+      ));
+    end loop;
+    v_meals := v_meals || jsonb_build_object('slot', v_meal->>'slot', 'items', v_items);
+  end loop;
+  if exists (
+    select 1 from unnest(coalesce(p_clients, '{}')) as x(id)
+    where not exists (select 1 from clients c where c.user_id = x.id and c.coach_id = auth.uid())
+  ) then
+    raise exception 'One of those people is not your client.';
+  end if;
+  insert into coach_meal_plans (coach_id, client_id, name, note, meals)
+  select auth.uid(), x.id, trim(p_name), coalesce(p_note, ''), v_meals
+  from (select distinct unnest(p_clients) as id) x;
+  get diagnostics v_count = row_count;
+  if v_count = 0 then raise exception 'Choose at least one client.'; end if;
+  return v_count;
+end;
+$$;
+
+revoke execute on function public.send_coach_meal_plan(uuid[], text, text, jsonb) from public, anon;
+grant execute on function public.send_coach_meal_plan(uuid[], text, text, jsonb) to authenticated;
+
 -- ── AI coaching agent (2.2.1) ───────────────────────────────────────────
 -- A scheduled server function (functions/coach-agent) sends each coaching
 -- client a short daily check-in and a Sunday summary, and on Sundays may

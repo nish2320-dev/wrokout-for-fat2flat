@@ -9,7 +9,7 @@ import { startOfDay } from '@/data/stats';
 import { C, S } from '@/theme';
 import { Btn, Card, CardTitle, Empty, Label, Meta, Name, Row, Screen, Title } from '@/ui/kit';
 import { MacrosCard } from '@/ui/MacrosCard';
-import { MealPlanCard } from '@/ui/MealPlanCard';
+import { TodaysMealPlan } from '@/ui/CoachMealPlanCard';
 import { QuickAddCard } from '@/ui/QuickAddCard';
 import { MAX_DAYS_BACK, useLogDay } from '@/ui/logDay';
 import { useLogMeal } from '@/ui/useLogMeal';
@@ -84,7 +84,7 @@ export default function MealsScreen() {
 
       <QuickAddCard />
 
-      {isToday ? <MealPlanCard /> : null}
+      {isToday ? <TodaysMealPlan /> : null}
 
       <Card>
         <CardTitle>Log a meal</CardTitle>

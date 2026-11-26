@@ -6,6 +6,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState, Platform } from 'react-native';
 
+import type { CoachMealPlan } from '@/data/coachMealPlans';
 import type { CoachWorkout } from '@/data/coachWorkouts';
 import { sharedPhotoNames, snapshot, summarize } from '@/data/sharing';
 import type { CoachTargets } from '@/data/types';
@@ -44,6 +45,8 @@ type Cloud = {
   notes: Note[];
   /** Workouts the coach sent, newest first. */
   coachWorkouts: CoachWorkout[];
+  /** The newest meal plan from the coach, if any. */
+  coachMealPlan: CoachMealPlan | null;
   /** Lets the coach's AI assistant review this client's shared progress and message them. */
   setAiCheckins: (on: boolean) => Promise<void>;
   /** Coach: AI check-ins for all their clients on or off. */
@@ -143,6 +146,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
   const [coach, setCoach] = useState<CoachInfo | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
   const [coachWorkouts, setCoachWorkouts] = useState<CoachWorkout[]>([]);
+  const [coachMealPlan, setCoachMealPlan] = useState<CoachMealPlan | null>(null);
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
   const sentToken = useRef<string | null>(null);
 
@@ -165,13 +169,15 @@ export function CloudProvider({ children }: { children: ReactNode }) {
       setCoach(null);
       setNotes([]);
       setCoachWorkouts([]);
+      setCoachMealPlan(null);
       return;
     }
-    const [mine, coachRow, inbox, sent] = await Promise.all([
+    const [mine, coachRow, inbox, sent, plan] = await Promise.all([
       supabase.from('clients').select('coach_id, name, share_photos, coach_targets, ai_checkins').eq('user_id', userId).maybeSingle(),
       supabase.from('coaches').select('name, code, agent_on').eq('user_id', userId).maybeSingle(),
       supabase.from('messages').select('id, body, created_at, read_at, from_client, from_agent').eq('client_id', userId).order('created_at', { ascending: false }).limit(60),
       supabase.from('coach_workouts').select('id, name, note, items, created_at, done_at').eq('client_id', userId).order('created_at', { ascending: false }).limit(30),
+      supabase.from('coach_meal_plans').select('id, name, note, meals, created_at').eq('client_id', userId).order('created_at', { ascending: false }).limit(1),
     ]);
     // a failed request (offline) keeps what we had rather than looking like "not joined"
     if (!mine.error) {
@@ -186,6 +192,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
     if (!coachRow.error) setCoach(coachRow.data ? { name: coachRow.data.name, code: coachRow.data.code, agentOn: coachRow.data.agent_on !== false } : null);
     if (!inbox.error) setNotes((inbox.data ?? []) as Note[]);
     if (!sent.error) setCoachWorkouts((sent.data ?? []) as CoachWorkout[]);
+    if (!plan.error) setCoachMealPlan(((plan.data ?? [])[0] as CoachMealPlan | undefined) ?? null);
   }, [userId, applyCoachTargets]);
 
   useEffect(() => {
@@ -265,6 +272,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
       coach,
       notes,
       coachWorkouts,
+      coachMealPlan,
       lastSyncedAt,
 
       async signIn() {
@@ -315,6 +323,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
         setCoach(null);
         setNotes([]);
         setCoachWorkouts([]);
+        setCoachMealPlan(null);
       },
 
       refresh,
@@ -347,6 +356,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
         setMembership(null);
         setNotes([]);
         setCoachWorkouts([]);
+        setCoachMealPlan(null);
       },
 
       async becomeCoach(name) {
@@ -370,6 +380,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
         setCoach(null);
         setNotes([]);
         setCoachWorkouts([]);
+        setCoachMealPlan(null);
       },
 
       async markAllRead() {
@@ -444,7 +455,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
         await sb.from('messages').update({ read_at: at }).eq('id', id);
       },
     };
-  }, [ready, userId, membership, coach, notes, coachWorkouts, lastSyncedAt, refresh]);
+  }, [ready, userId, membership, coach, notes, coachWorkouts, coachMealPlan, lastSyncedAt, refresh]);
 
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
