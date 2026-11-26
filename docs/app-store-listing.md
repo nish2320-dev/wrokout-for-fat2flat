@@ -262,4 +262,5 @@ Version 2.2.1 adds optional AI check-ins for coaching clients. A client who join
 • Log meals for earlier days from the day picker on the Meals tab.
 • My workouts: build and save your own workouts, or save one when you finish it, and start them any time.
 • Quick add: log foods you ate recently in one tap, or build and save your own meals from several foods.
+• Coaches: write a meal plan (breakfast, lunch, snacks, dinner) and send it to clients, who log each meal with one tap.
 ```
