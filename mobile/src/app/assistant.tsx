@@ -1,12 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useNavigation, useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useCloud } from '@/cloud/CloudProvider';
 import { errorText } from '@/cloud/supabase';
-import { assistantContext, recentTurns } from '@/data/assistant';
+import { assistantContext, assistantTitle, recentTurns } from '@/data/assistant';
 import { useStore } from '@/data/store';
 import { C, S } from '@/theme';
 import { Btn, Card, Meta, Row } from '@/ui/kit';
@@ -18,10 +18,13 @@ const STARTERS = [
   'Why isn’t my weight going down?',
 ];
 
-/** "Ask Fat2Flat": a chat with the AI assistant, which knows the user's plan and progress. */
+/** "Ask Fat2Flat" (or "Ask Coach Nish's AI" for a coach's clients): a chat with the AI assistant, which knows the user's plan and progress. */
 export default function Assistant() {
   const router = useRouter();
+  const navigation = useNavigation();
   const cloud = useCloud();
+  const title = assistantTitle(cloud.membership?.coachName);
+  useEffect(() => navigation.setOptions({ title }), [navigation, title]);
   const { state, addAssistantMessage, clearAssistant, updateProfile } = useStore();
   const [draft, setDraft] = useState('');
   const [thinking, setThinking] = useState(false);
@@ -111,8 +114,8 @@ export default function Assistant() {
               <Ionicons name="sparkles" size={18} color="#fff" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={s.title}>Ask Fat2Flat</Text>
-              <Meta>An AI assistant that knows your plan and progress</Meta>
+              <Text style={s.title}>{assistantTitle(cloud.membership?.coachName)}</Text>
+              <Meta>{cloud.membership ? 'Your coach’s AI assistant: knows your plan and progress' : 'An AI assistant that knows your plan and progress'}</Meta>
             </View>
             {messages.length ? (
               <Pressable onPress={confirmClear} hitSlop={10} accessibilityLabel="Clear conversation">

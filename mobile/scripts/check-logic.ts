@@ -19,7 +19,7 @@ import { attentionScore, flags, planReminders, snapshot, snapshotToState, sugges
 import { emptyHealth, fmtSleep, mergeHealth, prettyKind, sharedHealth, sleepByDay, weekAverages } from '../src/data/health';
 import { activeDays } from '../src/data/stats';
 import { addGlasses, applyTargets, shouldAskForReview, unseenTargets, waterToday } from '../src/data/extras';
-import { assistantContext, recentTurns } from '../src/data/assistant';
+import { assistantContext, assistantTitle, recentTurns } from '../src/data/assistant';
 import { badges, bestStreak, newBadges } from '../src/data/badges';
 import { COMMON_FOODS, macrosFor, parseProduct, searchCommon } from '../src/data/food';
 import { dayLabel, stampFor } from '../src/data/days';
@@ -510,6 +510,9 @@ eq('sample plan: carbs and fat on every food', sp.flatMap((m) => m.items).every(
 eq('sample plan: a different seed gives a different day', JSON.stringify(samplePlan('veg', 2000, 1)) !== JSON.stringify(samplePlan('veg', 2000, 2)), true);
 eq('sample plan: big targets get an evening snack', samplePlan('nonveg', 3600, 3).some((m) => m.slot === 'snack2'), true);
 eq('sample plan: food names fit the server limit', samplePlan('nonveg', 3600, 3).flatMap((m) => m.items).every((i) => i.name.length <= 120), true);
+
+// --- the assistant's name ---
+eq('assistant name: coach clients see their coach\'s AI, everyone else Fat2Flat', [assistantTitle('Coach Nish'), assistantTitle('Nish'), assistantTitle('Coach James'), assistantTitle(null), assistantTitle('  ')], ['Ask Coach Nish’s AI', 'Ask Coach Nish’s AI', 'Ask Coach James’ AI', 'Ask Fat2Flat', 'Ask Fat2Flat']);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

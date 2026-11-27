@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useCloud } from '@/cloud/CloudProvider';
+import { assistantTitle } from '@/data/assistant';
 import { C } from '@/theme';
 import { Meta } from '@/ui/kit';
 
@@ -17,8 +18,10 @@ export function AskCard() {
         <Ionicons name="sparkles" size={17} color="#fff" />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={s.title}>Ask Fat2Flat</Text>
-        <Meta>Questions about food, workouts or your plan? Ask the AI.</Meta>
+        <Text style={s.title}>{assistantTitle(cloud.membership?.coachName)}</Text>
+        <Meta>
+          {cloud.membership ? 'Your coach’s AI assistant: questions about food, workouts or your plan.' : 'Questions about food, workouts or your plan? Ask the AI.'}
+        </Meta>
       </View>
       <Ionicons name="chevron-forward" size={17} color={C.faint} />
     </Pressable>

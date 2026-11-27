@@ -4,6 +4,7 @@ import { Alert, Platform, Pressable, StyleSheet, Switch, Text, View } from 'reac
 
 import { useCloud } from '@/cloud/CloudProvider';
 import { errorText } from '@/cloud/supabase';
+import { assistantTitle } from '@/data/assistant';
 import { timeAgo } from '@/data/sharing';
 import { useStore } from '@/data/store';
 import { C } from '@/theme';
@@ -68,7 +69,7 @@ export function CoachSettings() {
             <Row style={{ marginTop: 12 }}>
               <View style={{ flex: 1, paddingRight: 10 }}>
                 <Text style={s.item}>Share AI assistant chats</Text>
-                <Meta>Your recent questions to Ask Fat2Flat and its answers.</Meta>
+                <Meta>Your recent questions to {assistantTitle(m.coachName)} and its answers.</Meta>
               </View>
               <Switch
                 value={!!state.profile.shareAssistant}

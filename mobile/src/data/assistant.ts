@@ -85,3 +85,15 @@ export function recentTurns(messages: AssistantMessage[]) {
   const start = last.findIndex((m) => m.role === 'user');
   return (start < 0 ? [] : last.slice(start)).map((m) => ({ role: m.role, content: m.content }));
 }
+
+/**
+ * What the AI assistant is called: for someone with a coach it's clearly the
+ * coach's AI ("Ask Coach Nish's AI"), never the coach themselves; for everyone
+ * else it's the app's ("Ask Fat2Flat").
+ */
+export function assistantTitle(coachName?: string | null) {
+  const name = coachName?.trim();
+  if (!name) return 'Ask Fat2Flat';
+  const coach = /^coach\b/i.test(name) ? name : `Coach ${name}`;
+  return `Ask ${coach}${/s$/i.test(coach) ? '’' : '’s'} AI`;
+}
