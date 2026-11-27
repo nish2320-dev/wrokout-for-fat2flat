@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { listClients, sendWorkout, type ClientRow } from '@/cloud/coachApi';
+import { listClients, markDraft, sendWorkout, type ClientRow } from '@/cloud/coachApi';
 import { useCloud } from '@/cloud/CloudProvider';
 import { errorText } from '@/cloud/supabase';
 import { cleanItems, DEFAULT_REST, describe, MAX_ITEMS, REST_CHOICES, type CoachWorkoutItem } from '@/data/coachWorkouts';
@@ -25,15 +25,15 @@ const newItem = (e: Exercise): CoachWorkoutItem =>
 
 /** The coach builds a workout from the exercise library and sends it to one or more clients. */
 export default function CoachBuildWorkout() {
-  const { to, copy } = useLocalSearchParams<{ to?: string; copy?: string }>();
-  return <WorkoutBuilder to={to} copy={copy} />;
+  const { to, copy, draft } = useLocalSearchParams<{ to?: string; copy?: string; draft?: string }>();
+  return <WorkoutBuilder to={to} copy={copy} draftId={draft} />;
 }
 
 /**
  * Builds a workout from the exercise library. For a coach (default) it's sent
  * to clients; with `mine` it's saved to the user's own "My workouts" to reuse.
  */
-export function WorkoutBuilder({ mine = false, to, copy, editId }: { mine?: boolean; to?: string; copy?: string; editId?: string }) {
+export function WorkoutBuilder({ mine = false, to, copy, editId, draftId }: { mine?: boolean; to?: string; copy?: string; editId?: string; draftId?: string }) {
   const router = useRouter();
   const cloud = useCloud();
   const { state, saveMyWorkout, deleteMyWorkout } = useStore();
@@ -123,6 +123,7 @@ export function WorkoutBuilder({ mine = false, to, copy, editId }: { mine?: bool
     setSending(true);
     try {
       const n = await sendWorkout(cloud.coach.name, to, { name, note, items: clean });
+      if (draftId) await markDraft(draftId, 'sent').catch(() => {});
       Alert.alert('Sent', n === 1 ? `${to[0].name.split(' ')[0]} will find it under Workouts.` : `${n} clients will find it under Workouts.`, [
         { text: 'OK', onPress: () => router.back() },
       ]);

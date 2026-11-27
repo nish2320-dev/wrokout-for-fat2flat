@@ -1,5 +1,6 @@
 // Run with: npm run check
 declare const process: { exit(code: number): never };
+declare const require: (m: string) => { readFileSync(p: string, enc: string): string };
 
 import { generate, planToExercises } from '../src/data/generator';
 import { workoutActivity } from '../src/data/health';
@@ -492,6 +493,13 @@ eq('meal plan: one-food meal keeps its name', mealToLog(cplan, cplan.meals[0]).n
 const ate = [{ id: 'm', name: 'x', calories: 405, protein: 11, at: now - 60000, planRef: 'p1:breakfast' }, { id: 'n', name: 'y', calories: 400, protein: 45, at: now - 2 * DAY, planRef: 'p1:dinner' }];
 eq('meal plan: which meals were logged today', [...loggedSlots(ate, 'p1', now)], ['breakfast']);
 eq('meal plan: the coach can see it through the snapshot', snapshot({ ...initialState, meals: ate }, now, false).meals[0].planRef, 'p1:breakfast');
+
+// --- the AI agent's copy of the exercise library matches the app's ---
+const agentSrc = require('fs').readFileSync('../supabase/functions/coach-agent/index.ts', 'utf8');
+const catalogText = agentSrc.split('const CATALOG = `')[1].split('`')[0];
+const agentIds = catalogText.split('\n').map((l) => l.split('|')[0]);
+eq('agent library: same exercises as the app (regenerate CATALOG if this fails)', [agentIds.length, agentIds.every((id) => EXERCISES.some((e) => e.id === id)), EXERCISES.every((e) => agentIds.includes(e.id))], [EXERCISES.length, true, true]);
+eq('agent library: same kinds as the app', catalogText.split('\n').every((l) => { const [id, , cat, eqp, kind] = l.split('|'); const e = EXERCISES.find((x) => x.id === id); return !!e && e.muscle === cat && e.equipment === eqp && (e.kind ?? 'reps') === kind; }), true);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

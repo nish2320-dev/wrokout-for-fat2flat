@@ -95,7 +95,7 @@ export function AiCheckinsCard() {
         <Text style={[s.from, { flex: 1 }]}>Daily check-ins from {m.coachName}’s AI assistant?</Text>
       </Row>
       <Text style={[s.body, { fontSize: 14 }]}>
-        Each evening it looks at the progress you share with {m.coachName} and sends a short, personal check-in, with a weekly summary on Sundays. On Sundays it may also fine-tune your calorie and macro targets. {m.coachName} sees every message.
+        Each evening it looks at the progress you share with {m.coachName} and sends a short, personal check-in, with a weekly summary on Sundays. On Sundays it may also fine-tune your calorie and macro targets and help {m.coachName} plan your workouts and meals. {m.coachName} sees every message.
       </Text>
       <Text style={[s.small]}>
         To write them, your shared progress is sent securely to Anthropic, the company behind the Claude AI. It isn’t used to train AI. You can turn this off any time in Profile.

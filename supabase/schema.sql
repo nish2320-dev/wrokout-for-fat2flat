@@ -498,6 +498,43 @@ $$;
 revoke execute on function public.set_client_agent(uuid, boolean) from public, anon;
 grant execute on function public.set_client_agent(uuid, boolean) to authenticated;
 
+-- ── AI drafts for the coach to approve (2.2.1) ─────────────────────────
+-- On Sundays the coach-agent function drafts next week's workouts and a meal
+-- plan for each client who allowed AI check-ins. Nothing reaches the client
+-- until the coach sends it (with the normal send functions above); the coach
+-- marks each draft sent or dismissed.
+
+create table if not exists public.agent_drafts (
+  id         uuid primary key default gen_random_uuid(),
+  coach_id   uuid not null references public.coaches (user_id) on delete cascade,
+  client_id  uuid not null references public.clients (user_id) on delete cascade,
+  kind       text not null check (kind in ('workout', 'mealplan')),
+  payload    jsonb not null,
+  reason     text not null default '' check (char_length(reason) <= 500),
+  status     text not null default 'pending' check (status in ('pending', 'sent', 'dismissed')),
+  created_at timestamptz not null default now()
+);
+create index if not exists agent_drafts_coach_idx on public.agent_drafts (coach_id, status, created_at desc);
+alter table public.agent_drafts enable row level security;
+
+revoke all on public.agent_drafts from anon;
+revoke insert, update, delete on public.agent_drafts from authenticated;
+grant select, delete on public.agent_drafts to authenticated;
+grant update (status) on public.agent_drafts to authenticated;
+
+-- only the coach sees drafts, and only for their current clients (clients never see them)
+drop policy if exists "coach reads own drafts" on public.agent_drafts;
+create policy "coach reads own drafts" on public.agent_drafts for select to authenticated
+  using (coach_id = auth.uid() and exists (select 1 from public.clients c where c.user_id = client_id and c.coach_id = auth.uid()));
+
+drop policy if exists "coach updates own drafts" on public.agent_drafts;
+create policy "coach updates own drafts" on public.agent_drafts for update to authenticated
+  using (coach_id = auth.uid()) with check (coach_id = auth.uid());
+
+drop policy if exists "coach deletes own drafts" on public.agent_drafts;
+create policy "coach deletes own drafts" on public.agent_drafts for delete to authenticated
+  using (coach_id = auth.uid());
+
 -- ── Error reports ───────────────────────────────────────────────────────
 -- The app sends a JavaScript error's message (no names, emails or user ids)
 -- so problems can be fixed. Anyone may add a report; nobody can read them

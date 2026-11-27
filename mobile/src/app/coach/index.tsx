@@ -10,6 +10,7 @@ import { attentionScore, flags, timeAgo as ago } from '@/data/sharing';
 import { useStore } from '@/data/store';
 import { C } from '@/theme';
 import { Btn, Card, CardTitle, Empty, Label, Meta, Row, Screen, Tag } from '@/ui/kit';
+import { DraftsSummaryCard } from '@/ui/AiDrafts';
 import { SignInButton } from '@/ui/SignIn';
 
 const INVITE_PAGE = 'https://nish2320-dev.github.io/wrokout-for-fat2flat/join/';
@@ -117,6 +118,8 @@ export default function CoachHome() {
         <Btn label="Invite a client" icon="share-outline" onPress={invite} style={{ marginTop: 12 }} />
       </Card>
 
+      {clients && clients.length ? <DraftsSummaryCard clients={clients} /> : null}
+
       <Row style={{ paddingHorizontal: 2 }}>
         <Text style={s.h2}>
           {clients === null ? 'Clients' : `${clients.length} client${clients.length === 1 ? '' : 's'}`}
@@ -188,7 +191,7 @@ export default function CoachHome() {
             <View style={{ flex: 1, paddingRight: 10 }}>
               <CardTitle>AI check-ins</CardTitle>
               <Meta style={{ marginTop: 2 }}>
-                Your AI assistant messages each client who allows it: a check-in around 7 pm their time and a summary on Sunday evenings, adjusting their targets when their week calls for it. You see every message in their chat.
+                Your AI assistant messages each client who allows it: a check-in around 7 pm their time and a summary on Sunday evenings, adjusting their targets when their week calls for it. On Sundays it also drafts next week’s workouts and meal plan for you to review and send. You see every message in their chat.
               </Meta>
             </View>
             <Switch

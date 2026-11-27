@@ -168,6 +168,22 @@ select set_config('request.jwt.claim.sub', :coach, false);
 delete from coach_meal_plans;
 select pg_temp.eq((select count(*) from coach_meal_plans), 0, 'coach removes the plan');
 
+-- AI drafts (written by the server's agent, reviewed by the coach)
+reset role;
+insert into agent_drafts (coach_id, client_id, kind, payload, reason) values (:coach, :alice, 'workout', '{"name": "Upper A"}', 'Strength week');
+set role authenticated;
+select set_config('request.jwt.claim.sub', :alice, false);
+select pg_temp.eq((select count(*) from agent_drafts), 0, 'client never sees drafts');
+select set_config('request.jwt.claim.sub', :coach2, false);
+select pg_temp.eq((select count(*) from agent_drafts), 0, 'other coach sees no drafts');
+update agent_drafts set status = 'sent';
+select set_config('request.jwt.claim.sub', :coach, false);
+select pg_temp.eq((select count(*) from agent_drafts where status = 'pending'), 1, 'coach sees the pending draft');
+select pg_temp.must_fail('insert into agent_drafts (coach_id, client_id, kind, payload) values (auth.uid(), ' || quote_literal(:alice) || ', ''workout'', ''{}'')', 'coach inserts a draft');
+select pg_temp.must_fail('update agent_drafts set payload = ''{}''', 'coach rewrites the draft');
+update agent_drafts set status = 'sent';
+select pg_temp.eq((select count(*) from agent_drafts where status = 'sent'), 1, 'coach marks draft sent');
+
 -- AI coaching agent settings
 select set_config('request.jwt.claim.sub', :alice, false);
 update clients set ai_checkins = true, tz = 'America/Los_Angeles' where user_id = auth.uid();

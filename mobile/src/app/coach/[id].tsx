@@ -16,6 +16,7 @@ import { fmtDate, fmtVolume, setCount, volume } from '@/data/stats';
 import type { Meal, Workout } from '@/data/types';
 import { fmtLength, fmtWeight, lengthUnit } from '@/data/units';
 import { C, S } from '@/theme';
+import { ClientDraftsCard } from '@/ui/AiDrafts';
 import { ChatThread } from '@/ui/Chat';
 import { Btn, Card, CardTitle, Label, Meta, Metric, Pill, Row, Screen, Tag, Trend } from '@/ui/kit';
 
@@ -152,6 +153,8 @@ export default function ClientScreen() {
           <Btn label={sending ? 'Sending…' : 'Send'} icon="send" onPress={send} disabled={!draft.trim() || sending} style={{ flex: 1 }} />
         </Row>
       </Card>
+
+      <ClientDraftsCard client={client} />
 
       <AgentCard client={client} coachAgentOn={!!cloud.coach?.agentOn} onChanged={load} />
 

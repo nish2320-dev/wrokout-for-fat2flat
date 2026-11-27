@@ -192,3 +192,29 @@ export async function removeMealPlans(clientId: string) {
   const { error } = await sb().from('coach_meal_plans').delete().eq('client_id', clientId);
   if (error) throw error;
 }
+
+/** A workout or meal plan the AI agent drafted for the coach to approve. */
+export type AgentDraft =
+  | { id: string; client_id: string; kind: 'workout'; payload: { name: string; note: string; items: CoachWorkoutItem[] }; reason: string; created_at: string }
+  | { id: string; client_id: string; kind: 'mealplan'; payload: { name: string; note: string; meals: PlanMeal[] }; reason: string; created_at: string };
+
+/** Drafts waiting for the coach, newest first (optionally for one client). */
+export async function pendingDrafts(clientId?: string): Promise<AgentDraft[]> {
+  let q = sb().from('agent_drafts').select('id, client_id, kind, payload, reason, created_at').eq('status', 'pending').order('created_at', { ascending: false }).limit(100);
+  if (clientId) q = q.eq('client_id', clientId);
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data ?? []) as AgentDraft[];
+}
+
+export async function markDraft(id: string, status: 'sent' | 'dismissed') {
+  const { error } = await sb().from('agent_drafts').update({ status }).eq('id', id);
+  if (error) throw error;
+}
+
+/** Sends a draft to its client as it is, then marks it sent. */
+export async function sendDraft(coachName: string, client: Pick<ClientRow, 'user_id' | 'push_token'>, d: AgentDraft) {
+  if (d.kind === 'workout') await sendWorkout(coachName, [client], d.payload);
+  else await sendMealPlan(coachName, [client], d.payload);
+  await markDraft(d.id, 'sent');
+}

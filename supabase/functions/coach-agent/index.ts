@@ -8,6 +8,8 @@
 //     their calories, protein, carbs and fat within safe limits.
 // Messages go into the client's chat with their coach (marked from_agent, so
 // the coach sees every one) and to the client's phone as a notification.
+// On Sundays it also drafts next week's workouts and a meal plan for each of
+// those clients; drafts wait in agent_drafts until the coach approves them.
 //
 // Deploy: Edge Functions → Deploy a new function → Via editor, name
 // "coach-agent", paste this file, Deploy, then Settings → turn OFF "Verify JWT
@@ -37,7 +39,7 @@ type Workout = { name: string; finishedAt?: number; exercises: { exerciseId: str
 type Snapshot = {
   v?: number;
   profile?: { calorieGoal: number; proteinGoal: number; carbGoal?: number; fatGoal?: number; units: 'lb' | 'kg'; diet?: string };
-  program?: { startedAt: number; daysPerWeek: number; goal?: 'lose' | 'gain' | 'maintain'; style?: string; body?: { sex?: string; goalWeight?: number; startWeight?: number } } | null;
+  program?: { startedAt: number; daysPerWeek: number; goal?: 'lose' | 'gain' | 'maintain'; style?: string; equipment?: string[]; body?: { sex?: string; goalWeight?: number; startWeight?: number } } | null;
   workouts?: Workout[];
   meals?: Meal[];
   weighIns?: { at: number; weight: number }[];
@@ -254,6 +256,267 @@ ${recent.length ? recent.join('\n') : '(none)'}`,
   return out.message?.trim() ? { ...out, message: out.message.trim().slice(0, 1000) } : null;
 }
 
+// ── weekly drafts: workouts and a meal plan for the coach to approve ───────
+
+/** The app's exercise library: id|name|category|equipment|kind (kept in step with mobile/src/data/exercises.ts by npm run check). */
+const CATALOG = `bench-press|Barbell Bench Press|chest|barbell|reps
+incline-db-press|Incline Dumbbell Press|chest|dumbbells|reps
+cable-fly|Cable Fly|chest|cables|reps
+push-up|Push-Up|chest|bodyweight|reps
+chest-press-machine|Chest Press Machine|chest|machine|reps
+pull-up|Pull-Up|back|bodyweight|reps
+barbell-row|Barbell Row|back|barbell|reps
+lat-pulldown|Lat Pulldown|back|machine|reps
+seated-cable-row|Seated Cable Row|back|cables|reps
+db-row|One-Arm Dumbbell Row|back|dumbbells|reps
+face-pull|Face Pull|back|cables|reps
+squat|Barbell Squat|legs|barbell|reps
+rdl|Romanian Deadlift|legs|barbell|reps
+deadlift|Deadlift|legs|barbell|reps
+leg-press|Leg Press|legs|machine|reps
+walking-lunge|Walking Lunge|legs|dumbbells|reps
+leg-curl|Leg Curl|legs|machine|reps
+goblet-squat|Goblet Squat|legs|dumbbells|reps
+calf-raise|Standing Calf Raise|legs|machine|reps
+db-rdl|Dumbbell Romanian Deadlift|legs|dumbbells|reps
+bulgarian-split-squat|Bulgarian Split Squat|legs|dumbbells|reps
+step-up|Dumbbell Step-Up|legs|dumbbells|reps
+bodyweight-squat|Bodyweight Squat|legs|bodyweight|reps
+reverse-lunge|Reverse Lunge|legs|bodyweight|reps
+glute-bridge|Glute Bridge|legs|bodyweight|reps
+single-leg-calf-raise|Single-Leg Calf Raise|legs|bodyweight|reps
+overhead-press|Overhead Press|shoulders|barbell|reps
+db-shoulder-press|Dumbbell Shoulder Press|shoulders|dumbbells|reps
+lateral-raise|Lateral Raise|shoulders|dumbbells|reps
+rear-delt-fly|Rear Delt Fly|shoulders|dumbbells|reps
+pike-push-up|Pike Push-Up|shoulders|bodyweight|reps
+barbell-curl|Barbell Curl|arms|barbell|reps
+db-curl|Dumbbell Curl|arms|dumbbells|reps
+hammer-curl|Hammer Curl|arms|dumbbells|reps
+triceps-pushdown|Triceps Pushdown|arms|cables|reps
+skullcrusher|Skullcrusher|arms|barbell|reps
+dip|Dip|arms|bodyweight|reps
+plank|Plank|core|bodyweight|reps
+hanging-leg-raise|Hanging Leg Raise|core|bodyweight|reps
+cable-crunch|Cable Crunch|core|cables|reps
+dead-bug|Dead Bug|core|bodyweight|reps
+sun-salutation|Sun Salutation|yoga|bodyweight|reps
+downward-dog|Downward Dog|yoga|bodyweight|hold
+warrior-1|Warrior I|yoga|bodyweight|hold
+warrior-2|Warrior II|yoga|bodyweight|hold
+triangle|Triangle Pose|yoga|bodyweight|hold
+chair-pose|Chair Pose|yoga|bodyweight|hold
+tree-pose|Tree Pose|yoga|bodyweight|hold
+low-lunge|Low Lunge|yoga|bodyweight|hold
+cobra|Cobra|yoga|bodyweight|hold
+bridge-pose|Bridge Pose|yoga|bodyweight|hold
+boat-pose|Boat Pose|yoga|bodyweight|hold
+pigeon|Pigeon Pose|yoga|bodyweight|hold
+cat-cow|Cat-Cow|yoga|bodyweight|reps
+childs-pose|Child’s Pose|yoga|bodyweight|hold
+seated-forward-fold|Seated Forward Fold|yoga|bodyweight|hold
+pilates-hundred|The Hundred|pilates|bodyweight|reps
+roll-up|Roll-Up|pilates|bodyweight|reps
+single-leg-stretch|Single-Leg Stretch|pilates|bodyweight|reps
+double-leg-stretch|Double-Leg Stretch|pilates|bodyweight|reps
+criss-cross|Criss-Cross|pilates|bodyweight|reps
+leg-circles|Single-Leg Circles|pilates|bodyweight|reps
+side-leg-lift|Side-Lying Leg Lift|pilates|bodyweight|reps
+pilates-swimming|Swimming|pilates|bodyweight|hold
+teaser|Teaser|pilates|bodyweight|reps
+shoulder-bridge|Shoulder Bridge|pilates|bodyweight|reps
+spine-twist|Spine Twist|pilates|bodyweight|reps
+brisk-walk|Brisk Walk|cardio|bodyweight|cardio
+run|Run (outdoors)|cardio|bodyweight|cardio
+treadmill|Treadmill Run|cardio|machine|cardio
+incline-walk|Incline Walk|cardio|machine|cardio
+stationary-bike|Stationary Bike|cardio|machine|cardio
+rower|Rowing Machine|cardio|machine|cardio
+elliptical|Elliptical|cardio|machine|cardio
+stair-climber|Stair Climber|cardio|machine|cardio
+jump-rope|Jump Rope|cardio|bodyweight|cardio
+swim|Swimming|cardio|bodyweight|cardio
+dance-cardio|Dance Cardio|cardio|bodyweight|cardio
+burpee|Burpee|hiit|bodyweight|reps
+mountain-climber|Mountain Climbers|hiit|bodyweight|hold
+jumping-jack|Jumping Jacks|hiit|bodyweight|hold
+high-knees|High Knees|hiit|bodyweight|hold
+squat-jump|Squat Jump|hiit|bodyweight|reps
+skater|Skaters|hiit|bodyweight|reps
+plank-jack|Plank Jacks|hiit|bodyweight|hold
+kettlebell-swing|Kettlebell / Dumbbell Swing|hiit|dumbbells|reps
+hamstring-stretch|Hamstring Stretch|mobility|bodyweight|hold
+hip-flexor-stretch|Hip Flexor Stretch|mobility|bodyweight|hold
+figure-four|Figure-Four Stretch|mobility|bodyweight|hold
+worlds-greatest|World’s Greatest Stretch|mobility|bodyweight|reps
+thoracic-rotation|Open Book Rotation|mobility|bodyweight|reps
+chest-doorway-stretch|Doorway Chest Stretch|mobility|bodyweight|hold
+calf-stretch|Calf Stretch|mobility|bodyweight|hold
+foam-roll|Foam Rolling|mobility|bodyweight|cardio`;
+const LIBRARY = CATALOG.split('\n').map((l) => {
+  const [id, name, category, equipment, kind] = l.split('|');
+  return { id, name, category, equipment, kind };
+});
+export const EXERCISE_IDS = LIBRARY.map((e) => e.id);
+const SLOTS = ['breakfast', 'lunch', 'snack', 'dinner', 'snack2'] as const;
+
+export type DraftWorkout = { name: string; note: string; items: { exerciseId: string; sets: number; reps: number; restSec: number; note?: string }[] };
+export type DraftMealPlan = { name: string; note: string; meals: { slot: (typeof SLOTS)[number]; items: { name: string; calories: number; protein: number; carbs: number; fat: number }[] }[] };
+
+const PLAN_SCHEMA = {
+  type: 'object',
+  properties: {
+    reason: { type: 'string', description: 'One or two sentences for the coach: why these workouts and meals suit this client this week.' },
+    workouts: {
+      type: 'array',
+      description: 'Next week\'s workouts, in order.',
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Short name, e.g. "Upper body A" or "Yoga flow".' },
+          note: { type: 'string', description: 'One short coaching tip for the client, or empty.' },
+          items: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                exerciseId: { type: 'string', enum: EXERCISE_IDS },
+                sets: { type: 'integer' },
+                reps: { type: 'integer', description: 'Reps; for hold exercises seconds per set; for cardio minutes.' },
+                restSec: { type: 'integer' },
+                note: { type: 'string', description: 'Optional form tip, or empty.' },
+              },
+              required: ['exerciseId', 'sets', 'reps', 'restSec', 'note'],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ['name', 'note', 'items'],
+        additionalProperties: false,
+      },
+    },
+    mealPlan: {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        note: { type: 'string', description: 'One short tip for the client, or empty.' },
+        meals: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              slot: { type: 'string', enum: [...SLOTS] },
+              items: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    name: { type: 'string', description: 'Food with its portion, e.g. "2 rotis" or "150 g grilled chicken".' },
+                    calories: { type: 'integer' },
+                    protein: { type: 'integer' },
+                    carbs: { type: 'integer' },
+                    fat: { type: 'integer' },
+                  },
+                  required: ['name', 'calories', 'protein', 'carbs', 'fat'],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ['slot', 'items'],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ['name', 'note', 'meals'],
+      additionalProperties: false,
+    },
+  },
+  required: ['reason', 'workouts', 'mealPlan'],
+  additionalProperties: false,
+};
+
+const text = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+const int = (v: unknown, lo: number, hi: number) => clamp(typeof v === 'number' && Number.isFinite(v) ? v : lo, lo, hi);
+
+/** Keeps a drafted workout inside what the app and the send function accept. */
+export function cleanDraftWorkout(w: unknown): DraftWorkout | null {
+  const o = (w ?? {}) as Record<string, unknown>;
+  const raw = Array.isArray(o.items) ? o.items : [];
+  const items = raw
+    .map((i) => (i ?? {}) as Record<string, unknown>)
+    .filter((i) => typeof i.exerciseId === 'string' && EXERCISE_IDS.includes(i.exerciseId))
+    .slice(0, 12)
+    .map((i) => {
+      const note = text(i.note, 200);
+      return { exerciseId: i.exerciseId as string, sets: int(i.sets, 1, 6), reps: int(i.reps, 1, 600), restSec: int(i.restSec, 0, 300), ...(note ? { note } : {}) };
+    });
+  const name = text(o.name, 60);
+  return items.length && name ? { name, note: text(o.note, 500), items } : null;
+}
+
+/** Keeps a drafted meal plan inside what the app and the send function accept. */
+export function cleanDraftMealPlan(p: unknown): DraftMealPlan | null {
+  const o = (p ?? {}) as Record<string, unknown>;
+  const seen = new Set<string>();
+  const meals = (Array.isArray(o.meals) ? o.meals : [])
+    .map((m) => (m ?? {}) as Record<string, unknown>)
+    .filter((m) => typeof m.slot === 'string' && (SLOTS as readonly string[]).includes(m.slot) && !seen.has(m.slot) && seen.add(m.slot))
+    .map((m) => ({
+      slot: m.slot as DraftMealPlan['meals'][number]['slot'],
+      items: (Array.isArray(m.items) ? m.items : [])
+        .map((i) => (i ?? {}) as Record<string, unknown>)
+        .filter((i) => text(i.name, 120))
+        .slice(0, 15)
+        .map((i) => ({ name: text(i.name, 120), calories: int(i.calories, 0, 5000), protein: int(i.protein, 0, 500), carbs: int(i.carbs, 0, 800), fat: int(i.fat, 0, 400) })),
+    }))
+    .filter((m) => m.items.length > 0);
+  return meals.length ? { name: text(o.name, 80) || 'Meal plan', note: text(o.note, 500), meals } : null;
+}
+
+const PLAN_SYSTEM = (coach: string) => `You are the AI assistant of ${coach}, a personal trainer using the Fat2Flat Fitness app. Each Sunday you draft next week's workouts and a one-day meal plan for one of ${coach}'s clients. ${coach} reviews and edits everything before the client sees it.
+
+Workouts:
+- Use ONLY exercises from this library (id|name|category|equipment|kind). For kind "hold", reps means seconds per set; for "cardio", reps means minutes and sets should be 1.
+${CATALOG}
+- Use only the client's equipment; "bodyweight" exercises are always fine.
+- Match their goal and plan style: fat loss favours full-body strength plus some HIIT or cardio; gaining favours progressive strength (compound lifts, 6–10 reps, 2–3 min rest); yoga & Pilates style uses yoga, pilates and mobility; cardio style mixes steady cardio and HIIT with a little strength.
+- If last week's workouts were missed, keep things shorter and easier to restart; if they were all done, progress slightly.
+- 4–8 exercises per strength or yoga workout. Sensible rest: 60–120 s for strength, 15–45 s for holds and HIIT, 0 for cardio.
+
+Meal plan:
+- One day: breakfast, lunch, snack and dinner (add "snack2" only for high calorie targets). Calories within about 5% of their daily target, protein close to target, carbs and fat close to their targets.
+- Respect their diet: "hinduveg" = no meat, fish or eggs; "veg" = no meat or fish. Indian and Western foods are both welcome; keep it simple, home-cooked and realistic.
+- Give each food a clear portion in its name and numbers consistent with calories ≈ 4 × protein + 4 × carbs + 9 × fat.
+- Never go under 1,200 calories (women) or 1,500 (men).`;
+
+async function draftPlan(client: Anthropic, coach: string, context: string, snap: Snapshot) {
+  const workoutsWanted = Math.min(3, Math.max(2, snap.program?.daysPerWeek ?? 3));
+  const equipment = snap.program?.equipment?.length ? snap.program.equipment.join(', ') : 'bodyweight, dumbbells';
+  const response = await client.beta.messages.create({
+    model: 'claude-opus-5-5',
+    max_tokens: 12000,
+    betas: ['server-side-fallback-2026-07-01'],
+    fallbacks: 'default',
+    output_config: { effort: 'medium', format: { type: 'json_schema', schema: PLAN_SCHEMA } },
+    system: PLAN_SYSTEM(coach),
+    messages: [
+      {
+        role: 'user',
+        content: `Draft ${workoutsWanted} workouts for next week and a one-day meal plan.\nEquipment: ${equipment}.\n\nAbout the client (from their app):\n${context}`,
+      },
+    ],
+  });
+  if (response.stop_reason === 'refusal') return null;
+  const block = response.content.find((b) => b.type === 'text');
+  if (!block || block.type !== 'text') return null;
+  const out = JSON.parse(block.text) as { reason?: string; workouts?: unknown[]; mealPlan?: unknown };
+  return {
+    reason: text(out.reason, 500),
+    workouts: (out.workouts ?? []).map(cleanDraftWorkout).filter((w): w is DraftWorkout => w !== null).slice(0, 3),
+    mealPlan: cleanDraftMealPlan(out.mealPlan),
+  };
+}
+
 async function push(token: string | null, title: string, body: string) {
   if (!token) return;
   await fetch('https://exp.host/--/api/v2/push/send', {
@@ -313,7 +576,8 @@ if (typeof Deno !== 'undefined' && Deno.serve) Deno.serve(async (req) => {
     .slice(0, MAX_CLIENTS_PER_RUN);
 
   const anthropic = new Anthropic();
-  const results: { client: string; kind: string; message?: string; targets?: Targets | null; error?: string }[] = [];
+  const results: { client: string; kind: string; message?: string; targets?: Targets | null; drafts?: unknown; error?: string }[] = [];
+  const drafted = new Map<string, number>(); // coach id → clients with new drafts
 
   for (const { c, kind } of todo) {
     const coach = c.coaches?.name ?? 'your coach';
@@ -363,10 +627,40 @@ if (typeof Deno !== 'undefined' && Deno.serve) Deno.serve(async (req) => {
         }
         await push(c.push_token, `${coach} · AI check-in`, out.message);
       }
-      results.push({ client: c.name, kind, message: out.message, targets });
+
+      // weekly: draft next week's workouts and meal plan for the coach to approve
+      let drafts: Awaited<ReturnType<typeof draftPlan>> = null;
+      if (kind === 'weekly') {
+        try {
+          drafts = await draftPlan(anthropic, coach, clientContext(c.name, c.snapshot ?? {}, c.tz, now, 'weekly'), c.snapshot ?? {});
+        } catch (e) {
+          console.error('drafting failed for a client', e instanceof Anthropic.APIError ? `${e.status} ${e.message}` : e);
+        }
+        if (drafts && !opts.dryRun && (drafts.workouts.length || drafts.mealPlan)) {
+          // last week's unreviewed drafts are replaced by this week's
+          await admin.from('agent_drafts').update({ status: 'dismissed' }).eq('client_id', c.user_id).eq('status', 'pending');
+          const rows = [
+            ...drafts.workouts.map((w) => ({ coach_id: c.coach_id, client_id: c.user_id, kind: 'workout', payload: w, reason: drafts!.reason })),
+            ...(drafts.mealPlan ? [{ coach_id: c.coach_id, client_id: c.user_id, kind: 'mealplan', payload: drafts.mealPlan, reason: drafts.reason }] : []),
+          ];
+          const { error: draftError } = await admin.from('agent_drafts').insert(rows);
+          if (draftError) console.error('could not save drafts', draftError);
+          else drafted.set(c.coach_id, (drafted.get(c.coach_id) ?? 0) + 1);
+        }
+      }
+      results.push({ client: c.name, kind, message: out.message, targets, ...(drafts ? { drafts } : {}) });
     } catch (e) {
       console.error('agent failed for a client', e instanceof Anthropic.APIError ? `${e.status} ${e.message}` : e);
       results.push({ client: c.name, kind, error: 'failed' });
+    }
+  }
+
+  // tell each coach their drafts are ready to review
+  if (drafted.size) {
+    const { data: coaches } = await admin.from('coaches').select('user_id, push_token').in('user_id', [...drafted.keys()]);
+    for (const co of coaches ?? []) {
+      const n = drafted.get(co.user_id) ?? 0;
+      await push(co.push_token, 'AI drafts ready', `Next week's workouts and meal plan${n === 1 ? ' for 1 client are' : `s for ${n} clients are`} ready for you to review in My clients.`);
     }
   }
 

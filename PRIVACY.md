@@ -123,7 +123,9 @@ share health data) and your recent chat messages to Anthropic, the company that
 makes the Claude AI. Anthropic's commercial terms don't allow using this to
 train its models. The check-ins are saved in your chat with your coach, who can
 read them. On Sundays the assistant may adjust your daily calorie, protein,
-carb and fat targets within safe limits; your app shows the change and why. To
+carb and fat targets within safe limits; your app shows the change and why.
+It also drafts next week's workouts and a meal plan for your coach, who
+reviews them before anything is sent to you. To
 time the messages for your evening, your phone's time zone is stored with your
 shared progress. Turn AI check-ins off at any time in Profile → Your coach;
 your coach can also switch them off.

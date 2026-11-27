@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { listClients, sendMealPlan, type ClientRow } from '@/cloud/coachApi';
+import { listClients, markDraft, sendMealPlan, type ClientRow } from '@/cloud/coachApi';
 import { useCloud } from '@/cloud/CloudProvider';
 import { errorText } from '@/cloud/supabase';
 import { PLAN_SLOTS, planTotals, type PlanMeal, type PlanSlot } from '@/data/coachMealPlans';
@@ -19,7 +19,7 @@ const digits = (t: string) => t.replace(/[^0-9]/g, '');
 
 /** The coach writes a day of meals and sends it to one or more clients. */
 export default function BuildMealPlan() {
-  const { to, copy } = useLocalSearchParams<{ to?: string; copy?: string }>();
+  const { to, copy, draft } = useLocalSearchParams<{ to?: string; copy?: string; draft?: string }>();
   const router = useRouter();
   const cloud = useCloud();
   const { state } = useStore();
@@ -76,6 +76,7 @@ export default function BuildMealPlan() {
     setSending(true);
     try {
       const n = await sendMealPlan(cloud.coach.name, recipients, { name, note, meals });
+      if (draft) await markDraft(draft, 'sent').catch(() => {});
       Alert.alert('Sent', n === 1 ? `${recipients[0].name.split(' ')[0]} will see it on their Meals tab.` : `${n} clients will see it on their Meals tab.`, [
         { text: 'OK', onPress: () => router.back() },
       ]);
