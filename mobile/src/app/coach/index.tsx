@@ -188,6 +188,8 @@ export default function CoachHome() {
         <Btn label="Message all clients" icon="megaphone-outline" onPress={() => router.push('/coach/broadcast')} />
       ) : null}
 
+      {cloud.coach ? <NotifyCard /> : null}
+
       {cloud.coach ? (
         <Card>
           <Row>
@@ -233,3 +235,35 @@ const s = StyleSheet.create({
   name: { fontSize: 15, fontWeight: '800', color: C.ink },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
 });
+
+const NOTIFY_ROWS: { key: 'workouts' | 'checkins' | 'weighins' | 'summary'; label: string; detail: string }[] = [
+  { key: 'workouts', label: 'Workouts finished', detail: '“Priya finished Upper A (12 sets)”' },
+  { key: 'checkins', label: 'Weekly check-ins', detail: '“Priya did their weekly check-in: 168.2 lb, waist −1 in”' },
+  { key: 'weighins', label: 'Weigh-ins', detail: '“Priya weighed in: 168.2 lb (−0.6 this week)”' },
+  { key: 'summary', label: 'Evening summary', detail: 'One message around 8 pm: who worked out, checked in, and who’s behind.' },
+];
+
+/** Which client activity pings the coach's phone. */
+function NotifyCard() {
+  const cloud = useCloud();
+  const n = cloud.coach!.notify;
+  return (
+    <Card style={{ gap: 12 }}>
+      <CardTitle>Notify me when clients…</CardTitle>
+      {NOTIFY_ROWS.map((r) => (
+        <Row key={r.key}>
+          <View style={{ flex: 1, paddingRight: 10 }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: C.ink }}>{r.label}</Text>
+            <Meta>{r.detail}</Meta>
+          </View>
+          <Switch
+            value={n[r.key]}
+            onValueChange={(on) => cloud.setNotify({ [r.key]: on }).catch((e) => Alert.alert('Could not change notifications', errorText(e)))}
+            trackColor={{ true: C.red, false: C.line }}
+          />
+        </Row>
+      ))}
+      <Meta>Messages and finished workouts you sent always notify you.</Meta>
+    </Card>
+  );
+}

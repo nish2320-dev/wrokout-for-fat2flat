@@ -8,6 +8,8 @@
 //     their calories, protein, carbs and fat within safe limits, and
 //   • around 2 pm, a short reminder only if they haven't logged any food yet
 //     or are far behind on water (no AI needed for that one).
+// Separately, every coach who wants it gets an evening summary around 8 pm in
+// their own time zone (all their clients, AI check-ins or not; no AI used).
 // The evening check-in leads with whatever daily goal was missed: workouts
 // behind schedule, no meals logged, water, calories, protein, carbs or fat.
 // Messages go into the client's chat with their coach (marked from_agent, so
@@ -48,6 +50,7 @@ type Snapshot = {
   workouts?: Workout[];
   meals?: Meal[];
   weighIns?: { at: number; weight: number }[];
+  checkIns?: { at: number }[];
   health?: { days?: { date: number; steps?: number; sleepMinutes?: number }[] };
 };
 export type Targets = { calorieGoal: number; proteinGoal: number; carbGoal: number; fatGoal: number };
@@ -140,6 +143,46 @@ export function goalAlerts(snap: Snapshot, summary: Summary | null, tz: string |
     }
   }
   return out;
+}
+
+const SUMMARY_HOURS = [20, 22]; // 8 pm to 10 pm in the coach's time zone
+
+/** The coach's evening summary is due (once a day, 8–10 pm their time). */
+export function summaryDue(co: { tz: string | null; summary_on: string | null; notify: Record<string, unknown> | null; push_token: string | null }, now: number) {
+  if (!co.push_token || co.notify?.summary === false) return false;
+  const { date, hour } = localParts(now, co.tz);
+  return hour >= SUMMARY_HOURS[0] && hour <= SUMMARY_HOURS[1] && co.summary_on !== date;
+}
+
+/** "Today: 3 of 5 clients worked out · 1 check-in · 2 weigh-ins. Behind on workouts: Priya, Raj. No meals logged: Sam." */
+export function coachSummaryText(clients: { name: string; snapshot: Snapshot; summary: Summary | null; tz: string | null }[], now: number): string | null {
+  if (clients.length === 0) return null;
+  const first = (n: string) => n.trim().split(/\s+/)[0] || n;
+  const list = (names: string[]) => (names.length > 3 ? `${names.slice(0, 3).join(', ')} +${names.length - 3}` : names.join(', '));
+  const on = (t: number, tz: string | null) => localDate(t, tz) === localDate(now, tz);
+  let workedOut = 0;
+  let checkIns = 0;
+  let weighIns = 0;
+  const behind: string[] = [];
+  const noMeals: string[] = [];
+  for (const c of clients) {
+    const snap = c.snapshot ?? {};
+    if ((snap.workouts ?? []).some((w) => w.finishedAt && on(w.finishedAt, c.tz))) workedOut++;
+    checkIns += (snap.checkIns ?? []).filter((x) => on(x.at, c.tz)).length;
+    weighIns += (snap.weighIns ?? []).filter((x) => on(x.at, c.tz)).length;
+    const alerts = goalAlerts(snap, c.summary, c.tz, now);
+    if (alerts.some((a) => a.key === 'workouts')) behind.push(first(c.name));
+    if (alerts.some((a) => a.key === 'nomeals')) noMeals.push(first(c.name));
+  }
+  const n = clients.length;
+  const parts = [`${workedOut} of ${n} client${n === 1 ? '' : 's'} worked out`];
+  if (checkIns) parts.push(`${checkIns} check-in${checkIns === 1 ? '' : 's'}`);
+  if (weighIns) parts.push(`${weighIns} weigh-in${weighIns === 1 ? '' : 's'}`);
+  let text = `Today: ${parts.join(' · ')}.`;
+  if (behind.length) text += ` Behind on workouts: ${list(behind)}.`;
+  if (noMeals.length) text += ` No meals logged: ${list(noMeals)}.`;
+  if (!behind.length && !noMeals.length) text += ' Everyone’s on track 🔥';
+  return text;
 }
 
 /** The 2 pm reminder: a short friendly line, or null when nothing needs it. */
@@ -634,7 +677,7 @@ if (typeof Deno !== 'undefined' && Deno.serve) Deno.serve(async (req) => {
   const key = Deno.env.get('AGENT_KEY');
   if (!key || req.headers.get('x-agent-key') !== key) return new Response('Unauthorized', { status: 401 });
 
-  let opts: { force?: Kind; dryRun?: boolean; clientId?: string } = {};
+  let opts: { force?: Kind | 'summary'; dryRun?: boolean; clientId?: string } = {};
   try {
     opts = await req.json();
   } catch {
@@ -658,7 +701,7 @@ if (typeof Deno !== 'undefined' && Deno.serve) Deno.serve(async (req) => {
 
   const now = Date.now();
   const todo = (data as unknown as Row[])
-    .map((c) => ({ c, kind: opts.force ?? due(c, now) }))
+    .map((c) => ({ c, kind: opts.force === 'summary' ? null : (opts.force ?? due(c, now)) }))
     .filter((x): x is { c: Row; kind: Kind } => x.kind !== null)
     .slice(0, MAX_CLIENTS_PER_RUN);
 
@@ -753,6 +796,22 @@ if (typeof Deno !== 'undefined' && Deno.serve) Deno.serve(async (req) => {
     } catch (e) {
       console.error('agent failed for a client', e instanceof Anthropic.APIError ? `${e.status} ${e.message}` : e);
       results.push({ client: c.name, kind, error: 'failed' });
+    }
+  }
+
+  // evening summary for each coach who wants one (8–10 pm their time; no AI involved)
+  if (!opts.clientId) {
+    const { data: coachRows } = await admin.from('coaches').select('user_id, push_token, notify, tz, summary_on').not('push_token', 'is', null);
+    for (const co of (coachRows ?? []) as { user_id: string; push_token: string | null; notify: Record<string, unknown> | null; tz: string | null; summary_on: string | null }[]) {
+      if (!summaryDue(co, now) && opts.force !== 'summary') continue;
+      const { data: theirs } = await admin.from('clients').select('name, snapshot, summary, tz').eq('coach_id', co.user_id);
+      const text = coachSummaryText((theirs ?? []) as { name: string; snapshot: Snapshot; summary: Summary | null; tz: string | null }[], now);
+      if (!text) continue;
+      if (!opts.dryRun) {
+        await push(co.push_token, 'Your clients today', text);
+        await admin.from('coaches').update({ summary_on: localParts(now, co.tz).date }).eq('user_id', co.user_id);
+      }
+      results.push({ client: '(coach summary)', kind: 'summary', message: text });
     }
   }
 

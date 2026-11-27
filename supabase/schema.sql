@@ -44,6 +44,10 @@ create index if not exists messages_client_idx on public.messages (client_id, cr
 alter table public.messages add column if not exists from_client boolean not null default false;
 alter table public.messages add column if not exists from_agent boolean not null default false; -- written by the AI coaching agent
 alter table public.coaches add column if not exists push_token text;
+-- which client activity pings the coach's phone, and the coach's time zone for the evening summary
+alter table public.coaches add column if not exists notify jsonb not null default '{"workouts": true, "checkins": true, "weighins": true, "summary": true}'::jsonb;
+alter table public.coaches add column if not exists tz text check (tz is null or char_length(tz) <= 64);
+alter table public.coaches add column if not exists summary_on date;
 alter table public.clients add column if not exists coach_targets jsonb;
 
 create table if not exists public.ai_usage (
@@ -67,7 +71,7 @@ revoke all on public.coaches, public.clients, public.messages, public.ai_usage f
 revoke all on public.ai_usage from authenticated;
 revoke insert, update, delete on public.coaches, public.clients, public.messages from authenticated;
 grant select on public.coaches, public.clients, public.messages to authenticated;
-grant update (name, push_token) on public.coaches to authenticated;
+grant update (name, push_token, notify, tz) on public.coaches to authenticated;
 grant update (name, share_photos, push_token, summary, snapshot, updated_at) on public.clients to authenticated;
 grant delete on public.clients to authenticated;
 grant insert (coach_id, client_id, body, from_client) on public.messages to authenticated;
@@ -237,11 +241,13 @@ end;
 $$;
 
 -- The coach's name and notification address, for the client's app to message them.
-create or replace function public.my_coach()
-returns table (name text, push_token text)
+-- (dropped first: its columns changed in 2.2.2)
+drop function if exists public.my_coach();
+create function public.my_coach()
+returns table (name text, push_token text, notify jsonb)
 language sql security definer set search_path = public stable
 as $$
-  select co.name, co.push_token from coaches co
+  select co.name, co.push_token, co.notify from coaches co
   join clients cl on cl.coach_id = co.user_id
   where cl.user_id = auth.uid();
 $$;

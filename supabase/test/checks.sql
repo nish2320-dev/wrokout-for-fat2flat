@@ -148,6 +148,16 @@ select pg_temp.eq((select count(*) from coach_workouts where done_at is not null
 update coach_workouts set done_at = null;
 select pg_temp.eq((select count(*) from coach_workouts where done_at is not null), 1, 'coach cannot undo done');
 
+-- coach notification settings
+select set_config('request.jwt.claim.sub', :coach, false);
+update coaches set notify = '{"workouts": false, "checkins": true, "weighins": true, "summary": true}', tz = 'America/New_York' where user_id = auth.uid();
+select pg_temp.must_fail('update coaches set summary_on = current_date', 'coach edits summary bookkeeping');
+select set_config('request.jwt.claim.sub', :alice, false);
+select pg_temp.eq((select count(*) from my_coach() where (notify->>'workouts')::boolean = false), 1, 'client app reads the coach''s notification choices');
+update coaches set notify = '{}';
+select set_config('request.jwt.claim.sub', :coach, false);
+select pg_temp.eq((select count(*) from coaches where (notify->>'checkins')::boolean), 1, 'client cannot change the coach''s settings');
+
 -- exercise videos from the coach
 select set_config('request.jwt.claim.sub', :coach, false);
 insert into coach_videos (coach_id, exercise_id, path) values (auth.uid(), 'bench-press', auth.uid()::text || '/bench-press.mp4');

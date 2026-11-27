@@ -8,6 +8,7 @@ import { AppState, Platform } from 'react-native';
 
 import type { CoachMealPlan } from '@/data/coachMealPlans';
 import type { CoachWorkout } from '@/data/coachWorkouts';
+import { newPings, seenFrom, type Seen } from '@/data/coachPings';
 import { sharedPhotoNames, snapshot, summarize } from '@/data/sharing';
 import type { CoachTargets } from '@/data/types';
 import { useStore } from '@/data/store';
@@ -24,7 +25,9 @@ import { cloudEnabled, PHOTO_BUCKET, supabase, VIDEO_BUCKET } from './supabase';
  */
 
 export type Membership = { coachId: string; coachName: string; name: string; sharePhotos: boolean; aiCheckins: boolean };
-export type CoachInfo = { name: string; code: string; agentOn: boolean };
+export type CoachNotify = { workouts: boolean; checkins: boolean; weighins: boolean; summary: boolean };
+export type CoachInfo = { name: string; code: string; agentOn: boolean; notify: CoachNotify };
+const NOTIFY_DEFAULTS: CoachNotify = { workouts: true, checkins: true, weighins: true, summary: true };
 /** A chat message between the client and their coach. */
 export type Note = { id: string; body: string; created_at: string; read_at: string | null; from_client: boolean; from_agent?: boolean };
 
@@ -59,6 +62,8 @@ type Cloud = {
   setAiCheckins: (on: boolean) => Promise<void>;
   /** Coach: AI check-ins for all their clients on or off. */
   setAgentOn: (on: boolean) => Promise<void>;
+  /** Coach: which client activity pings their phone. */
+  setNotify: (patch: Partial<CoachNotify>) => Promise<void>;
   /** Marks a coach's workout done and tells the coach. */
   completeCoachWorkout: (id: string) => Promise<void>;
   lastSyncedAt: number | null;
@@ -184,7 +189,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
     }
     const [mine, coachRow, inbox, sent, plan, vids] = await Promise.all([
       supabase.from('clients').select('coach_id, name, share_photos, coach_targets, ai_checkins').eq('user_id', userId).maybeSingle(),
-      supabase.from('coaches').select('name, code, agent_on').eq('user_id', userId).maybeSingle(),
+      supabase.from('coaches').select('name, code, agent_on, notify').eq('user_id', userId).maybeSingle(),
       supabase.from('messages').select('id, body, created_at, read_at, from_client, from_agent').eq('client_id', userId).order('created_at', { ascending: false }).limit(60),
       supabase.from('coach_workouts').select('id, name, note, items, created_at, done_at').eq('client_id', userId).order('created_at', { ascending: false }).limit(30),
       supabase.from('coach_meal_plans').select('id, name, note, meals, created_at').eq('client_id', userId).order('created_at', { ascending: false }).limit(1),
@@ -201,7 +206,12 @@ export function CloudProvider({ children }: { children: ReactNode }) {
         setMembership(null);
       }
     }
-    if (!coachRow.error) setCoach(coachRow.data ? { name: coachRow.data.name, code: coachRow.data.code, agentOn: coachRow.data.agent_on !== false } : null);
+    if (!coachRow.error)
+      setCoach(
+        coachRow.data
+          ? { name: coachRow.data.name, code: coachRow.data.code, agentOn: coachRow.data.agent_on !== false, notify: { ...NOTIFY_DEFAULTS, ...(coachRow.data.notify ?? {}) } }
+          : null,
+      );
     if (!inbox.error) setNotes((inbox.data ?? []) as Note[]);
     if (!sent.error) setCoachWorkouts((sent.data ?? []) as CoachWorkout[]);
     if (!plan.error) setCoachMealPlan(((plan.data ?? [])[0] as CoachMealPlan | undefined) ?? null);
@@ -257,10 +267,33 @@ export function CloudProvider({ children }: { children: ReactNode }) {
     pushToken().then((token) => {
       if (token && token !== coachToken.current) {
         coachToken.current = token;
-        supabase!.from('coaches').update({ push_token: token }).eq('user_id', userId).then(() => {});
+        // the time zone sets when the evening summary arrives
+        supabase!.from('coaches').update({ push_token: token, tz: timeZone() }).eq('user_id', userId).then(() => {});
       }
     });
   }, [userId, coach]);
+
+  // tell the coach about a finished workout, check-in or weigh-in (per the coach's switches)
+  const seen = useRef<Seen | null>(null);
+  useEffect(() => {
+    if (!supabase || !userId || !membership || !storeReady) {
+      seen.current = null;
+      return;
+    }
+    if (!seen.current) {
+      seen.current = seenFrom(state); // what's already there when the app opens doesn't ping
+      return;
+    }
+    const pings = newPings(seen.current, state, membership.name.trim().split(/\s+/)[0] || membership.name, Date.now());
+    seen.current = seenFrom(state);
+    if (!pings.length) return;
+    supabase.rpc('my_coach').then(({ data }) => {
+      const c = (data as { push_token: string | null; notify: Partial<CoachNotify> | null }[] | null)?.[0];
+      if (!c?.push_token) return;
+      const notify = { ...NOTIFY_DEFAULTS, ...(c.notify ?? {}) };
+      for (const p of pings) if (notify[p.kind]) sendPush(c.push_token, 'Fat2Flat', p.text).catch(() => {});
+    });
+  }, [state, userId, membership, storeReady]);
 
   // give the coach a way to reach this phone
   useEffect(() => {
@@ -489,6 +522,16 @@ export function CloudProvider({ children }: { children: ReactNode }) {
         const { error } = await sb.from('coaches').update({ agent_on: on }).eq('user_id', uid);
         if (error) throw error;
         setCoach((c) => (c ? { ...c, agentOn: on } : c));
+      },
+
+      async setNotify(patch) {
+        const sb = need();
+        const uid = needUser();
+        if (!coach) return;
+        const next = { ...coach.notify, ...patch };
+        const { error } = await sb.from('coaches').update({ notify: next }).eq('user_id', uid);
+        if (error) throw error;
+        setCoach((c) => (c ? { ...c, notify: next } : c));
       },
 
       async completeCoachWorkout(id) {

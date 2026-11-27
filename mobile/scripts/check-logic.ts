@@ -24,6 +24,7 @@ import { badges, bestStreak, newBadges } from '../src/data/badges';
 import { COMMON_FOODS, macrosFor, parseProduct, searchCommon } from '../src/data/food';
 import { dayLabel, stampFor } from '../src/data/days';
 import { autoCarbsFat, crossingWarning, dayTotals, goalsFor, overBy, statusOf } from '../src/data/macros';
+import { newPings, seenFrom } from '../src/data/coachPings';
 import { loggedSlots, mealToLog, orderedMeals, planTotals, samplePlan } from '../src/data/coachMealPlans';
 import { itemFromMeal, macroLine, mealTotals, recentMeals } from '../src/data/myMeals';
 import { itemsFromWorkout, cleanItems, describe, pendingFromCoach, resultFor, resultLines, toExercises, type CoachWorkout } from '../src/data/coachWorkouts';
@@ -513,6 +514,22 @@ eq('sample plan: food names fit the server limit', samplePlan('nonveg', 3600, 3)
 
 // --- the assistant's name ---
 eq('assistant name: coach clients see their coach\'s AI, everyone else Fat2Flat', [assistantTitle('Coach Nish'), assistantTitle('Nish'), assistantTitle('Coach James'), assistantTitle(null), assistantTitle('  ')], ['Ask Coach Nish’s AI', 'Ask Coach Nish’s AI', 'Ask Coach James’ AI', 'Ask Fat2Flat', 'Ask Fat2Flat']);
+
+// --- pinging the coach about client activity ---
+const base = { ...initialState, profile: { ...initialState.profile, units: 'lb' as const }, workouts: [{ id: 'old', name: 'Old', startedAt: now - 9 * DAY, finishedAt: now - 9 * DAY, exercises: [] }], weighIns: [{ at: now - 7 * DAY, weight: 170 }] };
+const seen0 = seenFrom(base);
+eq('pings: nothing new, nothing sent', newPings(seen0, base, 'Priya', now), []);
+const after = { ...base, workouts: [{ id: 'w1', name: 'Week 3 · Upper A', startedAt: now - 3600000, finishedAt: now - 60000, exercises: [{ exerciseId: 'bench-press', sets: [{ reps: 8, weight: 100, done: true }, { reps: 8, weight: 100, done: true }] }] }, ...base.workouts] };
+eq('pings: a finished workout', newPings(seen0, after, 'Priya', now), [{ kind: 'workouts', text: 'Priya finished Upper A (2 sets) 💪' }]);
+eq('pings: a coach-sent workout is left out (already notified)', newPings(seen0, { ...after, workouts: [{ ...after.workouts[0], coachWorkoutId: 'c1' }] }, 'Priya', now), []);
+const weighed = { ...base, weighIns: [...base.weighIns, { at: now - 60000, weight: 168.4 }] };
+eq('pings: a weigh-in with the week\'s change', newPings(seen0, weighed, 'Priya', now), [{ kind: 'weighins', text: 'Priya weighed in: 168.4 lb (−1.6 this week)' }]);
+const checked = { ...weighed, checkIns: [{ id: 'c', at: now - 30000, waist: 90, photos: { front: 'f.jpg' } }] };
+eq('pings: a check-in folds in its weigh-in', newPings(seen0, checked, 'Priya', now).map((p) => p.kind), ['checkins']);
+eq('pings: check-in text', newPings(seen0, checked, 'Priya', now)[0].text, 'Priya did their weekly check-in: 168.4 lb, new photos 📋');
+const synced = { ...base, weighIns: [...base.weighIns, { at: now - 3600000, weight: 169 }, { at: now - 1800000, weight: 168.8 }] };
+eq('pings: a burst of weigh-ins sends one', newPings(seen0, synced, 'Priya', now).length, 1);
+eq('pings: old entries (a health app catching up) don\'t ping', newPings(seen0, { ...base, weighIns: [...base.weighIns, { at: now - 3 * DAY, weight: 169 }] }, 'Priya', now), []);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);
