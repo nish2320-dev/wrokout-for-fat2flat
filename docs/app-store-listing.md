@@ -263,4 +263,5 @@ Version 2.2.1 adds optional AI check-ins for coaching clients. A client who join
 • My workouts: build and save your own workouts, or save one when you finish it, and start them any time.
 • Quick add: log foods you ate recently in one tap, or build and save your own meals from several foods.
 • Coaches: write a meal plan (breakfast, lunch, snacks, dinner) and send it to clients, who log each meal with one tap.
+• Coaches: each Sunday your AI assistant drafts next week's workouts and meal plan for each client, ready for you to review and send.
 ```
