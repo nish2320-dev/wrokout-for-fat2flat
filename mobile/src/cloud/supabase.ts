@@ -40,6 +40,7 @@ if (supabase && Platform.OS !== 'web') {
 }
 
 export const PHOTO_BUCKET = 'progress-photos';
+export const VIDEO_BUCKET = 'exercise-videos';
 
 /** Turns a Postgres/Supabase error into a sentence for an alert. */
 export const errorText = (e: unknown) => {

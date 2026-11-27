@@ -63,7 +63,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Fat2Flat Fitness lets you choose meal photos for calorie estimates and progress photos from your library.",
+          "photosPermission": "Fat2Flat Fitness lets you choose meal photos for calorie estimates, progress photos and, for coaches, exercise demo videos from your library.",
           "cameraPermission": "Fat2Flat Fitness uses the camera to scan food barcodes, photograph meals for calorie estimates and, if you choose, take progress photos.",
           "microphonePermission": false
         }

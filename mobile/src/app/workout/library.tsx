@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { EXERCISES, MUSCLES, Muscle, equipmentLabel } from '@/data/exercises';
+import { useCloud } from '@/cloud/CloudProvider';
 import { useActiveWorkout, useStore } from '@/data/store';
 import { C } from '@/theme';
 import { Card, Empty, Eyebrow, Meta, Name, Pill, Row, Screen, Tag } from '@/ui/kit';
@@ -12,6 +13,7 @@ export default function LibraryScreen() {
   const router = useRouter();
   const { pick } = useLocalSearchParams<{ pick?: string }>();
   const { addExercise } = useStore();
+  const cloud = useCloud();
   const active = useActiveWorkout();
   const picking = pick === '1' && active !== null;
 
@@ -100,12 +102,13 @@ export default function LibraryScreen() {
                     pressed && { backgroundColor: C.line2 },
                   ]}>
                   <View style={s.thumb}>
-                    <Ionicons name="barbell" size={20} color={C.red} />
+                    <Ionicons name={cloud.videos[e.id] ? 'play' : e.kind === 'cardio' ? 'heart' : e.kind === 'hold' ? 'timer-outline' : 'barbell'} size={20} color={C.red} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Name>{e.name}</Name>
                     <Meta>
-                      {equipmentLabel(e.equipment)} · {e.compound ? 'Compound' : 'Isolation'}
+                      {equipmentLabel(e.equipment)} · {e.kind === 'hold' ? 'Timed' : e.kind === 'cardio' ? 'Minutes' : e.compound ? 'Compound' : 'Isolation'}
+                      {cloud.videos[e.id] ? ` · ${cloud.coach ? 'Your video' : 'Coach video'}` : ''}
                     </Meta>
                   </View>
                   {picking ? (

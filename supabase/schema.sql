@@ -582,3 +582,49 @@ create policy "coach views shared photos" on storage.objects for select to authe
         and c.share_photos
     )
   );
+
+-- ── Exercise videos from the coach (2.2.2) ──────────────────────────────
+-- A coach films their own demo for an exercise; their clients see it on the
+-- exercise's guide. Files live at exercise-videos/<coach user id>/<exercise id>.mp4,
+-- and coach_videos says which exercises have one.
+
+create table if not exists public.coach_videos (
+  coach_id    uuid not null references public.coaches (user_id) on delete cascade,
+  exercise_id text not null check (exercise_id ~ '^[a-z0-9-]{1,60}$'),
+  path        text not null check (char_length(path) <= 200),
+  updated_at  timestamptz not null default now(),
+  primary key (coach_id, exercise_id)
+);
+alter table public.coach_videos enable row level security;
+revoke all on public.coach_videos from anon;
+grant select, insert, update, delete on public.coach_videos to authenticated;
+
+drop policy if exists "coach manages own videos" on public.coach_videos;
+create policy "coach manages own videos" on public.coach_videos for all to authenticated
+  using (coach_id = auth.uid())
+  with check (coach_id = auth.uid() and not public.is_guest() and exists (select 1 from public.coaches where user_id = auth.uid()));
+
+drop policy if exists "client sees their coach's videos" on public.coach_videos;
+create policy "client sees their coach's videos" on public.coach_videos for select to authenticated
+  using (coach_id = (select c.coach_id from public.clients c where c.user_id = auth.uid()));
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('exercise-videos', 'exercise-videos', false, 52428800, array['video/mp4', 'video/quicktime'])
+on conflict (id) do nothing;
+
+drop policy if exists "coach manages own exercise videos" on storage.objects;
+create policy "coach manages own exercise videos" on storage.objects for all to authenticated
+  using (bucket_id = 'exercise-videos' and (storage.foldername(name))[1] = auth.uid()::text)
+  with check (
+    bucket_id = 'exercise-videos'
+    and (storage.foldername(name))[1] = auth.uid()::text
+    and not public.is_guest()
+    and exists (select 1 from public.coaches where user_id = auth.uid())
+  );
+
+drop policy if exists "client watches their coach's videos" on storage.objects;
+create policy "client watches their coach's videos" on storage.objects for select to authenticated
+  using (
+    bucket_id = 'exercise-videos'
+    and (storage.foldername(objects.name))[1] = (select c.coach_id::text from public.clients c where c.user_id = auth.uid())
+  );

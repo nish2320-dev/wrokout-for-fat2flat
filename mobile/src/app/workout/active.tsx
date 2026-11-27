@@ -231,6 +231,13 @@ export default function ActiveWorkoutScreen() {
                 </View>
                 {isPR ? <Tag label="New PR" /> : null}
                 <Pressable
+                  onPress={() => router.push({ pathname: '/exercise/[id]', params: { id: ex.exerciseId } })}
+                  hitSlop={10}
+                  style={{ marginLeft: 8 }}
+                  accessibilityLabel={`How to do ${exerciseName(ex.exerciseId)}`}>
+                  <Ionicons name={cloud.videos[ex.exerciseId] ? 'play-circle-outline' : 'information-circle-outline'} size={19} color={C.muted} />
+                </Pressable>
+                <Pressable
                   onPress={() => removeExercise(ei)}
                   hitSlop={10}
                   style={{ marginLeft: 8 }}

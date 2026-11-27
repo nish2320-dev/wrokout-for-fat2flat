@@ -14,7 +14,7 @@ import { useStore } from '@/data/store';
 import { pushToken, sendPush } from '@/notify';
 import { photoUri } from '@/photos';
 
-import { cloudEnabled, PHOTO_BUCKET, supabase } from './supabase';
+import { cloudEnabled, PHOTO_BUCKET, supabase, VIDEO_BUCKET } from './supabase';
 
 /**
  * Optional coach link. Signed-out users (everyone, by default) get the app
@@ -47,6 +47,14 @@ type Cloud = {
   coachWorkouts: CoachWorkout[];
   /** The newest meal plan from the coach, if any. */
   coachMealPlan: CoachMealPlan | null;
+  /** Exercise demo videos: the coach's own (for a coach) or their coach's (for a client), by exercise id → file path. */
+  videos: Record<string, string>;
+  /** A short-lived link to play one of those videos. */
+  videoUrl: (path: string) => Promise<string>;
+  /** Coach: uploads a video file (from the phone) as their demo for an exercise. */
+  uploadVideo: (exerciseId: string, fileUri: string) => Promise<void>;
+  /** Coach: removes their demo for an exercise. */
+  removeVideo: (exerciseId: string) => Promise<void>;
   /** Lets the coach's AI assistant review this client's shared progress and message them. */
   setAiCheckins: (on: boolean) => Promise<void>;
   /** Coach: AI check-ins for all their clients on or off. */
@@ -147,6 +155,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [coachWorkouts, setCoachWorkouts] = useState<CoachWorkout[]>([]);
   const [coachMealPlan, setCoachMealPlan] = useState<CoachMealPlan | null>(null);
+  const [videos, setVideos] = useState<Record<string, string>>({});
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
   const sentToken = useRef<string | null>(null);
 
@@ -170,14 +179,17 @@ export function CloudProvider({ children }: { children: ReactNode }) {
       setNotes([]);
       setCoachWorkouts([]);
       setCoachMealPlan(null);
+      setVideos({});
       return;
     }
-    const [mine, coachRow, inbox, sent, plan] = await Promise.all([
+    const [mine, coachRow, inbox, sent, plan, vids] = await Promise.all([
       supabase.from('clients').select('coach_id, name, share_photos, coach_targets, ai_checkins').eq('user_id', userId).maybeSingle(),
       supabase.from('coaches').select('name, code, agent_on').eq('user_id', userId).maybeSingle(),
       supabase.from('messages').select('id, body, created_at, read_at, from_client, from_agent').eq('client_id', userId).order('created_at', { ascending: false }).limit(60),
       supabase.from('coach_workouts').select('id, name, note, items, created_at, done_at').eq('client_id', userId).order('created_at', { ascending: false }).limit(30),
       supabase.from('coach_meal_plans').select('id, name, note, meals, created_at').eq('client_id', userId).order('created_at', { ascending: false }).limit(1),
+      // row-level security returns the coach's own videos, or a client's coach's
+      supabase.from('coach_videos').select('coach_id, exercise_id, path').limit(500),
     ]);
     // a failed request (offline) keeps what we had rather than looking like "not joined"
     if (!mine.error) {
@@ -193,6 +205,12 @@ export function CloudProvider({ children }: { children: ReactNode }) {
     if (!inbox.error) setNotes((inbox.data ?? []) as Note[]);
     if (!sent.error) setCoachWorkouts((sent.data ?? []) as CoachWorkout[]);
     if (!plan.error) setCoachMealPlan(((plan.data ?? [])[0] as CoachMealPlan | undefined) ?? null);
+    if (!vids.error) {
+      const rows = (vids.data ?? []) as { coach_id: string; exercise_id: string; path: string }[];
+      // a coach sees their own; a client sees their coach's
+      const coachId = coachRow.data ? userId : mine.data?.coach_id;
+      setVideos(Object.fromEntries(rows.filter((r) => r.coach_id === coachId).map((r) => [r.exercise_id, r.path])));
+    }
   }, [userId, applyCoachTargets]);
 
   useEffect(() => {
@@ -273,7 +291,43 @@ export function CloudProvider({ children }: { children: ReactNode }) {
       notes,
       coachWorkouts,
       coachMealPlan,
+      videos,
       lastSyncedAt,
+
+      async videoUrl(path) {
+        const { data, error } = await need().storage.from(VIDEO_BUCKET).createSignedUrl(path, 3600);
+        if (error || !data?.signedUrl) throw error ?? new Error('Could not open that video.');
+        return data.signedUrl;
+      },
+
+      async uploadVideo(exerciseId, fileUri) {
+        const sb = need();
+        const uid = needUser();
+        const file = new File(fileUri);
+        if (!file.exists) throw new Error('Could not read that video. Please try another one.');
+        if ((file.size ?? 0) > 50 * 1024 * 1024) throw new Error('That video is over 50 MB. Try a shorter clip (15–30 seconds is plenty).');
+        const path = `${uid}/${exerciseId}.mp4`;
+        const type = /\.mov$/i.test(fileUri) ? 'video/quicktime' : 'video/mp4';
+        const { error } = await sb.storage.from(VIDEO_BUCKET).upload(path, await file.arrayBuffer(), { contentType: type, upsert: true });
+        if (error) throw error;
+        const { error: rowError } = await sb.from('coach_videos').upsert({ coach_id: uid, exercise_id: exerciseId, path, updated_at: new Date().toISOString() });
+        if (rowError) throw rowError;
+        setVideos((v) => ({ ...v, [exerciseId]: path }));
+      },
+
+      async removeVideo(exerciseId) {
+        const sb = need();
+        const uid = needUser();
+        const path = videos[exerciseId] ?? `${uid}/${exerciseId}.mp4`;
+        await sb.storage.from(VIDEO_BUCKET).remove([path]);
+        const { error } = await sb.from('coach_videos').delete().eq('coach_id', uid).eq('exercise_id', exerciseId);
+        if (error) throw error;
+        setVideos((v) => {
+          const next = { ...v };
+          delete next[exerciseId];
+          return next;
+        });
+      },
 
       async signIn() {
         const sb = need();
@@ -324,6 +378,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
         setNotes([]);
         setCoachWorkouts([]);
         setCoachMealPlan(null);
+        setVideos({});
       },
 
       refresh,
@@ -357,6 +412,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
         setNotes([]);
         setCoachWorkouts([]);
         setCoachMealPlan(null);
+        setVideos({});
       },
 
       async becomeCoach(name) {
@@ -381,6 +437,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
         setNotes([]);
         setCoachWorkouts([]);
         setCoachMealPlan(null);
+        setVideos({});
       },
 
       async markAllRead() {
@@ -455,7 +512,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
         await sb.from('messages').update({ read_at: at }).eq('id', id);
       },
     };
-  }, [ready, userId, membership, coach, notes, coachWorkouts, coachMealPlan, lastSyncedAt, refresh]);
+  }, [ready, userId, membership, coach, notes, coachWorkouts, coachMealPlan, videos, lastSyncedAt, refresh]);
 
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

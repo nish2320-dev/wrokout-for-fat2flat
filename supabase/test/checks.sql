@@ -148,6 +148,23 @@ select pg_temp.eq((select count(*) from coach_workouts where done_at is not null
 update coach_workouts set done_at = null;
 select pg_temp.eq((select count(*) from coach_workouts where done_at is not null), 1, 'coach cannot undo done');
 
+-- exercise videos from the coach
+select set_config('request.jwt.claim.sub', :coach, false);
+insert into coach_videos (coach_id, exercise_id, path) values (auth.uid(), 'bench-press', auth.uid()::text || '/bench-press.mp4');
+insert into storage.objects (bucket_id, name) values ('exercise-videos', auth.uid()::text || '/bench-press.mp4');
+select pg_temp.must_fail('insert into coach_videos (coach_id, exercise_id, path) values (' || quote_literal(:coach2) || ', ''squat'', ''x'')', 'coach adds a video as another coach');
+select pg_temp.must_fail('insert into storage.objects (bucket_id, name) values (''exercise-videos'', ' || quote_literal(:coach2 || '/squat.mp4') || ')', 'coach uploads into another coach''s folder');
+select set_config('request.jwt.claim.sub', :alice, false);
+select pg_temp.eq((select count(*) from coach_videos), 1, 'client sees their coach''s video list');
+select pg_temp.eq((select count(*) from storage.objects where bucket_id = 'exercise-videos'), 1, 'client can watch their coach''s video');
+select pg_temp.must_fail('insert into coach_videos (coach_id, exercise_id, path) values (auth.uid(), ''squat'', ''x'')', 'client (not a coach) adds a video');
+select pg_temp.must_fail('insert into storage.objects (bucket_id, name) values (''exercise-videos'', ' || quote_literal(:alice || '/squat.mp4') || ')', 'client uploads a video');
+delete from coach_videos;
+select pg_temp.eq((select count(*) from coach_videos), 1, 'client cannot delete the coach''s videos');
+select set_config('request.jwt.claim.sub', :coach2, false);
+select pg_temp.eq((select count(*) from coach_videos), 0, 'other coach sees no videos');
+select pg_temp.eq((select count(*) from storage.objects where bucket_id = 'exercise-videos'), 0, 'other coach cannot watch them');
+
 -- message all clients (one insert, many rows)
 select set_config('request.jwt.claim.sub', :coach, false);
 insert into messages (coach_id, client_id, body) select auth.uid(), user_id, 'Hello team' from clients;
