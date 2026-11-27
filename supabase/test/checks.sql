@@ -148,6 +148,12 @@ select pg_temp.eq((select count(*) from coach_workouts where done_at is not null
 update coach_workouts set done_at = null;
 select pg_temp.eq((select count(*) from coach_workouts where done_at is not null), 1, 'coach cannot undo done');
 
+-- message all clients (one insert, many rows)
+select set_config('request.jwt.claim.sub', :coach, false);
+insert into messages (coach_id, client_id, body) select auth.uid(), user_id, 'Hello team' from clients;
+select pg_temp.eq((select count(*) from messages where body = 'Hello team'), (select count(*) from clients), 'coach messages all clients at once');
+select pg_temp.must_fail('insert into messages (coach_id, client_id, body) values (auth.uid(), ' || quote_literal(:alice) || ', ''hi''), (auth.uid(), ' || quote_literal(:bob) || ', ''hi'')', 'group message slipping in a non-client');
+
 -- meal plans from the coach
 select set_config('request.jwt.claim.sub', :coach, false);
 select pg_temp.eq(send_coach_meal_plan(array[:alice]::uuid[], 'Cut week 1', 'Drink water',

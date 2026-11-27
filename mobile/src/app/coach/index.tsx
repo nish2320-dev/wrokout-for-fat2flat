@@ -184,6 +184,9 @@ export default function CoachHome() {
           <Btn label="Send a meal plan" icon="restaurant-outline" ghost onPress={() => router.push('/coach/mealplan')} style={{ flex: 1 }} />
         </Row>
       ) : null}
+      {clients && clients.length > 0 ? (
+        <Btn label="Message all clients" icon="megaphone-outline" onPress={() => router.push('/coach/broadcast')} />
+      ) : null}
 
       {cloud.coach ? (
         <Card>

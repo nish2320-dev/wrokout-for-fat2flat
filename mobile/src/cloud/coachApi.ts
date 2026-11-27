@@ -218,3 +218,14 @@ export async function sendDraft(coachName: string, client: Pick<ClientRow, 'user
   else await sendMealPlan(coachName, [client], d.payload);
   await markDraft(d.id, 'sent');
 }
+
+/** Sends the same message to several clients at once (each sees it in their own chat), with a notification. */
+export async function sendNoteToMany(coachId: string, coachName: string, clients: Pick<ClientRow, 'user_id' | 'push_token'>[], body: string) {
+  const text = body.trim();
+  const { error } = await sb()
+    .from('messages')
+    .insert(clients.map((c) => ({ coach_id: coachId, client_id: c.user_id, body: text })));
+  if (error) throw error;
+  await Promise.all(clients.filter((c) => c.push_token).map((c) => sendPush(c.push_token!, coachName, text).catch(() => {})));
+  return clients.length;
+}
