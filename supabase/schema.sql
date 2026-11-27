@@ -478,6 +478,7 @@ alter table public.clients add column if not exists agent_paused boolean not nul
 alter table public.clients add column if not exists tz text check (tz is null or char_length(tz) <= 64);
 alter table public.clients add column if not exists agent_daily_on date;
 alter table public.clients add column if not exists agent_weekly_on date;
+alter table public.clients add column if not exists agent_nudge_on date; -- the afternoon reminder
 
 -- the client decides whether the AI may look at their progress, and tells it their time zone
 grant update (ai_checkins, tz) on public.clients to authenticated;

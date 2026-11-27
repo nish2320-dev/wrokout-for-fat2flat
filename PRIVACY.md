@@ -116,7 +116,8 @@ as meal photos.
 
 If you've joined a coach and tap **Allow** when asked (or turn on **AI check-ins**
 in Profile → Your coach), your coach's AI assistant sends you a short check-in
-most evenings and a weekly summary on Sundays. To write them, our server sends
+most evenings about your daily goals, a short reminder in the afternoon if you
+haven't logged food or water yet, and a weekly summary on Sundays. To write them, our server sends
 the progress you already share with your coach (for example your targets,
 recent workouts, meals with calories and macros, weigh-ins, and steps if you
 share health data) and your recent chat messages to Anthropic, the company that

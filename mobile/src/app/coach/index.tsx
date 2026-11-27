@@ -191,7 +191,7 @@ export default function CoachHome() {
             <View style={{ flex: 1, paddingRight: 10 }}>
               <CardTitle>AI check-ins</CardTitle>
               <Meta style={{ marginTop: 2 }}>
-                Your AI assistant messages each client who allows it: a check-in around 7 pm their time and a summary on Sunday evenings, adjusting their targets when their week calls for it. On Sundays it also drafts next week’s workouts and meal plan for you to review and send. You see every message in their chat.
+                Your AI assistant messages each client who allows it: a check-in around 7 pm their time about any goal they missed (workouts, meals, water, calories, protein, carbs or fat), a 2 pm reminder if they haven’t logged food or water, and a summary on Sunday evenings, adjusting their targets when their week calls for it. On Sundays it also drafts next week’s workouts and meal plan for you to review and send. You see every message in their chat.
               </Meta>
             </View>
             <Switch

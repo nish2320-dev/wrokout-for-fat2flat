@@ -110,8 +110,9 @@ export type ClientSummary = {
   /** Waist in cm. */
   waistNow: number | null;
   waistStart: number | null;
-  /** Glasses of water logged today. */
+  /** Glasses of water logged today, and the daily goal. */
   waterToday?: number;
+  waterGoal?: number;
   /** From the client's health app, only when they share it. */
   health?: {
     stepsToday: number | null;
@@ -209,7 +210,7 @@ export function summarize(state: AppState, now: number): ClientSummary {
     lastCheckInAt: checkIns[checkIns.length - 1]?.at ?? null,
     waistNow: waists[waists.length - 1]?.waist ?? null,
     waistStart: waists[0]?.waist ?? null,
-    ...(state.water?.length ? { waterToday: waterToday(state, now) } : {}),
+    ...(state.water?.length ? { waterToday: waterToday(state, now), waterGoal: state.profile.waterGoal ?? 8 } : {}),
     ...(healthSummary ? { health: healthSummary } : {}),
   };
 }

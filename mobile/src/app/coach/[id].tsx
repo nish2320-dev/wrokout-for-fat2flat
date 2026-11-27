@@ -489,7 +489,7 @@ function AgentCard({ client, coachAgentOn, onChanged }: { client: ClientDetail; 
       ? 'AI check-ins are switched off for all your clients (My clients).'
       : paused
         ? `Paused for ${first}.`
-        : `On: ${first} gets a check-in around 7 pm and a summary on Sunday evenings, which may adjust their targets. Every message shows in your chat above.`;
+        : `On: ${first} gets a check-in around 7 pm about any goal they missed, a 2 pm reminder if they haven’t logged food or water, and a summary on Sunday evenings, which may adjust their targets. Every message shows in your chat above.`;
   const toggle = (on: boolean) => {
     setPaused(!on);
     setClientAgent(client.user_id, !on)

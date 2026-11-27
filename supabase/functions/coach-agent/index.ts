@@ -5,7 +5,11 @@
 // them, it sends:
 //   • a daily check-in around 7 pm in the client's time zone, and
 //   • on Sunday around 6 pm, a weekly summary instead, which may also adjust
-//     their calories, protein, carbs and fat within safe limits.
+//     their calories, protein, carbs and fat within safe limits, and
+//   • around 2 pm, a short reminder only if they haven't logged any food yet
+//     or are far behind on water (no AI needed for that one).
+// The evening check-in leads with whatever daily goal was missed: workouts
+// behind schedule, no meals logged, water, calories, protein, carbs or fat.
 // Messages go into the client's chat with their coach (marked from_agent, so
 // the coach sees every one) and to the client's phone as a notification.
 // On Sundays it also drafts next week's workouts and a meal plan for each of
@@ -25,6 +29,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk@^1.8.0';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const DAILY_HOUR = 19;
+const NUDGE_HOURS = [14, 17]; // from 2 pm, before 5 pm
 const WEEKLY_HOUR = 18;
 /** Never message after this local hour, so a late run can't buzz someone at night. */
 const LAST_HOUR = 22;
@@ -61,17 +66,91 @@ export function localParts(now: number, tz: string | null) {
   return { date: `${get('year')}-${get('month')}-${get('day')}`, hour: Number(get('hour')) % 24, weekday };
 }
 
+export type Kind = 'daily' | 'weekly' | 'nudge';
+
 /** What, if anything, is due for this client now. */
 export function due(
-  c: { tz: string | null; agent_daily_on: string | null; agent_weekly_on: string | null; updated_at: string },
+  c: { tz: string | null; agent_daily_on: string | null; agent_weekly_on: string | null; agent_nudge_on?: string | null; updated_at: string },
   now: number,
-): 'daily' | 'weekly' | null {
+): Kind | null {
   const { date, hour, weekday } = localParts(now, c.tz);
   if (hour > LAST_HOUR) return null;
-  if (weekday === 0) return hour >= WEEKLY_HOUR && c.agent_weekly_on !== date ? 'weekly' : null;
   // someone who hasn't opened the app in 3 days gets only the Sunday summary, not daily pings
   const quiet = now - new Date(c.updated_at).getTime() > 3 * DAY;
-  return hour >= DAILY_HOUR && c.agent_daily_on !== date && !quiet ? 'daily' : null;
+  if (weekday === 0 && hour >= WEEKLY_HOUR) return c.agent_weekly_on !== date ? 'weekly' : null;
+  if (weekday !== 0 && hour >= DAILY_HOUR) return c.agent_daily_on !== date && !quiet ? 'daily' : null;
+  if (hour >= NUDGE_HOURS[0] && hour < NUDGE_HOURS[1]) return c.agent_nudge_on !== date && !quiet ? 'nudge' : null;
+  return null;
+}
+
+type Summary = {
+  at?: number;
+  calorieGoal?: number;
+  proteinGoal?: number;
+  plannedThisWeek?: number | null;
+  workoutsThisWeek?: number;
+  weekStartAt?: number;
+  waterToday?: number;
+  waterGoal?: number;
+};
+
+export type Alert = { key: string; text: string };
+
+/**
+ * The day's goals the client is missing, most important first, for the
+ * evening check-in (and, with `afternoon`, the 2 pm reminder). Food is judged
+ * against their own targets; gaining clients are flagged for eating too
+ * little rather than too much; protein is a floor, never "too much".
+ */
+export function goalAlerts(snap: Snapshot, summary: Summary | null, tz: string | null, now: number, afternoon = false): Alert[] {
+  const out: Alert[] = [];
+  const today = localDate(now, tz);
+  const meals = (snap.meals ?? []).filter((m) => localDate(m.at, tz) === today);
+  const t = currentTargets(snap);
+  const goal = goalOfSnap(snap);
+
+  if (meals.length === 0) out.push({ key: 'nomeals', text: 'No meals logged today.' });
+  else if (t && !afternoon) {
+    const cal = meals.reduce((n, m) => n + m.calories, 0);
+    const p = meals.reduce((n, m) => n + m.protein, 0);
+    const c = meals.reduce((n, m) => n + (m.carbs ?? 0), 0);
+    const f = meals.reduce((n, m) => n + (m.fat ?? 0), 0);
+    if (goal === 'gain' && cal < t.calorieGoal * 0.85) out.push({ key: 'calories-under', text: `Calories: ${cal} of ${t.calorieGoal}, ${t.calorieGoal - cal} short of their gaining target.` });
+    if (goal !== 'gain' && cal > t.calorieGoal * 1.1) out.push({ key: 'calories-over', text: `Calories: ${cal} of ${t.calorieGoal}, ${cal - t.calorieGoal} over target.` });
+    if (p < t.proteinGoal * 0.7) out.push({ key: 'protein', text: `Protein: ${p} of ${t.proteinGoal} g, ${t.proteinGoal - p} g short.` });
+    const tracked = meals.some((m) => m.carbs !== undefined);
+    if (tracked && c > t.carbGoal * 1.15) out.push({ key: 'carbs', text: `Carbs: ${c} of ${t.carbGoal} g, ${c - t.carbGoal} g over.` });
+    if (tracked && f > t.fatGoal * 1.15) out.push({ key: 'fat', text: `Fat: ${f} of ${t.fatGoal} g, ${f - t.fatGoal} g over.` });
+  }
+
+  // water, when they track it and the reading is from today
+  if (summary?.waterGoal && summary.at && localDate(summary.at, tz) === today) {
+    const w = summary.waterToday ?? 0;
+    if (w < summary.waterGoal * (afternoon ? 0.3 : 0.6)) out.push({ key: 'water', text: `Water: ${w} of ${summary.waterGoal} glasses.` });
+  }
+
+  // workouts behind this week's plan (by tonight, not just "none today")
+  if (!afternoon && summary?.plannedThisWeek && summary.weekStartAt && now < summary.weekStartAt + 7 * DAY) {
+    const finished = (snap.workouts ?? []).filter((w) => w.finishedAt && w.finishedAt >= summary.weekStartAt!).length;
+    const done = Math.max(summary.workoutsThisWeek ?? 0, finished);
+    const daysAfterToday = 6 - Math.floor((now - summary.weekStartAt) / DAY);
+    const left = summary.plannedThisWeek - done;
+    if (left > 0 && left > daysAfterToday) {
+      out.push({ key: 'workouts', text: `Workouts: ${done} of ${summary.plannedThisWeek} this week with ${Math.max(0, daysAfterToday)} day${daysAfterToday === 1 ? '' : 's'} left, so they're behind.` });
+    }
+  }
+  return out;
+}
+
+/** The 2 pm reminder: a short friendly line, or null when nothing needs it. */
+export function nudgeText(name: string, alerts: Alert[]): string | null {
+  const first = name.trim().split(/\s+/)[0] || 'there';
+  const noMeals = alerts.some((a) => a.key === 'nomeals');
+  const water = alerts.find((a) => a.key === 'water');
+  if (noMeals && water) return `Hey ${first}, quick check-in: nothing logged yet today, and you’re at ${water.text.replace('Water: ', '').replace('.', '')} of water. Log your meals so far and grab a glass 💧`;
+  if (noMeals) return `Hey ${first}, quick check-in: nothing logged yet today. Take a minute to log your meals so far, it keeps the rest of the day on track 🍽️`;
+  if (water) return `Hey ${first}, you’re at ${water.text.replace('Water: ', '').replace('.', '')} of water so far today. Grab a glass now 💧`;
+  return null;
 }
 
 /** Same rule as the app: fat 30% of calories, carbs the rest (at least 50 g). */
@@ -228,7 +307,7 @@ const WEEKLY_RULES = `For the weekly summary, also review the targets. Change th
 
 type Out = { message: string; change?: boolean; calorieGoal?: number; proteinGoal?: number; carbGoal?: number; fatGoal?: number; reason?: string };
 
-async function write(client: Anthropic, coach: string, context: string, recent: string[], kind: 'daily' | 'weekly'): Promise<Out | null> {
+async function write(client: Anthropic, coach: string, context: string, recent: string[], kind: 'daily' | 'weekly', alerts: Alert[] = []): Promise<Out | null> {
   const response = await client.beta.messages.create({
     model: 'claude-opus-5-5',
     max_tokens: 4000,
@@ -240,6 +319,12 @@ async function write(client: Anthropic, coach: string, context: string, recent: 
       {
         role: 'user',
         content: `${kind === 'daily' ? "Write tonight's daily check-in." : "Write this Sunday's weekly summary of the past 7 days."}${kind === 'weekly' ? `\n\n${WEEKLY_RULES}` : ''}
+
+${
+  alerts.length
+    ? `Today's goal check: these were missed, most important first. Lead with the top one or two, kindly and specifically, each with one easy fix for tonight or tomorrow:\n${alerts.map((a) => `- ${a.text}`).join('\n')}`
+    : 'Today\'s goal check: nothing missed. Praise something specific.'
+}
 
 About the client (from their app):
 ${context}
@@ -538,6 +623,8 @@ type Row = {
   tz: string | null;
   agent_daily_on: string | null;
   agent_weekly_on: string | null;
+  agent_nudge_on: string | null;
+  summary: Summary | null;
   updated_at: string;
   coaches: { name: string; agent_on: boolean } | null;
 };
@@ -547,7 +634,7 @@ if (typeof Deno !== 'undefined' && Deno.serve) Deno.serve(async (req) => {
   const key = Deno.env.get('AGENT_KEY');
   if (!key || req.headers.get('x-agent-key') !== key) return new Response('Unauthorized', { status: 401 });
 
-  let opts: { force?: 'daily' | 'weekly'; dryRun?: boolean; clientId?: string } = {};
+  let opts: { force?: Kind; dryRun?: boolean; clientId?: string } = {};
   try {
     opts = await req.json();
   } catch {
@@ -557,7 +644,7 @@ if (typeof Deno !== 'undefined' && Deno.serve) Deno.serve(async (req) => {
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
   let q = admin
     .from('clients')
-    .select('user_id, coach_id, name, push_token, snapshot, coach_targets, tz, agent_daily_on, agent_weekly_on, updated_at, coaches!inner(name, agent_on)')
+    .select('user_id, coach_id, name, push_token, snapshot, summary, coach_targets, tz, agent_daily_on, agent_weekly_on, agent_nudge_on, updated_at, coaches!inner(name, agent_on)')
     .eq('ai_checkins', true)
     .eq('agent_paused', false)
     .eq('coaches.agent_on', true)
@@ -572,7 +659,7 @@ if (typeof Deno !== 'undefined' && Deno.serve) Deno.serve(async (req) => {
   const now = Date.now();
   const todo = (data as unknown as Row[])
     .map((c) => ({ c, kind: opts.force ?? due(c, now) }))
-    .filter((x): x is { c: Row; kind: 'daily' | 'weekly' } => x.kind !== null)
+    .filter((x): x is { c: Row; kind: Kind } => x.kind !== null)
     .slice(0, MAX_CLIENTS_PER_RUN);
 
   const anthropic = new Anthropic();
@@ -582,6 +669,19 @@ if (typeof Deno !== 'undefined' && Deno.serve) Deno.serve(async (req) => {
   for (const { c, kind } of todo) {
     const coach = c.coaches?.name ?? 'your coach';
     try {
+      // the 2 pm reminder is a fixed friendly line, only when food or water needs it
+      if (kind === 'nudge') {
+        const line = nudgeText(c.name, goalAlerts(c.snapshot ?? {}, c.summary, c.tz, now, true));
+        if (line && !opts.dryRun) {
+          const { error: nudgeError } = await admin.from('messages').insert({ coach_id: c.coach_id, client_id: c.user_id, body: line, from_agent: true });
+          if (nudgeError) throw nudgeError;
+          await admin.from('clients').update({ agent_nudge_on: localParts(now, c.tz).date }).eq('user_id', c.user_id);
+          await push(c.push_token, `${coach} · reminder`, line);
+        }
+        if (line) results.push({ client: c.name, kind, message: line });
+        continue;
+      }
+
       const { data: msgs } = await admin
         .from('messages')
         .select('body, from_client, from_agent, created_at')
@@ -589,7 +689,8 @@ if (typeof Deno !== 'undefined' && Deno.serve) Deno.serve(async (req) => {
         .order('created_at', { ascending: false })
         .limit(6);
       const recent = (msgs ?? []).reverse().map((m) => `${m.from_client ? c.name : m.from_agent ? 'AI check-in' : coach}: ${String(m.body).slice(0, 300)}`);
-      const out = await write(anthropic, coach, clientContext(c.name, c.snapshot ?? {}, c.tz, now, kind), recent, kind);
+      const alerts = kind === 'daily' ? goalAlerts(c.snapshot ?? {}, c.summary, c.tz, now) : [];
+      const out = await write(anthropic, coach, clientContext(c.name, c.snapshot ?? {}, c.tz, now, kind), recent, kind, alerts);
       if (!out) {
         results.push({ client: c.name, kind, error: 'no message' });
         continue;
