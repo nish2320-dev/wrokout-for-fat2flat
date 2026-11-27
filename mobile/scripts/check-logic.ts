@@ -24,7 +24,7 @@ import { badges, bestStreak, newBadges } from '../src/data/badges';
 import { COMMON_FOODS, macrosFor, parseProduct, searchCommon } from '../src/data/food';
 import { dayLabel, stampFor } from '../src/data/days';
 import { autoCarbsFat, crossingWarning, dayTotals, goalsFor, overBy, statusOf } from '../src/data/macros';
-import { loggedSlots, mealToLog, orderedMeals, planTotals } from '../src/data/coachMealPlans';
+import { loggedSlots, mealToLog, orderedMeals, planTotals, samplePlan } from '../src/data/coachMealPlans';
 import { itemFromMeal, macroLine, mealTotals, recentMeals } from '../src/data/myMeals';
 import { itemsFromWorkout, cleanItems, describe, pendingFromCoach, resultFor, resultLines, toExercises, type CoachWorkout } from '../src/data/coachWorkouts';
 
@@ -500,6 +500,16 @@ const catalogText = agentSrc.split('const CATALOG = `')[1].split('`')[0];
 const agentIds = catalogText.split('\n').map((l) => l.split('|')[0]);
 eq('agent library: same exercises as the app (regenerate CATALOG if this fails)', [agentIds.length, agentIds.every((id) => EXERCISES.some((e) => e.id === id)), EXERCISES.every((e) => agentIds.includes(e.id))], [EXERCISES.length, true, true]);
 eq('agent library: same kinds as the app', catalogText.split('\n').every((l) => { const [id, , cat, eqp, kind] = l.split('|'); const e = EXERCISES.find((x) => x.id === id); return !!e && e.muscle === cat && e.equipment === eqp && (e.kind ?? 'reps') === kind; }), true);
+
+// --- sample meal plans for coaches ---
+const sp = samplePlan('hinduveg', 1800, 1);
+eq('sample plan: breakfast, lunch, snack and dinner', sp.map((m) => m.slot), ['breakfast', 'lunch', 'snack', 'dinner']);
+eq('sample plan: close to the calories asked for', Math.abs(planTotals(sp).calories - 1800) <= 1800 * 0.06, true);
+eq('sample plan: respects the diet (no eggs, meat or fish for Hindu Veg)', sp.flatMap((m) => m.items).some((i) => /\beggs?\b|chicken|fish|turkey|salmon|tuna/i.test(i.name)), false);
+eq('sample plan: carbs and fat on every food', sp.flatMap((m) => m.items).every((i) => i.carbs !== undefined && i.fat !== undefined), true);
+eq('sample plan: a different seed gives a different day', JSON.stringify(samplePlan('veg', 2000, 1)) !== JSON.stringify(samplePlan('veg', 2000, 2)), true);
+eq('sample plan: big targets get an evening snack', samplePlan('nonveg', 3600, 3).some((m) => m.slot === 'snack2'), true);
+eq('sample plan: food names fit the server limit', samplePlan('nonveg', 3600, 3).flatMap((m) => m.items).every((i) => i.name.length <= 120), true);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

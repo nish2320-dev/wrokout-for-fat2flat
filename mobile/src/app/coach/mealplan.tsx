@@ -6,7 +6,8 @@ import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-nativ
 import { listClients, markDraft, sendMealPlan, type ClientRow } from '@/cloud/coachApi';
 import { useCloud } from '@/cloud/CloudProvider';
 import { errorText } from '@/cloud/supabase';
-import { PLAN_SLOTS, planTotals, type PlanMeal, type PlanSlot } from '@/data/coachMealPlans';
+import { PLAN_SLOTS, planTotals, samplePlan, type PlanMeal, type PlanSlot } from '@/data/coachMealPlans';
+import { DIETS, type Diet } from '@/data/mealplan';
 import { goalsFor } from '@/data/macros';
 import { macroLine, mealTotals } from '@/data/myMeals';
 import { useStore } from '@/data/store';
@@ -36,6 +37,9 @@ export default function BuildMealPlan() {
   const [clients, setClients] = useState<ClientRow[] | null>(null);
   const [chosen, setChosen] = useState<string[]>(to ? [to] : []);
   const [sending, setSending] = useState(false);
+  const [sampleDiet, setSampleDiet] = useState<Diet>('veg');
+  const [sampleCal, setSampleCal] = useState('2000');
+  const [seed, setSeed] = useState(1);
   const coachId = cloud.coach ? cloud.userId : null;
 
   // one draft list per meal; cleared when leaving
@@ -66,6 +70,33 @@ export default function BuildMealPlan() {
   const one = clients?.find((c) => c.user_id === chosen[0]);
   // compare with the client's goals when sending to one person
   const theirGoals = chosen.length === 1 && one && 'calorieGoal' in one.summary ? goalsFor({ calorieGoal: one.summary.calorieGoal, proteinGoal: one.summary.proteinGoal }) : null;
+
+  const fill = (meals: PlanMeal[]) => {
+    for (const s of PLAN_SLOTS) mealDraft.set(s.key, meals.find((m) => m.slot === s.key)?.items ?? []);
+    if (meals.some((m) => m.slot === 'snack2')) setShowEvening(true);
+  };
+  const confirmReplace = (go: () => void) =>
+    meals.length === 0
+      ? go()
+      : Alert.alert('Replace the foods?', 'This swaps your current meals for a sample you can then edit.', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Replace', onPress: go },
+        ]);
+  const buildSample = (diet: Diet, calories: number, nextSeed = seed + 1) =>
+    confirmReplace(() => {
+      setSeed(nextSeed);
+      fill(samplePlan(diet, calories, nextSeed));
+    });
+  // the one client being planned for, when their phone has sent their targets
+  const target = chosen.length === 1 && one && 'calorieGoal' in one.summary ? one.summary : null;
+  const fitToClient = () => {
+    if (!target) return;
+    const diet = (target.diet ?? sampleDiet) as Diet;
+    setSampleDiet(diet);
+    setSampleCal(String(target.calorieGoal));
+    if (name === 'Meal plan') setName(`${one!.name.split(' ')[0]}’s meal plan`);
+    buildSample(diet, target.calorieGoal);
+  };
 
   const send = async () => {
     if (!cloud.coach || !clients) return;
@@ -114,6 +145,32 @@ export default function BuildMealPlan() {
             {one!.name.split(' ')[0]}’s targets: {theirGoals.calories.toLocaleString()} cal · {theirGoals.protein} g protein
           </Meta>
         ) : null}
+      </Card>
+
+      <Card style={{ gap: 10 }}>
+        <CardTitle>Start from a sample</CardTitle>
+        {target ? (
+          <>
+            <Meta>
+              Built from {one!.name.split(' ')[0]}’s targets: {target.calorieGoal.toLocaleString()} cal, {target.proteinGoal} g protein
+              {target.diet ? `, ${DIETS.find((d) => d.key === target.diet)?.label ?? ''}` : ''}.
+            </Meta>
+            <Btn label={`Fit to ${one!.name.split(' ')[0]}’s targets`} icon="sparkles-outline" onPress={fitToClient} />
+            <Meta>Or choose your own:</Meta>
+          </>
+        ) : (
+          <Meta>A full day sized to the calories you choose. Change anything before sending.</Meta>
+        )}
+        <View style={s.chips}>
+          {DIETS.map((d) => (
+            <Pill key={d.key} label={d.label} on={sampleDiet === d.key} onPress={() => setSampleDiet(d.key)} />
+          ))}
+        </View>
+        <Row style={{ gap: S.gap }}>
+          <TextInput value={sampleCal} onChangeText={(v) => setSampleCal(digits(v))} keyboardType="number-pad" placeholder="Calories" placeholderTextColor={C.faint} style={[s.input, { flex: 1 }]} />
+          <Btn label="Build" icon="restaurant-outline" ghost onPress={() => buildSample(sampleDiet, parseInt(sampleCal, 10) || 2000)} style={{ flex: 1 }} />
+        </Row>
+        {meals.length ? <Meta>Don’t like it? Tap Build again for a different day.</Meta> : null}
       </Card>
 
       {slots.map(({ key, label }) => (

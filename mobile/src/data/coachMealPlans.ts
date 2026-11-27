@@ -1,3 +1,4 @@
+import { type Diet, planDay, portionLabel } from './mealplan';
 import { mealTotals } from './myMeals';
 import type { Meal, MealItem } from './types';
 
@@ -52,3 +53,22 @@ export const mealToLog = (plan: CoachMealPlan, m: PlanMeal) => ({
   ...mealTotals(m.items),
   planRef: planRef(plan.id, m.slot),
 });
+
+/**
+ * A sample day for the coach to edit and send: the app's meal-plan builder
+ * sized to `calories` for the diet. Different seeds give different days.
+ */
+export function samplePlan(diet: Diet, calories: number, seed: number): PlanMeal[] {
+  const day = planDay({ dateKey: `sample-${seed}`, diet, calories: Math.max(1200, Math.min(5000, Math.round(calories))), workoutDay: false });
+  const out: PlanMeal[] = [];
+  for (const m of day.meals) {
+    const what = m.portion === 1 ? m.meal.serving : `${portionLabel(m.portion)} of: ${m.meal.serving}`;
+    const item = { name: `${m.meal.name} (${what})`.slice(0, 120), calories: m.kcal, protein: m.protein, carbs: m.carbs, fat: m.fat };
+    // a second snack (big targets) becomes the evening snack
+    const slot: PlanSlot = m.slot === 'snack' && out.some((x) => x.slot === 'snack') ? 'snack2' : m.slot;
+    const existing = out.find((x) => x.slot === slot);
+    if (existing) existing.items.push(item);
+    else out.push({ slot, items: [item] });
+  }
+  return out;
+}
